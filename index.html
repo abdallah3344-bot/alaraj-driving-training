@@ -1653,7 +1653,7 @@ const STORAGE_KEY = 'driving_school_data_v1';
 // بيانات المدرسة الرسمية — تُعبَّأ تلقائياً في النماذج الحكومية المطبوعة،
 // وتُدار من شاشة "بيانات المدرسة" (تبويب مستقل) بدل تعديل الكود.
 const COMPANY_MANAGER_LINE = '';
-const COMPANY_PHONE_LINE = 'هاتف 09-2696163 — جوال 0597296333';
+const COMPANY_PHONE_LINE = '';   // كان هاتف مدرسة كمال القديم — تُركت فارغة، تُعبَّأ من شاشة "بيانات المدرسة"
 // بيانات المدرسة الرسمية — تُعبَّأ تلقائياً في النماذج الحكومية المطبوعة
 const COMPANY_OWNER_NAME     = '';   // صاحب المدرسة والمدير المهني — تُعبَّأ من شاشة "بيانات المدرسة"
 const COMPANY_OWNER_ID       = '922361639';
@@ -1676,6 +1676,14 @@ function getSchoolInfo(){
   const d = defaultSchoolInfo();
   const cur = (state && state.schoolInfo && typeof state.schoolInfo === 'object') ? state.schoolInfo : {};
   return Object.assign(d, cur);
+}
+// سطر التواصل المعروض بترويسة كل المطبوعات — يُبنى من "بيانات المدرسة" الفعلية بدل ثوابت الكود الثابتة
+function schoolContactLine(){
+  const info = getSchoolInfo();
+  const parts = [];
+  if(info.managerName) parts.push('بإدارة ' + info.managerName);
+  if(info.phone) parts.push('هاتف ' + info.phone);
+  return parts.join(' — ');
 }
 
 function defaultState(){
@@ -2830,7 +2838,7 @@ function printTableAsList(title, tableBodyId){
       @media print{ .no-print{ display:none; } }
     </style></head>
     <body>
-      <div class="brand-row"><img class="brand-logo-corner" src="${LOGO_DATA_URI}"><div class="brand-center"><h1>مدرسة الاعرج لتعليم السياقة</h1><p class="contact">${COMPANY_MANAGER_LINE} — ${COMPANY_PHONE_LINE}</p></div><div class="brand-left"><img src="${FACEBOOK_QR_DATA_URI}"><div>تابعونا على فيسبوك</div></div></div>
+      <div class="brand-row"><img class="brand-logo-corner" src="${LOGO_DATA_URI}"><div class="brand-center"><h1>مدرسة الاعرج لتعليم السياقة</h1><p class="contact">${schoolContactLine()}</p></div><div class="brand-left"><img src="${FACEBOOK_QR_DATA_URI}"><div>تابعونا على فيسبوك</div></div></div>
       <hr>
       <h2>${title}</h2>
       <div class="meta">تاريخ الطباعة: ${new Date().toLocaleString('ar-EG')} — عدد السجلات: ${visibleRows.length}</div>
@@ -3330,7 +3338,7 @@ async function printStudentCard(id){
               <div class="row"><b>الحالة:</b> ${s.status}</div>
             </div>
           </div>
-          <div class="card-footer">${COMPANY_MANAGER_LINE} — ${COMPANY_PHONE_LINE}<br>صالحة طوال فترة التسجيل في المكتب — تاريخ الإصدار: ${todayStr()}</div>
+          <div class="card-footer">${schoolContactLine()}<br>صالحة طوال فترة التسجيل في المكتب — تاريخ الإصدار: ${todayStr()}</div>
         </div>
         <div class="no-print"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة البطاقة</button></div>
       </div>
@@ -3380,7 +3388,7 @@ async function openStudentFile(id){
       @media (max-width:480px){ .header-flex img, .header-flex .avatar-fallback{ width:64px; height:64px; font-size:24px; } }
     </style></head>
     <body>
-      <div class="brand-row"><img class="brand-logo-corner" src="${LOGO_DATA_URI}"><div class="brand-center"><h1>مدرسة الاعرج لتعليم السياقة</h1><p>ملف الطالب</p><p class="contact">${COMPANY_MANAGER_LINE} — ${COMPANY_PHONE_LINE}</p></div><div class="brand-left"><img src="${FACEBOOK_QR_DATA_URI}"><div>تابعونا على فيسبوك</div></div></div>
+      <div class="brand-row"><img class="brand-logo-corner" src="${LOGO_DATA_URI}"><div class="brand-center"><h1>مدرسة الاعرج لتعليم السياقة</h1><p>ملف الطالب</p><p class="contact">${schoolContactLine()}</p></div><div class="brand-left"><img src="${FACEBOOK_QR_DATA_URI}"><div>تابعونا على فيسبوك</div></div></div>
       <hr>
       <div class="header-flex">
         ${photoUrl ? `<img src="${photoUrl}">` : `<div class="avatar-fallback">${avatarInitial(s.name)}</div>`}
@@ -3480,7 +3488,13 @@ function renderHomeWelcome(){
     dateStr = new Date().toLocaleDateString('ar-EG', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
   }catch(e){ dateStr = todayStr(); }
   el2.textContent = 'نظام إدارة مكتب تعليم السياقة — مدرسة الاعرج لتعليم السياقة — ' + dateStr;
-  if(el3) el3.textContent = COMPANY_MANAGER_LINE + ' — ' + COMPANY_PHONE_LINE;
+  if(el3){
+    const info = getSchoolInfo();
+    const parts = [];
+    if(info.address) parts.push(info.address);
+    if(info.phone) parts.push('هاتف ' + info.phone);
+    el3.textContent = parts.join(' — ');
+  }
 }
 
 function gatherLicenseAlertItems(){
@@ -5594,7 +5608,7 @@ function printReceipt(paymentId){
       @media print{ .no-print{ display:none; } }
     </style></head>
     <body>
-      <div class="brand-row"><img class="brand-logo-corner" src="${LOGO_DATA_URI}"><div class="brand-center"><h1>مدرسة الاعرج لتعليم السياقة</h1><p>سند قبض</p><p class="contact">${COMPANY_MANAGER_LINE} — ${COMPANY_PHONE_LINE}</p></div><div class="brand-left"><img src="${FACEBOOK_QR_DATA_URI}"><div>تابعونا على فيسبوك</div></div></div>
+      <div class="brand-row"><img class="brand-logo-corner" src="${LOGO_DATA_URI}"><div class="brand-center"><h1>مدرسة الاعرج لتعليم السياقة</h1><p>سند قبض</p><p class="contact">${schoolContactLine()}</p></div><div class="brand-left"><img src="${FACEBOOK_QR_DATA_URI}"><div>تابعونا على فيسبوك</div></div></div>
       <hr>
       <h2>سند قبض رقم ${receiptNo(p.id)}</h2>
       <table>
@@ -5787,7 +5801,7 @@ function printDisbursement(id){
       @media print{ .no-print{ display:none; } }
     </style></head>
     <body>
-      <div class="brand-row"><img class="brand-logo-corner" src="${LOGO_DATA_URI}"><div class="brand-center"><h1>مدرسة الاعرج لتعليم السياقة</h1><p>سند صرف</p><p class="contact">${COMPANY_MANAGER_LINE} — ${COMPANY_PHONE_LINE}</p></div><div class="brand-left"><img src="${FACEBOOK_QR_DATA_URI}"><div>تابعونا على فيسبوك</div></div></div>
+      <div class="brand-row"><img class="brand-logo-corner" src="${LOGO_DATA_URI}"><div class="brand-center"><h1>مدرسة الاعرج لتعليم السياقة</h1><p>سند صرف</p><p class="contact">${schoolContactLine()}</p></div><div class="brand-left"><img src="${FACEBOOK_QR_DATA_URI}"><div>تابعونا على فيسبوك</div></div></div>
       <hr>
       <h2>سند صرف رقم ${disbursementNo(d.id)}</h2>
       <table>
@@ -7239,7 +7253,7 @@ function printStatement(){
       @media print{ .no-print{ display:none; } }
     </style></head>
     <body>
-      <div class="brand-row"><img class="brand-logo-corner" src="${LOGO_DATA_URI}"><div class="brand-center"><h1>مدرسة الاعرج لتعليم السياقة</h1><p>كشف حساب</p><p class="contact">${COMPANY_MANAGER_LINE} — ${COMPANY_PHONE_LINE}</p></div><div class="brand-left"><img src="${FACEBOOK_QR_DATA_URI}"><div>تابعونا على فيسبوك</div></div></div>
+      <div class="brand-row"><img class="brand-logo-corner" src="${LOGO_DATA_URI}"><div class="brand-center"><h1>مدرسة الاعرج لتعليم السياقة</h1><p>كشف حساب</p><p class="contact">${schoolContactLine()}</p></div><div class="brand-left"><img src="${FACEBOOK_QR_DATA_URI}"><div>تابعونا على فيسبوك</div></div></div>
       <hr>
       <h2>${lastStatement.title}</h2>
       <div class="range">الفترة: من ${from} إلى ${to} — تاريخ الطباعة: ${todayStr()}</div>
