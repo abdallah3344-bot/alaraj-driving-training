@@ -632,7 +632,7 @@
     </div>
     <div class="form-grid">
       <div class="field"><label>الاسم</label><input id="ed_st_name"></div>
-      <div class="field"><label>الهاتف</label><input id="ed_st_phone"></div>
+      <div class="field"><label>الهاتف</label><input id="ed_st_phone" oninput="mirrorPhoneToHouse('ed_st_')"></div>
       <div class="field"><label>رقم الهوية</label><input id="ed_st_nid"></div>
       <div class="field"><label>نوع الرخصة</label><select id="ed_st_license" onchange="handleDynamicSelect(this,'licenseTypes')"></select></div>
       <div class="field"><label>فئة الرخصة الرسمية (للنماذج الحكومية)</label>
@@ -679,13 +679,27 @@
       </div>
       <div class="field"><label>رقم الهوية</label><input id="ed_sf_national_id"></div>
       <div class="field"><label>رقم رخصة القيادة الشخصية</label><input id="ed_sf_personal_license_no"></div>
-      <div class="field"><label>تاريخ انتهاء رخصة القيادة الشخصية</label><input id="ed_sf_personal_license_expiry" type="date"></div>
+      <div class="field"><label>تاريخ انتهاء رخصة القيادة الشخصية</label><input id="ed_sf_personal_license_expiry" type="date" oninput="mirrorPersonalLicenseExpiry('ed_sf_')"></div>
       <div class="field"><label>رقم رخصة التدريب</label><input id="ed_sf_driving_license_no"></div>
       <div class="field"><label>سنة إصدار رخصة التدريب</label><input id="ed_sf_training_license_issue" type="number" min="1980" max="2100" step="1" placeholder="مثال: 2022"></div>
       <div class="field"><label>فئات الترخيص</label><input id="ed_sf_license"></div>
       <div class="field"><label>تاريخ انتهاء الرخصة الشخصية</label><input id="ed_sf_license_expiry" type="date"></div>
       <div class="field"><label>رقم المركبة</label><input id="ed_sf_vehicle_plate" list="vehiclePlatesList" oninput="autofillStaffVehicleType('ed_sf_')"></div>
       <div class="field"><label>نوع المركبة</label><input id="ed_sf_vehicle_type"></div>
+      <div class="field"><label>طريقة احتساب عمولة المدرب</label>
+        <select id="ed_sf_commission_mode" onchange="toggleCommissionPercentFields('ed_sf_')">
+          <option value="fixed">مبلغ ثابت حسب نوع رخصة الطالب (الافتراضي)</option>
+          <option value="percentage">نسبة مئوية من سعر الحصة ومن رسوم الفحص العملي</option>
+        </select>
+      </div>
+      <div class="field" id="ed_sf_commission_percent_wrap" style="display:none">
+        <label>نسبة العمولة من سعر الحصة (%)</label>
+        <input id="ed_sf_commission_lesson_percent" type="number" step="0.1" min="0" max="100">
+      </div>
+      <div class="field" id="ed_sf_commission_exam_percent_wrap" style="display:none">
+        <label>نسبة العمولة من رسوم الفحص العملي (%)</label>
+        <input id="ed_sf_commission_exam_percent" type="number" step="0.1" min="0" max="100">
+      </div>
     </div>
     <div class="field" style="margin-top:10px;">
       <label>المرفقات (صور رخصة القيادة، الهوية، إلخ)</label>
@@ -912,7 +926,7 @@
       </div>
       <div class="form-grid">
         <div class="field"><label>الاسم</label><input id="st_name"></div>
-        <div class="field"><label>الهاتف</label><input id="st_phone"></div>
+        <div class="field"><label>الهاتف</label><input id="st_phone" oninput="mirrorPhoneToHouse('st_')"></div>
         <div class="field"><label>رقم الهوية</label><input id="st_nid"></div>
         <div class="field"><label>نوع الرخصة</label>
           <select id="st_license" onchange="handleDynamicSelect(this,'licenseTypes')"></select>
@@ -972,17 +986,31 @@
         </div>
         <div class="field"><label>رقم الهوية</label><input id="sf_national_id"></div>
         <div class="field"><label>رقم رخصة القيادة الشخصية</label><input id="sf_personal_license_no"></div>
-        <div class="field"><label>تاريخ انتهاء رخصة القيادة الشخصية</label><input id="sf_personal_license_expiry" type="date"></div>
+        <div class="field"><label>تاريخ انتهاء رخصة القيادة الشخصية</label><input id="sf_personal_license_expiry" type="date" oninput="mirrorPersonalLicenseExpiry('sf_')"></div>
         <div class="field"><label>رقم رخصة التدريب</label><input id="sf_driving_license_no"></div>
         <div class="field"><label>سنة إصدار رخصة التدريب</label><input id="sf_training_license_issue" type="number" min="1980" max="2100" step="1" placeholder="مثال: 2022"></div>
         <div class="field"><label>فئات الترخيص</label><input id="sf_license"></div>
         <div class="field"><label>تاريخ انتهاء الرخصة الشخصية</label><input id="sf_license_expiry" type="date"></div>
         <div class="field"><label>رقم المركبة</label><input id="sf_vehicle_plate" list="vehiclePlatesList" placeholder="اختر أو اكتب رقم اللوحة" oninput="autofillStaffVehicleType('sf_')"></div>
         <div class="field"><label>نوع المركبة</label><input id="sf_vehicle_type" placeholder="يُعبَّأ تلقائياً عند اختيار مركبة مسجَّلة"></div>
+        <div class="field"><label>طريقة احتساب عمولة المدرب</label>
+          <select id="sf_commission_mode" onchange="toggleCommissionPercentFields('sf_')">
+            <option value="fixed">مبلغ ثابت حسب نوع رخصة الطالب (الافتراضي)</option>
+            <option value="percentage">نسبة مئوية من سعر الحصة ومن رسوم الفحص العملي</option>
+          </select>
+        </div>
+        <div class="field" id="sf_commission_percent_wrap" style="display:none">
+          <label>نسبة العمولة من سعر الحصة (%)</label>
+          <input id="sf_commission_lesson_percent" type="number" step="0.1" min="0" max="100">
+        </div>
+        <div class="field" id="sf_commission_exam_percent_wrap" style="display:none">
+          <label>نسبة العمولة من رسوم الفحص العملي (%)</label>
+          <input id="sf_commission_exam_percent" type="number" step="0.1" min="0" max="100">
+        </div>
       </div>
       <datalist id="vehiclePlatesList"></datalist>
       <div class="form-actions"><button class="btn btn-accent" onclick="addStaff()">➕ إضافة</button></div>
-      <div class="note" style="margin-top:12px;">💲 مبلغ عمولة المدرب لم يعد يُحدَّد لكل موظف على حدة — أصبح موحَّداً حسب نوع رخصة الطالب من تبويب "تسعير الدروس".</div>
+      <div class="note" style="margin-top:12px;">💲 الوضع الافتراضي: مبلغ ثابت حسب نوع رخصة الطالب (يُدار من تبويب "تسعير الدروس"). يمكن اختيار نسبة مئوية لمدرب معيّن بدلاً من ذلك من هنا.</div>
     </div>
     <div class="card">
       <h2>قائمة الموظفين</h2>
@@ -1044,7 +1072,7 @@
       <div class="form-grid">
         <div class="field"><label>السيارة</label><select id="ve_vehicle"></select></div>
         <div class="field"><label>نوع المصروف</label>
-          <select id="ve_type"><option>صيانة</option><option>وقود</option><option>أخرى</option></select>
+          <select id="ve_type"><option>صيانة</option><option>وقود</option><option>سولار</option><option>بنزين</option><option>كهرباء</option><option>أخرى</option></select>
         </div>
         <div class="field"><label>التكلفة</label><input id="ve_cost" type="number"></div>
         <div class="field"><label>التاريخ</label><input id="ve_date" type="date"></div>
@@ -1062,6 +1090,30 @@
         <tbody id="vehicleExpensesBody"></tbody>
       </table></div>
       <div id="vehicleExpensesEmpty" class="empty" style="display:none">لا توجد مصاريف مسجلة بعد</div>
+    </div>
+
+    <div class="card">
+      <h2>📋 سجل حركة السيارة اليومي (لحساب معدل التكلفة/كم)</h2>
+      <div class="form-grid">
+        <div class="field"><label>السيارة</label><select id="vd_vehicle"></select></div>
+        <div class="field"><label>التاريخ</label><input id="vd_date" type="date"></div>
+        <div class="field"><label>عداد بداية اليوم (كم)</label><input id="vd_start_odo" type="number" step="0.1"></div>
+        <div class="field"><label>عداد نهاية اليوم (كم)</label><input id="vd_end_odo" type="number" step="0.1"></div>
+        <div class="field"><label>نوع الوقود</label>
+          <select id="vd_fuel_type"><option>سولار</option><option>بنزين</option><option>كهرباء</option></select>
+        </div>
+        <div class="field"><label>تكلفة الوقود لهذا اليوم</label><input id="vd_fuel_cost" type="number" step="0.01"></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-accent" onclick="addVehicleDailyLog()">➕ تسجيل حركة اليوم</button></div>
+      <div class="note" style="margin-top:12px;">تُسجَّل تكلفة الوقود تلقائياً أيضاً ضمن "سجل مصاريف السيارات" أعلاه، ويُحتسب معدل التكلفة لكل كيلومتر تلقائياً (التكلفة ÷ المسافة المقطوعة ذلك اليوم).</div>
+    </div>
+    <div class="card">
+      <h2>سجل الحركة اليومي المسجَّل</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>الرقم</th><th>السيارة</th><th>التاريخ</th><th>عداد البداية</th><th>عداد النهاية</th><th>المسافة (كم)</th><th>نوع الوقود</th><th>التكلفة</th><th>معدل التكلفة/كم</th><th></th></tr></thead>
+        <tbody id="vehicleDailyLogsBody"></tbody>
+      </table></div>
+      <div id="vehicleDailyLogsEmpty" class="empty" style="display:none">لا توجد حركة يومية مسجَّلة بعد</div>
     </div>
   </section>
 
@@ -1530,6 +1582,7 @@
             <option value="totalExpenses">🧾 تقرير إجمالي المصروفات (شامل)</option>
             <option value="profitLoss">📈 تقرير صافي الربح أو الخسارة</option>
             <option value="vehicleExpenses">🚗 تقرير مصاريف السيارات</option>
+            <option value="vehicleMovement">🛣️ تقرير حركة السيارات (العداد/التكلفة)</option>
             <option value="generalExpenses">🏢 تقرير مصاريف المكتب العامة</option>
             <option value="topInstructors">🏆 أفضل المدربين (حسب الحصص المنجزة)</option>
             <option value="commissions">💰 تقرير عمولات المدربين</option>
@@ -1765,7 +1818,7 @@ function schoolContactLine(){
 function defaultState(){
   return {
     students: [], staff: [], vehicles: [], lessons: [], invoices: [], payments: [],
-    vehicleExpenses: [], generalExpenses: [], exams: [],
+    vehicleExpenses: [], generalExpenses: [], exams: [], vehicleDailyLogs: [],
     lessonPrices: [
       { id: 1, license: 'رخصة شحن', lessonType: 'عملي', gear: 'أوتوماتيك', price: 120 },
       { id: 2, license: 'رخصة شحن', lessonType: 'عملي', gear: 'عادي', price: 120 },
@@ -2124,9 +2177,9 @@ async function initDataSync(){
   }
 }
 const STATE_ARRAY_FIELDS = ['students','staff','vehicles','lessons','invoices','payments',
-  'vehicleExpenses','generalExpenses','lessonPrices','exams','customLicenseTypes','customExpenseTypes','customInvoiceTypes','users','commissionRates','disbursements','cheques','customPaperTypes','customDepartments','officialPapers','licenseCategoryOptions'];
+  'vehicleExpenses','generalExpenses','lessonPrices','exams','customLicenseTypes','customExpenseTypes','customInvoiceTypes','users','commissionRates','disbursements','cheques','customPaperTypes','customDepartments','officialPapers','licenseCategoryOptions','vehicleDailyLogs'];
 const STATE_NEXTID_KEYS = ['students','staff','vehicles','lessons','invoices','payments',
-  'vehicleExpenses','generalExpenses','lessonPrices','exams','users','commissionRates','disbursements','cheques','officialPapers'];
+  'vehicleExpenses','generalExpenses','lessonPrices','exams','users','commissionRates','disbursements','cheques','officialPapers','vehicleDailyLogs'];
 
 // يتحقق من شكل أي بيانات "حالة" قادمة من مصدر خارجي (خادم المزامنة أو ملف نسخة احتياطية مستورَد)
 // ويُصلح ما يمكن إصلاحه بأمان، ويرفض (بإرجاع null) إن كانت البيانات تالفة بشكل جوهري.
@@ -2597,6 +2650,26 @@ function showStorageWarning(){
 
 function newId(kind){ const id = state.nextId[kind]++; saveState(); return id; }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
+// يعكس رقم الهاتف مباشرة في خانة "رقم البيت" لحظة الكتابة (بطلب صريح)، وتبقى خانة رقم البيت قابلة للتعديل يدوياً بعدها كأي حقل آخر
+function mirrorPhoneToHouse(prefix){
+  const phoneEl = document.getElementById(prefix + 'phone');
+  const houseEl = document.getElementById(prefix + 'house');
+  if(phoneEl && houseEl) houseEl.value = phoneEl.value;
+}
+// يعكس تاريخ انتهاء رخصة القيادة الشخصية في خانة "تاريخ انتهاء الرخصة الشخصية" لحظة الإدخال، وتبقى قابلة للتعديل يدوياً بعدها
+function mirrorPersonalLicenseExpiry(prefix){
+  const src = document.getElementById(prefix + 'personal_license_expiry');
+  const dst = document.getElementById(prefix + 'license_expiry');
+  if(src && dst) dst.value = src.value;
+}
+// حقول تاريخ "متى حدث هذا" بشاشات الإدخال (وليس تواريخ ميلاد/انتهاء/استحقاق) — تُعبَّأ بتاريخ اليوم افتراضياً مع إمكانية تعديلها يدوياً
+const TODAY_DEFAULT_DATE_FIELDS = ['ve_date','ge_date','ls_date','ex_date','rcpt_date','dsb_date','pap_date','vd_date'];
+function fillTodayDefaultDates(){
+  TODAY_DEFAULT_DATE_FIELDS.forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = todayStr();
+  });
+}
 
 // ------------------------------------------------------------------
 // التنقل بين التبويبات
@@ -2688,7 +2761,7 @@ function showTab(id){
 // ------------------------------------------------------------------
 const DYNAMIC_SELECTS = {
   licenseTypes: {
-    base: ['خصوصي', 'عمومي', 'دراجة نارية', 'رخصة شحن'],
+    base: ['خصوصي', 'عمومي', 'دراجة نارية', 'رخصة شحن', 'باص', 'شحن ثقيل', 'تريلا', 'تراكتور'],
     stateKey: 'customLicenseTypes',
     selectIds: ['st_license', 'pr_license', 'ed_st_license'],
     promptLabel: 'نوع الرخصة الجديد'
@@ -2750,6 +2823,11 @@ function handleDynamicSelect(selectEl, kind){
     saveState();
   }
   populateDynamicSelect(kind, trimmed, selectEl.id);
+  // نوع الرخصة يظهر أيضاً بقائمة "مبلغ عمولة المدرب حسب نوع الرخصة" بتبويب تسعير الدروس،
+  // وهي قائمة منفصلة عن آلية selectIds العامة (لاحتوائها خيار "باقي الفئات" الافتراضي) — تُحدَّث هنا يدوياً فوراً
+  if(kind === 'licenseTypes' && typeof refreshCommissionRateLicenseOptions === 'function'){
+    refreshCommissionRateLicenseOptions();
+  }
 }
 
 // ----- إدارة فئات الرخصة الرسمية (إضافة/تعديل/حذف كاملة) -----
@@ -3732,6 +3810,12 @@ function renderStaffAlerts(){
   renderAlertBanner('staffAlertBanner', items);
 }
 
+function toggleCommissionPercentFields(prefix){
+  const mode = document.getElementById(prefix + 'commission_mode').value;
+  const show = mode === 'percentage';
+  document.getElementById(prefix + 'commission_percent_wrap').style.display = show ? '' : 'none';
+  document.getElementById(prefix + 'commission_exam_percent_wrap').style.display = show ? '' : 'none';
+}
 function addStaff(){
   const name = document.getElementById('sf_name').value.trim();
   if(!name){ alert('الرجاء إدخال اسم الموظف'); return; }
@@ -3749,9 +3833,14 @@ function addStaff(){
     licenseExpiry: document.getElementById('sf_license_expiry').value,
     vehiclePlate: document.getElementById('sf_vehicle_plate').value.trim(),
     vehicleType: document.getElementById('sf_vehicle_type').value.trim(),
+    commissionMode: document.getElementById('sf_commission_mode').value || 'fixed',
+    commissionLessonPercent: parseFloat(document.getElementById('sf_commission_lesson_percent').value) || 0,
+    commissionExamPercent: parseFloat(document.getElementById('sf_commission_exam_percent').value) || 0,
     hired: todayStr()
   });
-  ['sf_name','sf_phone','sf_address','sf_national_id','sf_personal_license_no','sf_personal_license_expiry','sf_driving_license_no','sf_training_license_issue','sf_license','sf_license_expiry','sf_vehicle_plate','sf_vehicle_type'].forEach(id=>document.getElementById(id).value='');
+  ['sf_name','sf_phone','sf_address','sf_national_id','sf_personal_license_no','sf_personal_license_expiry','sf_driving_license_no','sf_training_license_issue','sf_license','sf_license_expiry','sf_vehicle_plate','sf_vehicle_type','sf_commission_lesson_percent','sf_commission_exam_percent'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sf_commission_mode').value = 'fixed';
+  toggleCommissionPercentFields('sf_');
   renderStaff();
 }
 function deleteStaff(id){
@@ -3837,6 +3926,10 @@ function openEditStaffModal(id){
   document.getElementById('ed_sf_license_expiry').value = s.licenseExpiry || '';
   document.getElementById('ed_sf_vehicle_plate').value = s.vehiclePlate || '';
   document.getElementById('ed_sf_vehicle_type').value = s.vehicleType || '';
+  document.getElementById('ed_sf_commission_mode').value = s.commissionMode || 'fixed';
+  document.getElementById('ed_sf_commission_lesson_percent').value = s.commissionLessonPercent || '';
+  document.getElementById('ed_sf_commission_exam_percent').value = s.commissionExamPercent || '';
+  toggleCommissionPercentFields('ed_sf_');
   renderAttachments('staff', id);
   document.getElementById('editStaffModal').classList.add('show');
 }
@@ -3862,6 +3955,9 @@ function saveEditStaff(){
   s.licenseExpiry = document.getElementById('ed_sf_license_expiry').value;
   s.vehiclePlate = document.getElementById('ed_sf_vehicle_plate').value.trim();
   s.vehicleType = document.getElementById('ed_sf_vehicle_type').value.trim();
+  s.commissionMode = document.getElementById('ed_sf_commission_mode').value || 'fixed';
+  s.commissionLessonPercent = parseFloat(document.getElementById('ed_sf_commission_lesson_percent').value) || 0;
+  s.commissionExamPercent = parseFloat(document.getElementById('ed_sf_commission_exam_percent').value) || 0;
   closeEditStaffModal();
   renderStaff();
 }
@@ -3909,8 +4005,10 @@ function deleteVehicle(id){
   if(!confirm(msg)) return;
   state.vehicles = state.vehicles.filter(v=>v.id!==id);
   state.vehicleExpenses = state.vehicleExpenses.filter(e=>e.vehicleId!==id);
+  state.vehicleDailyLogs = state.vehicleDailyLogs.filter(l=>l.vehicleId!==id);
   renderVehicles();
   renderVehicleExpenses();
+  renderVehicleDailyLogs();
 }
 function renewVehicleLicense(id){
   const v = state.vehicles.find(v=>v.id===id);
@@ -3981,8 +4079,67 @@ function saveEditVehicle(){
 // -- مصاريف السيارات (صيانة / وقود) --
 function refreshExpenseDropdown(){
   const sel = document.getElementById('ve_vehicle');
-  if(!sel) return;
-  sel.innerHTML = state.vehicles.map(v=>`<option value="${v.id}">${v.plate} (#${v.id})</option>`).join('') || '<option value="">لا توجد سيارات</option>';
+  const sel2 = document.getElementById('vd_vehicle');
+  const optionsHtml = state.vehicles.map(v=>`<option value="${v.id}">${v.plate} (#${v.id})</option>`).join('') || '<option value="">لا توجد سيارات</option>';
+  if(sel) sel.innerHTML = optionsHtml;
+  if(sel2) sel2.innerHTML = optionsHtml;
+}
+function addVehicleDailyLog(){
+  const vehicleId = parseInt(document.getElementById('vd_vehicle').value);
+  const date = document.getElementById('vd_date').value || todayStr();
+  const startOdo = parseFloat(document.getElementById('vd_start_odo').value);
+  const endOdo = parseFloat(document.getElementById('vd_end_odo').value);
+  const fuelType = document.getElementById('vd_fuel_type').value;
+  const fuelCost = parseFloat(document.getElementById('vd_fuel_cost').value);
+  if(!vehicleId){ alert('الرجاء اختيار السيارة'); return; }
+  if(isNaN(startOdo) || isNaN(endOdo)){ alert('الرجاء إدخال عداد بداية ونهاية اليوم'); return; }
+  if(endOdo <= startOdo){ alert('عداد نهاية اليوم يجب أن يكون أكبر من عداد بداية اليوم'); return; }
+  if(!fuelCost || fuelCost<=0){ alert('الرجاء إدخال تكلفة وقود صحيحة'); return; }
+
+  const distanceKm = Math.round((endOdo - startOdo) * 100) / 100;
+  const costPerKm = Math.round((fuelCost / distanceKm) * 100) / 100;
+
+  // تُسجَّل كمصروف سيارة عادي أيضاً حتى تظهر في كل تقارير المصاريف الحالية
+  const expenseId = newId('vehicleExpenses');
+  state.vehicleExpenses.push({
+    id: expenseId, vehicleId, type: fuelType, cost: fuelCost, date,
+    notes: `سجل حركة يومي — من ${startOdo} إلى ${endOdo} كم (${distanceKm} كم)`
+  });
+
+  state.vehicleDailyLogs.push({
+    id: newId('vehicleDailyLogs'), vehicleId, date, startOdo, endOdo, distanceKm,
+    fuelType, fuelCost, costPerKm, linkedExpenseId: expenseId
+  });
+
+  document.getElementById('vd_start_odo').value = '';
+  document.getElementById('vd_end_odo').value = '';
+  document.getElementById('vd_fuel_cost').value = '';
+  document.getElementById('vd_date').value = todayStr();
+  renderVehicleDailyLogs();
+  renderVehicleExpenses();
+}
+function deleteVehicleDailyLog(id){
+  if(!confirm('هل تريد حذف سجل الحركة هذا؟ (سيُحذف معه مصروف الوقود المرتبط به تلقائياً)')) return;
+  const log = state.vehicleDailyLogs.find(l=>l.id===id);
+  if(log && log.linkedExpenseId){
+    state.vehicleExpenses = state.vehicleExpenses.filter(e=>e.id!==log.linkedExpenseId);
+  }
+  state.vehicleDailyLogs = state.vehicleDailyLogs.filter(l=>l.id!==id);
+  renderVehicleDailyLogs();
+  renderVehicleExpenses();
+}
+function renderVehicleDailyLogs(){
+  saveState();
+  const body = document.getElementById('vehicleDailyLogsBody');
+  const sorted = [...state.vehicleDailyLogs].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  body.innerHTML = sorted.map(l=>`
+    <tr>
+      <td>${l.id}</td><td>${nameOf(state.vehicles, l.vehicleId)}</td><td>${l.date||'-'}</td>
+      <td>${l.startOdo}</td><td>${l.endOdo}</td><td>${l.distanceKm}</td>
+      <td>${l.fuelType}</td><td>${l.fuelCost.toFixed(2)}</td><td><b>${l.costPerKm.toFixed(2)}</b></td>
+      <td class="row-actions"><button class="btn btn-danger" onclick="deleteVehicleDailyLog(${l.id})">حذف</button></td>
+    </tr>`).join('');
+  document.getElementById('vehicleDailyLogsEmpty').style.display = state.vehicleDailyLogs.length? 'none':'block';
 }
 function addVehicleExpense(){
   const vehicleId = parseInt(document.getElementById('ve_vehicle').value);
@@ -3997,6 +4154,7 @@ function addVehicleExpense(){
   });
   document.getElementById('ve_cost').value='';
   document.getElementById('ve_notes').value='';
+  document.getElementById('ve_date').value = todayStr();
   renderVehicleExpenses();
 }
 function deleteVehicleExpense(id){
@@ -4033,6 +4191,7 @@ function addGeneralExpense(){
   });
   document.getElementById('ge_amount').value='';
   document.getElementById('ge_notes').value='';
+  document.getElementById('ge_date').value = todayStr();
   renderGeneralExpenses();
 }
 function deleteGeneralExpense(id){
@@ -4099,6 +4258,8 @@ function findLessonPrice(license, lessonType, gear){
   const key = lessonType==='نظري' ? '-' : gear;
   return state.lessonPrices.find(p=> p.license===license && p.lessonType===lessonType && p.gear===key);
 }
+// أنواع الرخص التي تكون مدة الحصة القياسية لها 30 دقيقة بدل 40 (تبقى قابلة للتعديل يدوياً دائماً)
+const SHORT_LESSON_DURATION_LICENSES = ['باص', 'دراجة نارية', 'شحن ثقيل', 'تريلا', 'تراكتور'];
 function applyStudentPreferences(){
   const studentId = parseInt(document.getElementById('ls_student').value);
   const student = state.students.find(s=>s.id===studentId);
@@ -4111,6 +4272,7 @@ function applyStudentPreferences(){
   if(student.preferredVehicleId && vehicleSel.querySelector(`option[value="${student.preferredVehicleId}"]`)){
     vehicleSel.value = student.preferredVehicleId;
   }
+  document.getElementById('ls_duration').value = SHORT_LESSON_DURATION_LICENSES.includes(student.license) ? 30 : 40;
 }
 function suggestLessonPrice(){
   const studentId = parseInt(document.getElementById('ls_student').value);
@@ -4183,14 +4345,20 @@ function addLesson(){
   renderStudents();
   renderInvoices();
 
-  document.getElementById('ls_date').value='';
+  document.getElementById('ls_date').value = todayStr();
   document.getElementById('ls_price').value='';
   renderLessons();
 }
 function lessonCommission(l){
   // إن كانت العمولة قد ثُبِّتت فعلياً وقت إنجاز الحصة، نستخدم تلك القيمة الثابتة
-  // (حتى لا تتغيّر عمولات حصص قديمة إن عُدِّل مبلغ العمولة لاحقاً)
+  // (حتى لا تتغيّر عمولات حصص قديمة إن عُدِّل مبلغ العمولة أو نسبتها لاحقاً)
   if(l.commissionAmount !== undefined && l.commissionAmount !== null) return l.commissionAmount;
+  const instructor = state.staff.find(s=>s.id===l.instructorId);
+  // وضع النسبة المئوية: عمولة المدرب = نسبته الخاصة من سعر هذه الحصة تحديداً
+  if(instructor && instructor.commissionMode === 'percentage'){
+    return Math.round((l.price||0) * (instructor.commissionLessonPercent||0) / 100 * 100) / 100;
+  }
+  // الوضع الافتراضي: مبلغ ثابت حسب نوع رخصة الطالب (كما كان)
   const student = state.students.find(s=>s.id===l.studentId);
   const license = student ? student.license : null;
   const specific = license ? state.commissionRates.find(r=>r.license===license) : null;
@@ -4435,7 +4603,7 @@ function addExam(){
     datetime: dt, result: 'لم يحدد بعد',
     notes: document.getElementById('ex_notes').value.trim()
   });
-  document.getElementById('ex_date').value = '';
+  document.getElementById('ex_date').value = todayStr();
   document.getElementById('ex_notes').value = '';
   renderExams();
 }
@@ -4615,12 +4783,24 @@ function addInvoice(){
   const studentId = parseInt(document.getElementById('inv_student').value);
   const amount = parseFloat(document.getElementById('inv_amount').value);
   if(!studentId || !amount){ alert('الرجاء اختيار الطالب وإدخال المبلغ'); return; }
-  state.invoices.push({
+  const invoiceType = document.getElementById('inv_type').value;
+  const invoice = {
     id: newId('invoices'), studentId, amount,
-    invoiceType: document.getElementById('inv_type').value,
+    invoiceType,
     notes: document.getElementById('inv_notes').value.trim(),
     due: document.getElementById('inv_due').value, status:'معلقة', created: todayStr()
-  });
+  };
+  // عمولة الفحص العملي: تُحتسب وتُثبَّت فوراً لحظة تسجيل رسوم الفحص كفاتورة (وليس لاحقاً)
+  // فقط إن كان للطالب مدرب معتاد محدَّد، وكان ذلك المدرب على وضع "نسبة مئوية"
+  if(invoiceType === 'رسوم الفحص العملي'){
+    const student = state.students.find(s=>s.id===studentId);
+    const instructor = student && student.preferredInstructorId ? state.staff.find(s=>s.id===student.preferredInstructorId) : null;
+    if(instructor && instructor.commissionMode === 'percentage'){
+      invoice.examCommissionInstructorId = instructor.id;
+      invoice.examCommissionAmount = Math.round(amount * (instructor.commissionExamPercent||0) / 100 * 100) / 100;
+    }
+  }
+  state.invoices.push(invoice);
   document.getElementById('inv_amount').value='';
   document.getElementById('inv_due').value='';
   document.getElementById('inv_notes').value='';
@@ -5563,6 +5743,7 @@ function addStandalonePayment(){
   document.getElementById('rcpt_amount').value='';
   document.getElementById('rcpt_notes').value='';
   document.getElementById('rcpt_payer_name').value='';
+  document.getElementById('rcpt_date').value = todayStr();
   renderReceipts();
   printReceipt(paymentId);
 }
@@ -5777,6 +5958,7 @@ function addDisbursement(){
   });
   document.getElementById('dsb_amount').value='';
   document.getElementById('dsb_notes').value='';
+  document.getElementById('dsb_date').value = todayStr();
   if(type === 'راتب موظف'){
     document.getElementById('dsb_recipient_staff').value = '';
     document.getElementById('dsb_recipient').value = '';
@@ -6066,6 +6248,7 @@ function addOfficialPaper(){
   document.getElementById('pap_due').value = '';
   document.getElementById('pap_notes').value = '';
   document.getElementById('pap_student').value = '';
+  document.getElementById('pap_date').value = todayStr();
   renderOfficialPapers();
 }
 function setPaperStatus(id, status){
@@ -7406,7 +7589,7 @@ function onReportTypeChange(){
     wrap.style.display = '';
     label.textContent = 'تصفية حسب الطالب';
     select.innerHTML = '<option value="">— كل الطلاب —</option>' + state.students.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-  } else if(type==='vehicleExpenses'){
+  } else if(type==='vehicleExpenses' || type==='vehicleMovement'){
     wrap.style.display = '';
     label.textContent = 'تصفية حسب السيارة';
     select.innerHTML = '<option value="">— كل السيارات —</option>' + state.vehicles.map(v=>`<option value="${v.id}">${v.plate}</option>`).join('');
@@ -7534,6 +7717,25 @@ function generateDetailReport(){
     }).join('');
     rowCount = rows.length;
 
+  } else if(type==='vehicleMovement'){
+    title = '🛣️ تقرير حركة السيارات';
+    const filtered = state.vehicleDailyLogs.filter(l=> inRange(l.date, from, to) && (!filterId || l.vehicleId===filterId));
+    const byVehicle = {};
+    filtered.forEach(l=>{
+      if(!byVehicle[l.vehicleId]) byVehicle[l.vehicleId] = {distance:0, fuelCost:0, count:0};
+      byVehicle[l.vehicleId].distance += l.distanceKm;
+      byVehicle[l.vehicleId].fuelCost += l.fuelCost;
+      byVehicle[l.vehicleId].count += 1;
+    });
+    head.innerHTML = '<tr><th>السيارة</th><th>عدد الأيام المسجَّلة</th><th>إجمالي المسافة (كم)</th><th>إجمالي تكلفة الوقود</th><th>معدل التكلفة/كم</th></tr>';
+    const vRows = Object.entries(byVehicle);
+    body.innerHTML = vRows.map(([vid,v])=>{
+      const avgCostPerKm = v.distance>0 ? (v.fuelCost/v.distance) : 0;
+      return `<tr><td>${nameOf(state.vehicles, parseInt(vid))}</td><td>${v.count}</td>
+        <td>${v.distance.toFixed(2)}</td><td>${v.fuelCost.toFixed(2)}</td><td><b>${avgCostPerKm.toFixed(2)}</b></td></tr>`;
+    }).join('');
+    rowCount = vRows.length;
+
   } else if(type==='generalExpenses'){
     title = '🏢 تقرير مصاريف المكتب العامة';
     const filtered = state.generalExpenses.filter(e=> inRange(e.date, from, to));
@@ -7560,12 +7762,16 @@ function generateDetailReport(){
     const rows = instructors.map(ins=>{
       const doneLessons = state.lessons.filter(l=> l.status==='منجز' && l.instructorId===ins.id && l.datetime && inRange(l.datetime.slice(0,10), from, to));
       const revenue = doneLessons.reduce((s,l)=>s+(l.price||0),0);
-      const commission = doneLessons.reduce((s,l)=>s+lessonCommission(l),0);
-      return { name: ins.name, count: doneLessons.length, revenue, commission };
-    }).filter(r=>r.count>0);
-    head.innerHTML = '<tr><th>المدرب</th><th>عدد الحصص المنجزة</th><th>إجمالي إيرادات الحصص</th><th>إجمالي مبلغ العمولة (شيكل)</th></tr>';
+      const lessonCommissionTotal = doneLessons.reduce((s,l)=>s+lessonCommission(l),0);
+      // عمولة الفحص العملي: فواتير "رسوم الفحص العملي" المرتبطة بهذا المدرب (كمدرب معتاد للطالب) ولها نسبة مثبَّتة
+      const examInvoices = state.invoices.filter(inv=> inv.invoiceType==='رسوم الفحص العملي' && inv.examCommissionInstructorId===ins.id && inv.created && inRange(inv.created, from, to));
+      const examCommissionTotal = examInvoices.reduce((s,inv)=>s+(inv.examCommissionAmount||0),0);
+      const commission = lessonCommissionTotal + examCommissionTotal;
+      return { name: ins.name, count: doneLessons.length, revenue, lessonCommissionTotal, examCommissionTotal, commission };
+    }).filter(r=>r.count>0 || r.examCommissionTotal>0);
+    head.innerHTML = '<tr><th>المدرب</th><th>عدد الحصص المنجزة</th><th>إجمالي إيرادات الحصص</th><th>عمولة الحصص</th><th>عمولة الفحص العملي</th><th>إجمالي العمولة (شيكل)</th></tr>';
     body.innerHTML = rows.map(r=> `<tr><td>${r.name}</td><td>${r.count}</td>
-      <td>${r.revenue.toFixed(2)}</td><td><b>${r.commission.toFixed(2)} ₪</b></td></tr>`).join('');
+      <td>${r.revenue.toFixed(2)}</td><td>${r.lessonCommissionTotal.toFixed(2)}</td><td>${r.examCommissionTotal.toFixed(2)}</td><td><b>${r.commission.toFixed(2)} ₪</b></td></tr>`).join('');
     rowCount = rows.length;
 
   } else if(type==='exams'){
@@ -7652,6 +7858,7 @@ function renderAll(){
   populateLicenseCategorySelects();
   renderStudents(); renderStaff(); renderVehicles(); renderLessons(); renderInvoices();
   renderVehicleExpenses(); renderGeneralExpenses(); renderReceipts(); renderPricing(); renderExams();
+  renderVehicleDailyLogs();
   renderDisbursements(); renderCheques(); renderOfficialPapers();
   refreshLessonDropdowns(); refreshInvoiceDropdowns(); refreshExpenseDropdown(); refreshExamDropdowns(); renderReports();
   renderUsers();
@@ -7704,6 +7911,7 @@ function bootApp(){
   buildNav();
   renderAll();
   showTab('home');
+  fillTodayDefaultDates();
   if(!storageAvailable){ showStorageWarning(); }
   setTimeout(hideSplash, 7000);
 }
