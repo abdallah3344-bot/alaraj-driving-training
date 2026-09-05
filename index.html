@@ -1991,7 +1991,7 @@ async function manualSyncNow(){
   alert('تمت محاولة المزامنة.');
 }
 
-// يُستدعى فقط بعد تأكيد ترخيص مفعَّل (وليس نسخة تجريبية) — يقرر من يبدأ كمصدر للبيانات
+// يُستدعى بعد تأكيد ترخيص مفعَّل — تراخيص حقيقية وتجارب مُعتمَدة (لها مفتاح مزامنة داخلي) على حدٍ سواء
 async function initDataSync(){
   const key = (localStorage.getItem(LICENSE_KEY_STORAGE) || '').trim();
   if(!key){ syncEnabled = false; updateSyncBadge(false); return; }
@@ -2158,6 +2158,11 @@ async function runLicenseCheck(){
     } else if(result.ok && result.state==='trial_active'){
       currentLicenseInfo = result;
       updateLicenseStatusBadge();
+      if(result.licenseKey) localStorage.setItem(LICENSE_KEY_STORAGE, result.licenseKey);
+      showLicenseGateState('lg_checking');
+      document.getElementById('lg_checking_title').textContent = '🔄 جارٍ مزامنة بياناتك...';
+      await initDataSync();
+      document.getElementById('lg_checking_title').textContent = '🔄 جارٍ التحقق من الترخيص...';
       document.getElementById('lg_trial_days').textContent =
         `متبقٍ ${result.daysRemaining} ${result.daysRemaining===1?'يوم':'أيام'} من الفترة التجريبية (${TRIAL_DAYS} أيام إجمالاً).`;
       showLicenseGateState('lg_trial_active');
@@ -2203,6 +2208,7 @@ async function requestTrial(){
     if(result.ok && result.state==='trial_active'){
       currentLicenseInfo = result;
       updateLicenseStatusBadge();
+      if(result.licenseKey) localStorage.setItem(LICENSE_KEY_STORAGE, result.licenseKey);
       document.getElementById('lg_checking_title').textContent = '🔄 جارٍ مزامنة بياناتك...';
       showLicenseGateState('lg_checking');
       await initDataSync();
