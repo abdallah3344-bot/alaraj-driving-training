@@ -2030,7 +2030,18 @@ let syncEnabled = false;
 let syncDebounceTimer = null;
 let syncInFlight = false;
 let lastLocalEditAt = 0;
+let periodicSyncStarted = false;
 const SYNC_POLL_SAFETY_GAP_MS = 6000;  // لا تُطبَّق تحديثات واردة إن كان هناك تعديل محلي خلال آخر 6 ثوانٍ
+const PERIODIC_SYNC_INTERVAL_MS = 25000; // فحص دوري كل 25 ثانية لالتقاط تعديلات أي جهاز آخر يشارك نفس الترخيص تلقائياً
+function startPeriodicSync(){
+  if(periodicSyncStarted) return;
+  periodicSyncStarted = true;
+  setInterval(pollForRemoteUpdates, PERIODIC_SYNC_INTERVAL_MS);
+  // فحص فوري إضافي عند الرجوع لعلامة التبويب بعد تصفّحها بالخلفية، بدل انتظار الدورة التالية
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible' && syncEnabled) pollForRemoteUpdates();
+  });
+}
 
 function hasSubstantialData(s){
   if(!s) return false;
@@ -2076,6 +2087,25 @@ function scheduleSync(){
   clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(pushStateToServer, 2500);
 }
+// رفع فوري (بدون انتظار) عند إغلاق البرنامج أو تصفّحه للخلفية — حتى لا يُفقد آخر تعديل لم يُرفع بعد
+// بسبب مهلة التأجيل العادية (2.5 ثانية). يستخدم keepalive حتى تكتمل الطلبات حتى لو أُغلقت الصفحة فوراً.
+function flushSyncOnExit(){
+  if(!syncEnabled) return;
+  clearTimeout(syncDebounceTimer);
+  const key = (localStorage.getItem(LICENSE_KEY_STORAGE) || '').trim();
+  if(!key) return;
+  try{
+    fetch(`${SUPABASE_URL}/rest/v1/rpc/save_app_data`, {
+      method: 'POST', headers: supabaseHeaders(), keepalive: true,
+      body: JSON.stringify({ p_license_key: key, p_program: LICENSE_PROGRAM, p_data: state, p_device_id: getDeviceId(), p_scope_key: getActiveSchoolId() })
+    });
+  }catch(e){ /* لا يوجد ما يمكن فعله إضافياً لحظة الإغلاق الفعلي */ }
+}
+window.addEventListener('beforeunload', flushSyncOnExit);
+window.addEventListener('pagehide', flushSyncOnExit);
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'hidden') flushSyncOnExit();
+});
 async function pollForRemoteUpdates(){
   if(!syncEnabled || syncInFlight) return;
   if(Date.now() - lastLocalEditAt < SYNC_POLL_SAFETY_GAP_MS) return; // تفادي تعارض مع حفظ محلي حديث لم يُرفع بعد
@@ -2125,6 +2155,7 @@ async function initDataSync(){
   const key = (localStorage.getItem(LICENSE_KEY_STORAGE) || '').trim();
   if(!key){ syncEnabled = false; updateSyncBadge(false); return; }
   syncEnabled = true;
+  startPeriodicSync();
   try{
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/load_app_data`, {
       method: 'POST', headers: supabaseHeaders(),
