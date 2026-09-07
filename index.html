@@ -480,7 +480,7 @@
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">ocr-build-2026-09-03-f</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">ocr-build-2026-09-07-tesseract-ai-supabase</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -5237,6 +5237,75 @@ function captureIdScanFrame(){
   stopIdScanCamera();
   runIdScanOcr(imageDataUrl);
 }
+async function compressIdImageForAi(dataUrl){
+  try{
+    const img = await loadImageEl(dataUrl);
+    const MAX_W = 1800;
+    const scale = img.naturalWidth > MAX_W ? (MAX_W / img.naturalWidth) : 1;
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d', {alpha:false});
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg', 0.82);
+  }catch(err){
+    console.warn('تعذّر ضغط صورة الهوية لإرسالها إلى AI:', err);
+    return dataUrl;
+  }
+}
+
+async function callAiIdExtraction(imageDataUrl, rawText){
+  const compactImage = await compressIdImageForAi(imageDataUrl);
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/ocr-id-ai`, {
+    method: 'POST',
+    headers: supabaseHeaders(),
+    body: JSON.stringify({
+      image_data_url: compactImage,
+      raw_text: String(rawText || '').slice(0, 12000),
+      device_id: CURRENT_DEVICE_ID
+    })
+  });
+
+  let json = null;
+  try { json = await res.json(); } catch(_){}
+
+  if(!res.ok){
+    throw new Error((json && json.error) || ('AI OCR HTTP ' + res.status));
+  }
+  if(!json || !json.ok || !json.data){
+    throw new Error((json && json.error) || 'لم تُرجع خدمة AI بيانات صالحة');
+  }
+
+  return json.data;
+}
+
+function mergeAiIdData(fallback, ai){
+  const safe = ai || {};
+  const out = Object.assign({}, fallback || {});
+
+  if(typeof safe.national_id === 'string' && /^\d{9}$/.test(safe.national_id.trim())){
+    out.nid = safe.national_id.trim();
+  }
+  if(typeof safe.name === 'string' && safe.name.trim().length >= 3){
+    out.name = safe.name.trim();
+  }
+  if(typeof safe.date_of_birth === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(safe.date_of_birth)){
+    out.dob = safe.date_of_birth;
+  }
+  if(safe.gender === 'ذكر' || safe.gender === 'أنثى'){
+    out.gender = safe.gender;
+  }
+  if(typeof safe.street === 'string' && safe.street.trim()){
+    out.street = safe.street.trim();
+  }
+  if(typeof safe.house === 'string' && safe.house.trim()){
+    out.house = safe.house.trim();
+  }
+
+  return out;
+}
+
 async function runIdScanOcr(imageDataUrl){
   _idScanCapturedPhoto = imageDataUrl;
   document.getElementById('idScan_step_upload').style.display = 'none';
@@ -5247,7 +5316,7 @@ async function runIdScanOcr(imageDataUrl){
 
   if(typeof Tesseract === 'undefined'){
     alert('تعذّر تحميل مكتبة القراءة الضوئية. تحتاج هذه الميزة اتصالاً بالإنترنت عند أول استخدام. سيتم حفظ الصورة كمرفق، ويمكنك إدخال باقي البيانات يدوياً.');
-    await finishOcrAndExtractPhoto({name:'', nid:'', dob:'', gender:''}, imageDataUrl, '');
+    await finishOcrAndExtractPhoto({name:'', nid:'', dob:'', gender:'', street:'', house:''}, imageDataUrl, '');
     return;
   }
 
@@ -5264,14 +5333,27 @@ async function runIdScanOcr(imageDataUrl){
         }
       }
     });
-    if(typeof setScanPipelineState==='function') setScanPipelineState('ocr','جارٍ استخراج البيانات...');
+
+    if(typeof setScanPipelineState==='function') setScanPipelineState('ocr','جارٍ تحليل الهوية بالذكاء الاصطناعي...');
     const rawText = result.data.text || '';
-    const parsed = parseIdCardText(rawText);
-    await finishOcrAndExtractPhoto(parsed, imageDataUrl, rawText);
+    const tesseractParsed = parseIdCardText(rawText);
+    let finalParsed = tesseractParsed;
+
+    try{
+      document.getElementById('idScan_progress_bar').style.width = '92%';
+      document.getElementById('idScan_progress_text').textContent = 'جارٍ التحقق الذكي من بيانات الهوية...';
+      const aiData = await callAiIdExtraction(imageDataUrl, rawText);
+      finalParsed = mergeAiIdData(tesseractParsed, aiData);
+    }catch(aiErr){
+      console.warn('تعذّر تحليل الهوية بالذكاء الاصطناعي — سيتم الاعتماد على Tesseract:', aiErr);
+      document.getElementById('idScan_progress_text').textContent = 'تعذّر التحليل الذكي — تم استخدام القراءة المحلية...';
+    }
+
+    await finishOcrAndExtractPhoto(finalParsed, imageDataUrl, rawText);
   }catch(err){
     console.warn('فشل تشغيل القراءة الضوئية:', err);
     alert('تعذّرت قراءة الصورة تلقائياً (' + (err.message||'خطأ غير معروف') + '). سيتم حفظ الصورة كمرفق، ويمكنك إدخال باقي البيانات يدوياً.');
-    await finishOcrAndExtractPhoto({name:'', nid:'', dob:'', gender:''}, imageDataUrl, '');
+    await finishOcrAndExtractPhoto({name:'', nid:'', dob:'', gender:'', street:'', house:''}, imageDataUrl, '');
   }
 }
 // تحويل الصورة لتدرج رمادي + تمديد تباين بسيط قبل القراءة الضوئية فقط (الصورة الأصلية
