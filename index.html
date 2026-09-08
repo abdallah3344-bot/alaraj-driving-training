@@ -234,7 +234,7 @@
 
   table{ width:100%; border-collapse:collapse; font-size:13px; }
   thead th{
-    text-align:right; padding:10px 8px; color:var(--muted); font-weight:600;
+    text-align:right; padding:10px 8px; color:var(--muted); font-weight:900;
     border-bottom:1px solid var(--border); white-space:nowrap;
   }
   tbody td{ padding:10px 8px; border-bottom:1px solid var(--border); }
@@ -1845,8 +1845,8 @@ function defaultState(){
     students: [], staff: [], vehicles: [], lessons: [], invoices: [], payments: [],
     vehicleExpenses: [], generalExpenses: [], exams: [], vehicleDailyLogs: [],
     lessonPrices: [
-      { id: 1, license: 'رخصة شحن', lessonType: 'عملي', gear: 'أوتوماتيك', price: 120 },
-      { id: 2, license: 'رخصة شحن', lessonType: 'عملي', gear: 'عادي', price: 120 },
+      { id: 1, license: 'شحن خفيف', lessonType: 'عملي', gear: 'أوتوماتيك', price: 120 },
+      { id: 2, license: 'شحن خفيف', lessonType: 'عملي', gear: 'عادي', price: 120 },
       { id: 3, license: 'خصوصي', lessonType: 'عملي', gear: 'أوتوماتيك', price: 100 },
       { id: 4, license: 'خصوصي', lessonType: 'عملي', gear: 'عادي', price: 100 },
       { id: 5, license: 'عمومي', lessonType: 'عملي', gear: 'أوتوماتيك', price: 100 },
@@ -1860,7 +1860,7 @@ function defaultState(){
     schoolInfo: defaultSchoolInfo(),
     disbursements: [], cheques: [],
     commissionRates: [
-      { id: 1, license: 'رخصة شحن', amount: 30 },
+      { id: 1, license: 'شحن خفيف', amount: 30 },
       { id: 2, license: '__default__', amount: 25 }
     ],
     security: { passwordHash: null },
@@ -1898,17 +1898,17 @@ function loadState(){
       passwordHash: state.security.passwordHash, role: 'admin', active: true
     });
   }
-  // بذر مبالغ عمولة افتراضية (رخصة شحن = 30 شيكل، باقي الفئات = 25 شيكل) لمن لا يملك أي إعداد بعد
+  // بذر مبالغ عمولة افتراضية (شحن خفيف = 30 شيكل، باقي الفئات = 25 شيكل) لمن لا يملك أي إعداد بعد
   if(state.commissionRates.length===0){
     state.commissionRates.push(
-      { id: state.nextId.commissionRates++, license: 'رخصة شحن', amount: 30 },
+      { id: state.nextId.commissionRates++, license: 'شحن خفيف', amount: 30 },
       { id: state.nextId.commissionRates++, license: '__default__', amount: 25 }
     );
   }
   // بذر تسعير دروس افتراضي (حصة 40 دقيقة عملي: 120 لرخصة الشحن، 100 لباقي الرخص) لمن لا يملك أي تسعير محفوظ بعد
   if(state.lessonPrices.length===0){
     const defaultPricing = [
-      { license: 'رخصة شحن', price: 120 },
+      { license: 'شحن خفيف', price: 120 },
       { license: 'خصوصي', price: 100 },
       { license: 'عمومي', price: 100 },
       { license: 'دراجة نارية', price: 100 },
@@ -2817,7 +2817,7 @@ function showTab(id){
 // ------------------------------------------------------------------
 const DYNAMIC_SELECTS = {
   licenseTypes: {
-    base: ['خصوصي', 'عمومي', 'دراجة نارية', 'رخصة شحن', 'باص', 'شحن ثقيل', 'تريلا', 'تراكتور'],
+    base: ['خصوصي', 'عمومي', 'دراجة نارية', 'شحن خفيف', 'باص', 'شحن ثقيل', 'تريلا', 'تراكتور'],
     stateKey: 'customLicenseTypes',
     selectIds: ['st_license', 'pr_license', 'ed_st_license'],
     promptLabel: 'نوع الرخصة الجديد'
@@ -7437,6 +7437,19 @@ function printSchoolBlankRenewalForm(){
   win.document.close();
 }
 
+
+// تحويل رمز فئة الرخصة الرسمي إلى اسمه العربي في النماذج المطبوعة
+function licenseLabel(cat){
+  const MAP = {
+    'A':'دراجة نارية','A1':'دراجة نارية خفيفة',
+    'B':'خصوصي','B1':'خصوصي خفيف',
+    'C':'شاحنة','C1':'شحن خفيف',
+    'D':'حافلة','D1':'ميني باص',
+    'BE':'خصوصي مع مقطورة','CE':'شاحنة مع مقطورة',
+  };
+  return MAP[cat] || cat || '';
+}
+
 // طباعة "استمارة فحص عملي للسياقة" الرسمية (وزارة النقل والمواصلات — سلطة الترخيص) —
 // نفس تنسيق النموذج الورقي الأصلي. تُعبَّأ تلقائياً بيانات الطالب (إن كان مرتبطاً بالمعاملة)
 // واسم/رقم المدرسة من "بيانات المدرسة"؛ باقي الحقول (نوع المركبة، النتيجة، الفاحص، الدرجات...)
@@ -7474,7 +7487,7 @@ function printPracticalExamForm(paperId){
   const instructor = (linkedExam && linkedExam.instructorId)
     ? state.staff.find(s=>s.id===linkedExam.instructorId) : null;
 
-  const vehicleType = student ? (student.licenseCategory || '') : '';   // نوع المركبة = نوع رخصة الطالب
+  const vehicleType = student ? (student.license || '') : '';   // نوع المركبة = نوع رخصة الطالب
   const vehicleNumber = instructor ? (instructor.vehiclePlate || '') : ''; // رقمها = رقم سيارة المدرب/التدريب
   const examDate = (linkedExam && linkedExam.datetime) ? linkedExam.datetime.slice(0,10) : (p.submitDate || '');
   const examNumberVal = linkedExam ? (linkedExam.examNumber || '') : '';
@@ -7491,7 +7504,7 @@ function printPracticalExamForm(paperId){
     <title>استمارة فحص عملي للسياقة</title>
     <style>
       @page{ size: A4; margin: 8mm; }
-      body{ font-family: Tahoma, Arial, sans-serif; padding:0; color:#000; font-size:12.5px; font-weight:900; }
+      body{ font-family: Tahoma, Arial, sans-serif; padding:0; color:#000; font-size:14.5px; font-weight:900; }
       .sheet{ display:flex; flex-direction:column; height:277mm; overflow:hidden; }
       .header{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; margin-bottom:6px; padding-bottom:6px; border-bottom:2px solid #000; }
       .header .right{ text-align:right; }
@@ -7514,7 +7527,7 @@ function printPracticalExamForm(paperId){
       .score-side{ display:flex; flex-direction:column; align-self:stretch; }
       .tables-block{ display:flex; flex-direction:column; width:100%; flex:1; }
       .score-side td, .score-side th{ padding:2px 4px; vertical-align:middle; }
-      .score-side tr{ height:49px; }
+      .score-side tr{ height:45px; }
       table{ width:100%; border-collapse:collapse; margin-bottom:0; font-size:12px; border:1.4px solid #000; }
       td, th{ border:1.4px solid #000; padding:2px 3px; text-align:center; vertical-align:middle; }
       th{ background:#e2e2e2; font-weight:900; }
@@ -7720,7 +7733,7 @@ function _doPrintCandidatesList(selectedDate){
       familyName = nameParts.length > 1 ? nameParts[nameParts.length-1] : '';
     }
 
-    const vehicleType  = student ? (student.licenseCategory || '') : '';
+    const vehicleType  = student ? (student.license || '') : '';
     const vehiclePlate = instructor ? (instructor.vehiclePlate || '') : '';
     const examTime     = linkedExam ? (linkedExam.examTime || '') : '';
     const examNumber   = linkedExam ? (linkedExam.examNumber || '') : '';
@@ -7733,8 +7746,8 @@ function _doPrintCandidatesList(selectedDate){
       <td>${firstName}</td>
       <td>${familyName}</td>
       <td>${nid}</td>
-      <td>${vehicleType}</td>
       <td>${vehiclePlate}</td>
+      <td>${vehicleType}</td>
       <td>${examNumber}</td>
       <td></td>
     </tr>`;
@@ -7752,19 +7765,19 @@ function _doPrintCandidatesList(selectedDate){
   <style>
     @page{ size:A4; margin:10mm; }
     *{ box-sizing:border-box; margin:0; padding:0; }
-    body{ font-family:Tahoma,Arial,sans-serif; font-size:11px; font-weight:900; color:#000; }
+    body{ font-family:Tahoma,Arial,sans-serif; font-size:13px; font-weight:900; color:#000; }
     .sheet{ display:flex; flex-direction:column; min-height:277mm; }
     .header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:6px; }
     .header .right{ text-align:center; line-height:1.7; font-size:15px; }
     .header .right .big{ font-size:22px; font-weight:900; }
     .header .left img{ height:90px; }
     .title{ text-align:center; font-size:16px; font-weight:900; margin:8px 0 12px; }
-    .meta{ display:flex; gap:30px; margin-bottom:10px; font-size:11px; }
+    .meta{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; font-size:11px; }
     .meta .field{ display:flex; gap:6px; align-items:baseline; }
     .meta .line{ border-bottom:1.2px solid #000; min-width:80px; padding:0 4px; font-size:12px; }
     table{ width:100%; border-collapse:collapse; font-size:10.5px; }
-    th, td{ border:1.2px solid #000; padding:9px 3px; text-align:center; vertical-align:middle; }
-    th{ background:#f0f0f0; font-size:10px; }
+    th, td{ border:1.2px solid #000; padding:6px 3px; text-align:center; vertical-align:middle; }
+    th{ background:#f0f0f0; font-size:10px; font-weight:900; }
     .footer{ margin-top:14px; display:flex; justify-content:space-between; font-size:11px; }
     .footer-right div, .footer-left div{ margin-bottom:16px; display:flex; gap:6px; align-items:baseline; }
     .fline{ border-bottom:1.2px solid #000; min-width:120px; flex:1; }
@@ -7783,7 +7796,7 @@ function _doPrintCandidatesList(selectedDate){
     <div class="meta">
       <div class="field"><span>اليوم</span><span class="line">${dayName}</span></div>
       <div class="field"><span>الموافق</span><span class="line">${selectedDate}</span></div>
-      <div class="field"><span>المنطقة</span><span class="line"></span></div>
+      <div class="field"><span>المنطقة</span><span class="line">طولكرم</span></div>
     </div>
     <table>
       <thead>
@@ -7793,8 +7806,8 @@ function _doPrintCandidatesList(selectedDate){
           <th rowspan="2">ساعة<br>الفحص</th>
           <th colspan="2">إسم الطالب</th>
           <th rowspan="2">رقم<br>الهوية</th>
-          <th rowspan="2">النوع</th>
           <th rowspan="2">رقم<br>السيارة</th>
+          <th rowspan="2">النوع</th>
           <th rowspan="2">رقم<br>الفحص</th>
           <th rowspan="2">نتيجة<br>الفحص</th>
         </tr>
