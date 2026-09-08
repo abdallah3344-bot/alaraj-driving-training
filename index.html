@@ -283,6 +283,8 @@
   }
   .cal-exam.result-pass{ background:rgba(34,197,94,.16); color:#15803d; }
   .cal-exam.result-fail{ background:rgba(239,68,68,.16); color:#b91c1c; }
+  .cal-exam-theory{ border-right:3px solid #3b82f6; }
+  .cal-exam-practical{ border-right:3px solid #f97316; }
 
   /* بطاقة الترحيب في الشاشة الرئيسية */
   .welcome-card{
@@ -531,6 +533,7 @@
         <div class="field"><label>الجنس</label><select id="idScan_out_gender"><option value="">— غير محدد —</option><option value="ذكر">ذكر</option><option value="أنثى">أنثى</option></select></div>
       </div>
       <div class="form-grid" style="margin-top:8px;">
+        <div class="field"><label>المدينة/القرية (من الملحق)</label><input id="idScan_out_city"></div>
         <div class="field"><label>الشارع (من الملحق)</label><input id="idScan_out_street"></div>
         <div class="field"><label>رقم البيت / الحي (من الملحق)</label><input id="idScan_out_house"></div>
       </div>
@@ -1246,11 +1249,13 @@
       <h2>تسجيل امتحان جديد</h2>
       <div class="form-grid">
         <div class="field"><label>نوع الامتحان</label>
-          <select id="ex_type"><option>نظري</option><option>عملي</option></select>
+          <select id="ex_type" onchange="onExamTypeChange()"><option>نظري</option><option>عملي</option></select>
         </div>
         <div class="field"><label>الطالب</label><select id="ex_student"></select></div>
         <div class="field"><label>المدرب المسؤول</label><select id="ex_instructor"></select></div>
         <div class="field"><label>تاريخ الامتحان</label><input id="ex_date" type="date"></div>
+        <div class="field" id="ex_number_field" style="display:none;"><label>رقم الفحص</label><input id="ex_number" placeholder="رقم الفحص العملي"></div>
+        <div class="field" id="ex_time_field" style="display:none;"><label>ساعة الفحص</label><input id="ex_time" type="time"></div>
         <div class="field"><label>ملاحظات (اختياري)</label><input id="ex_notes"></div>
       </div>
       <div class="form-actions"><button class="btn btn-accent" onclick="addExam()">📝 تسجيل الامتحان</button></div>
@@ -1267,7 +1272,7 @@
         <input type="checkbox" id="ex_today_only" checked onchange="renderExams()"> 📅 عرض إدخالات اليوم فقط
       </label>
       <div class="table-wrap"><table>
-        <thead><tr><th>الرقم</th><th>الطالب</th><th>المدرب</th><th>النوع</th><th>الموعد</th><th>النتيجة</th><th>ملاحظات</th><th></th></tr></thead>
+        <thead><tr><th>الرقم</th><th>الطالب</th><th>المدرب</th><th>النوع</th><th>الموعد</th><th>رقم الفحص</th><th>ساعة الفحص</th><th>النتيجة</th><th>ملاحظات</th><th></th></tr></thead>
         <tbody id="examsBody"></tbody>
       </table></div>
       <div id="examsEmpty" class="empty" style="display:none">لا توجد امتحانات مسجلة بعد</div>
@@ -1276,6 +1281,7 @@
 
     <div class="card">
       <h2>📅 التقويم الشهري للامتحانات</h2>
+      <div class="note" style="margin-top:-4px; margin-bottom:10px;">📘 نظري &nbsp;&nbsp; 🚗 عملي</div>
       <div class="form-actions" style="margin-top:0; margin-bottom:14px; align-items:center;">
         <button class="btn" onclick="shiftExamCalendar(-1)">◀ الشهر السابق</button>
         <span id="examCalendarTitle" style="font-weight:700; min-width:140px; text-align:center; display:inline-block;"></span>
@@ -1499,6 +1505,25 @@
       </div>
       <div class="form-actions"><button class="btn btn-accent" onclick="addOfficialPaper()">📑 تسجيل المعاملة</button></div>
       <div class="note" style="margin-top:12px;">كل طلب استمارة طالب مرتبط بنموذج رسمي واحد موحَّد قابل للطباعة مُعبَّأً تلقائياً ببيانات الطالب، بالإضافة لإمكانية إرفاق صورة النسخة المُوقَّعة/المختومة الفعلية من قائمة المعاملات أدناه — كلاهما مرتبط بنفس المعاملة.</div>
+    </div>
+
+    <!-- مربع قائمة المتقدمين للامتحان العملي — ثابت في الصفحة -->
+    <div class="card" style="border:2px solid #1d4ed8; background:#f0f6ff;">
+      <h2>📋 قائمة بأسماء المتقدمين للإمتحان العملي للسياقة</h2>
+      <div class="form-grid" style="align-items:flex-end;">
+        <div class="field">
+          <label>تاريخ الامتحان</label>
+          <input id="candidatesListDate" type="date" value="">
+        </div>
+        <div class="field" style="padding-top:18px;">
+          <button class="btn btn-accent" onclick="
+            const d = document.getElementById('candidatesListDate').value;
+            if(!d){ alert('يرجى تحديد تاريخ الامتحان'); return; }
+            printExamCandidatesList(d);
+          ">📋 طباعة قائمة المتقدمين</button>
+        </div>
+      </div>
+      <div class="note" style="margin-top:8px;">البيانات تُسحب تلقائياً من استمارات الفحص العملي المسجلة في تبويب الامتحانات بنفس التاريخ المختار.</div>
     </div>
 
     <div class="card">
@@ -2777,7 +2802,7 @@ function showTab(id){
   if(id==='vehicles'){ refreshExpenseDropdown(); }
   if(id==='pricing'){ onPricingLessonTypeChange(); }
   if(id==='lessons'){ refreshLessonDropdowns(); }
-  if(id==='exams'){ refreshExamDropdowns(); renderExamCalendar(); }
+  if(id==='exams'){ refreshExamDropdowns(); renderExamCalendar(); onExamTypeChange(); }
   if(id==='students'){ renderStudentDebtAlerts(); }
   if(id==='invoices'){ refreshInvoiceDropdowns(); onInvoiceEntryTypeChange(); populatePosStudentSelect(); populateDiscountStudentSelect(); }
   if(id==='cheques'){ renderCheques(); }
@@ -2810,7 +2835,7 @@ const DYNAMIC_SELECTS = {
     promptLabel: 'نوع الفاتورة الجديد'
   },
   paperTypes: {
-    base: ['طلب استمارة طالب', 'تجديد رخصة المدرسة'],
+    base: ['طلب استمارة طالب', 'تجديد رخصة المدرسة', 'استمارة فحص عملي'],
     stateKey: 'customPaperTypes',
     selectIds: ['pap_type'],
     promptLabel: 'نوع الورقة/المعاملة الجديد'
@@ -3088,9 +3113,24 @@ function addStudent(){
 async function finalizeScanArtifactsForNewStudent(student){
   const pendingPhoto = window._pendingProfilePhotoForNewStudent;
   const pendingScanEventId = _pendingScanEventId;
+  const pendingIdImage = _idScanCapturedPhoto;
   window._pendingProfilePhotoForNewStudent = null;
   _pendingScanEventId = null;
-  if(!pendingPhoto && !pendingScanEventId) return;
+  _idScanCapturedPhoto = null;
+  if(!pendingPhoto && !pendingScanEventId && !pendingIdImage) return;
+
+  // إرفاق صورة الهوية الممسوحة (كاميرا/ملف/مجلد سكانر) كمرفق دائم للطالب بعد نجاح إضافته —
+  // منفصل عن مسار "Local Agent" أدناه الذي له آلية تخزين خاصة به عبر Supabase.
+  if(pendingIdImage && !pendingScanEventId){
+    if(!student.attachments) student.attachments = [];
+    student.attachments.push({
+      id: Date.now()+'_'+Math.floor(Math.random()*10000),
+      name: 'صورة الهوية الشخصية',
+      dataUrl: pendingIdImage
+    });
+    saveState();
+    renderAttachments('student', student.id);
+  }
 
   if(pendingPhoto){
     try{
@@ -4623,6 +4663,11 @@ function refreshExamDropdowns(){
   const instructors = state.staff.filter(s=>s.role==='مدرب');
   document.getElementById('ex_instructor').innerHTML = instructors.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
 }
+function onExamTypeChange(){
+  const isPractical = document.getElementById('ex_type').value === 'عملي';
+  document.getElementById('ex_number_field').style.display = isPractical ? '' : 'none';
+  document.getElementById('ex_time_field').style.display = isPractical ? '' : 'none';
+}
 function addExam(){
   const studentId = parseInt(document.getElementById('ex_student').value);
   const instructorId = parseInt(document.getElementById('ex_instructor').value);
@@ -4632,9 +4677,13 @@ function addExam(){
     id: newId('exams'), studentId, instructorId: instructorId || null,
     examType: document.getElementById('ex_type').value,
     datetime: dt, result: 'لم يحدد بعد',
+    examNumber: document.getElementById('ex_number').value.trim(),
+    examTime: document.getElementById('ex_time').value,
     notes: document.getElementById('ex_notes').value.trim()
   });
   document.getElementById('ex_date').value = todayStr();
+  document.getElementById('ex_number').value = '';
+  document.getElementById('ex_time').value = '';
   document.getElementById('ex_notes').value = '';
   renderExams();
 }
@@ -4692,6 +4741,7 @@ function renderExams(){
       <td>${e.id}</td><td>${nameOf(state.students, e.studentId)}</td>
       <td>${e.instructorId ? nameOf(state.staff, e.instructorId) : '-'}</td>
       <td>${e.examType}</td><td>${e.datetime.replace('T',' ')}</td>
+      <td>${e.examNumber||'-'}</td><td>${e.examTime||'-'}</td>
       <td><span class="badge ${resultBadgeClass(e.result)}">${e.result}</span></td>
       <td>${e.notes||'-'}</td>
       <td class="row-actions">
@@ -4758,7 +4808,9 @@ function renderExamCalendar(){
       ${dayExams.map(e=>{
         const resultIcon = e.result==='ناجح' ? '✅' : (e.result==='راسب' ? '❌' : '⏳');
         const resultClass = e.result==='ناجح' ? 'result-pass' : (e.result==='راسب' ? 'result-fail' : '');
-        return `<div class="cal-exam ${resultClass}" title="${nameOf(state.students,e.studentId)} - ${e.examType} - ${e.result}">${resultIcon} ${nameOf(state.students,e.studentId)}</div>`;
+        const typeClass = e.examType==='عملي' ? 'cal-exam-practical' : 'cal-exam-theory';
+        const typeIcon = e.examType==='عملي' ? '🚗' : '📘';
+        return `<div class="cal-exam ${resultClass} ${typeClass}" title="${nameOf(state.students,e.studentId)} - ${e.examType} - ${e.result}">${typeIcon} ${resultIcon} ${nameOf(state.students,e.studentId)}</div>`;
       }).join('')}
     </div>`;
   }
@@ -5296,6 +5348,9 @@ function mergeAiIdData(fallback, ai){
   if(safe.gender === 'ذكر' || safe.gender === 'أنثى'){
     out.gender = safe.gender;
   }
+  if(typeof safe.city === 'string' && safe.city.trim()){
+    out.city = safe.city.trim();
+  }
   if(typeof safe.street === 'string' && safe.street.trim()){
     out.street = safe.street.trim();
   }
@@ -5316,7 +5371,7 @@ async function runIdScanOcr(imageDataUrl){
 
   if(typeof Tesseract === 'undefined'){
     alert('تعذّر تحميل مكتبة القراءة الضوئية. تحتاج هذه الميزة اتصالاً بالإنترنت عند أول استخدام. سيتم حفظ الصورة كمرفق، ويمكنك إدخال باقي البيانات يدوياً.');
-    await finishOcrAndExtractPhoto({name:'', nid:'', dob:'', gender:'', street:'', house:''}, imageDataUrl, '');
+    await finishOcrAndExtractPhoto({name:'', nid:'', dob:'', gender:'', street:'', house:'', city:''}, imageDataUrl, '');
     return;
   }
 
@@ -5353,7 +5408,7 @@ async function runIdScanOcr(imageDataUrl){
   }catch(err){
     console.warn('فشل تشغيل القراءة الضوئية:', err);
     alert('تعذّرت قراءة الصورة تلقائياً (' + (err.message||'خطأ غير معروف') + '). سيتم حفظ الصورة كمرفق، ويمكنك إدخال باقي البيانات يدوياً.');
-    await finishOcrAndExtractPhoto({name:'', nid:'', dob:'', gender:'', street:'', house:''}, imageDataUrl, '');
+    await finishOcrAndExtractPhoto({name:'', nid:'', dob:'', gender:'', street:'', house:'', city:''}, imageDataUrl, '');
   }
 }
 // تحويل الصورة لتدرج رمادي + تمديد تباين بسيط قبل القراءة الضوئية فقط (الصورة الأصلية
@@ -5488,9 +5543,9 @@ function parseIdCardText(text){
   // استخراج العنوان من "ملحق بطاقة الهوية" (إن ظهر ضمن الصورة الممسوحة) — أقل موثوقية من
   // بيانات البطاقة الأساسية لأن الملحق غالباً مختوم/مكتوب بخط اليد، فيُعرَض دائماً للمراجعة
   // اليدوية قبل الاعتماد ولا يُفشِل باقي عملية الاستخراج إن لم يُعثر عليه.
-  const { street, house } = extractAddressFromIdLines(rawLines, text);
+  const { street, house, city } = extractAddressFromIdLines(rawLines, text);
 
-  return { name, nid, dob, gender, street, house };
+  return { name, nid, dob, gender, street, house, city };
 }
 // يبحث عن تسميات "الشارع"/"الحي أو رقم البيت" كأسطر مستقلة (كما تُطبع على الملحق الرسمي)
 // ويأخذ أول سطر مرشَّح يليها كقيمة؛ يدعم أيضاً حالة "العنوان: ..." على سطر واحد كاحتياط.
@@ -5509,11 +5564,16 @@ function extractAddressFromIdLines(rawLines, fullText){
   }
   let street = valueAfterLabel(['الشارع']);
   let house = valueAfterLabel(['الحي','رقم البيت','رقم المنزل']);
+  let city = valueAfterLabel(['البلدة','المدينة','القرية']);
   if(!street){
     const m = fullText.match(/الشارع[:\s]+([\u0600-\u06FF0-9\s]{2,30})/);
     if(m) street = m[1].trim();
   }
-  return { street, house };
+  if(!city){
+    const m2 = fullText.match(/البلدة[:\s]+([\u0600-\u06FF0-9\s]{2,30})/);
+    if(m2) city = m2[1].trim();
+  }
+  return { street, house, city };
 }
 // ---- الصورة الشخصية: متغيرات الجلسة الحالية ----
 let _idScanOriginalIdImage = null;   // صورة الهوية الكاملة كما وردت (مصدر القص الافتراضي)
@@ -5530,9 +5590,10 @@ function showIdScanConfirmStep(parsed, imageDataUrl, rawText, profilePhotoDataUr
   document.getElementById('idScan_out_nid').value = parsed.nid;
   document.getElementById('idScan_out_dob').value = parsed.dob;
   document.getElementById('idScan_out_gender').value = parsed.gender;
+  document.getElementById('idScan_out_city').value = parsed.city || '';
   document.getElementById('idScan_out_street').value = parsed.street || '';
   document.getElementById('idScan_out_house').value = parsed.house || '';
-  document.getElementById('idScan_address_note').style.display = (parsed.street || parsed.house) ? '' : 'none';
+  document.getElementById('idScan_address_note').style.display = (parsed.city || parsed.street || parsed.house) ? '' : 'none';
   document.getElementById('idScan_raw_text').textContent = rawText;
 
   _idScanOriginalIdImage = imageDataUrl;
@@ -5558,8 +5619,10 @@ function confirmIdScanData(){
   if(document.getElementById('idScan_out_gender').value){
     document.getElementById('st_gender').value = document.getElementById('idScan_out_gender').value;
   }
+  const cityVal = document.getElementById('idScan_out_city').value.trim();
   const streetVal = document.getElementById('idScan_out_street').value.trim();
   const houseVal = document.getElementById('idScan_out_house').value.trim();
+  if(cityVal) document.getElementById('st_city').value = cityVal;
   if(streetVal) document.getElementById('st_street').value = streetVal;
   if(houseVal) document.getElementById('st_house').value = houseVal;
   updateIdPhotoPreview('st_idphoto_preview', _idScanCapturedPhoto);
@@ -5714,7 +5777,12 @@ function attachCropDragHandlers(wrap){
     rectEl.style.width = w+'px'; rectEl.style.height = h+'px';
     _cropDragState.rect = {left, top, w, h};
   };
-  wrap.onpointerup = ()=>{ _cropDragState = _cropDragState && {..._cropDragState, done:true} || null; };
+  wrap.onpointerup = (e)=>{
+    _cropDragState = null; // إنهاء السحب فعلياً — كان يبقى الكائن حياً فقط بعلم done:true بدون تصفيره،
+    // فيستمر onpointermove بتحريك مربع القص مع الماوس حتى بعد ترك الزر
+    try{ wrap.releasePointerCapture(e.pointerId); }catch(err){}
+  };
+  wrap.onpointercancel = wrap.onpointerup;
 }
 async function applyManualCrop(){
   const rectEl = document.getElementById('idScan_crop_rect');
@@ -7369,6 +7437,391 @@ function printSchoolBlankRenewalForm(){
   win.document.close();
 }
 
+// طباعة "استمارة فحص عملي للسياقة" الرسمية (وزارة النقل والمواصلات — سلطة الترخيص) —
+// نفس تنسيق النموذج الورقي الأصلي. تُعبَّأ تلقائياً بيانات الطالب (إن كان مرتبطاً بالمعاملة)
+// واسم/رقم المدرسة من "بيانات المدرسة"؛ باقي الحقول (نوع المركبة، النتيجة، الفاحص، الدرجات...)
+// تبقى فارغة عمداً لأنها تُقرَّر وتُملأ يدوياً أثناء الفحص الفعلي من قبل فاحص سلطة الترخيص.
+function printPracticalExamForm(paperId){
+  const p = state.officialPapers.find(p=>p.id===paperId);
+  if(!p) return;
+
+  const info = getSchoolInfo();
+  const schoolName = info.schoolName || '';
+  const schoolLicNo = info.licenseNo || '';
+  const student = p.studentId ? state.students.find(s=>s.id===p.studentId) : null;
+  const studentFullName = student ? (student.name||'') : '';
+  const nameParts = studentFullName.trim().split(/\s+/).filter(Boolean);
+  // الاسم الشخصي = الاسم الأول — مع مراعاة الأسماء المركّبة الشائعة (عبد الله، عبد الرحمن،
+  // أبو بكر، أم كلثوم...) التي تتكوّن من كلمتين تُعتبران اسماً شخصياً واحداً، فلا تُقصّ عند أول مسافة
+  const COMPOUND_FIRST_NAME_PREFIXES = ['عبد','عبدال','أبو','ابو','أم','ام','ابن','بنت'];
+  let firstName = '', familyName = '';
+  if(nameParts.length){
+    if(nameParts.length >= 2 && COMPOUND_FIRST_NAME_PREFIXES.includes(nameParts[0])){
+      firstName = nameParts[0] + ' ' + nameParts[1];
+    } else {
+      firstName = nameParts[0];
+    }
+    familyName = nameParts.length > 1 ? nameParts[nameParts.length-1] : '';
+  }
+  const nid = student ? (student.nid||'') : '';
+
+  // أحدث امتحان عملي مسجَّل لهذا الطالب (من شاشة "تسجيل امتحان جديد") — منه نجيب رقم الفحص
+  // وساعته وملاحظاته والمدرب المسؤول عنه، بدل ترك هذه الحقول فارغة
+  const linkedExam = student
+    ? state.exams.filter(e=>e.studentId===student.id && e.examType==='عملي')
+        .sort((a,b)=> (b.datetime||'').localeCompare(a.datetime||''))[0]
+    : null;
+  const instructor = (linkedExam && linkedExam.instructorId)
+    ? state.staff.find(s=>s.id===linkedExam.instructorId) : null;
+
+  const vehicleType = student ? (student.licenseCategory || '') : '';   // نوع المركبة = نوع رخصة الطالب
+  const vehicleNumber = instructor ? (instructor.vehiclePlate || '') : ''; // رقمها = رقم سيارة المدرب/التدريب
+  const examDate = (linkedExam && linkedExam.datetime) ? linkedExam.datetime.slice(0,10) : (p.submitDate || '');
+  const examNumberVal = linkedExam ? (linkedExam.examNumber || '') : '';
+  const examTimeVal = linkedExam ? (linkedExam.examTime || '') : '';
+  const examNotes = linkedExam ? (linkedExam.notes || '') : (p.notes || '');
+
+  const schoolShortName = ({alaraj:'الاعرج', aqsa:'الأقصى', israa:'الإسراء'})[getActiveSchoolId()] || 'الاعرج'; // اسم المدرسة النشطة المختصر
+  const fld = (val)=> `<span class="fill ${val?'filled':''}">${val||''}</span>`;
+
+  const win = window.open('', '_blank', 'width=900,height=1100');
+  if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لطباعة النموذج'); return; }
+  win.document.write(`
+    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+    <title>استمارة فحص عملي للسياقة</title>
+    <style>
+      @page{ size: A4; margin: 8mm; }
+      body{ font-family: Tahoma, Arial, sans-serif; padding:0; color:#000; font-size:12.5px; font-weight:900; }
+      .sheet{ display:flex; flex-direction:column; height:277mm; overflow:hidden; }
+      .header{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; margin-bottom:6px; padding-bottom:6px; border-bottom:2px solid #000; }
+      .header .right{ text-align:right; }
+      .header .right .big{ font-size:24px; font-weight:900; }
+      .header .right div{ line-height:1.7; font-size:13px; }
+      .header .emblem{ text-align:center; }
+      .header .emblem img{ height:106px; }
+      .header .title-box{ padding:4px 0; font-size:20px; font-weight:900; text-align:right; border:none; white-space:nowrap; }
+      .header .title-box .title-underlines{ border-top:2px solid #000; margin-top:6px; padding-top:5px; border-bottom:2px solid #000; padding-bottom:2px; height:4px; }
+      .top-info{ display:grid; grid-template-columns:1fr 1.7fr; gap:16px; margin-bottom:4px; flex:1; }
+      .info-list{ flex:1; font-size:12px; display:flex; flex-direction:column; justify-content:space-between; }
+      .info-list .row{ display:flex; align-items:center; height:49px; box-sizing:border-box; }
+      .info-list .lbl{ white-space:nowrap; flex:0 0 auto; }
+      .fill{
+        display:inline-flex; align-items:center; justify-content:center;
+        flex:1; border-bottom:1.3px dotted #000; min-height:20px; padding:0 4px;
+        text-align:center;
+      }
+      .fill.filled{ border-bottom:1.4px solid #000; font-weight:900; }
+      .score-side{ display:flex; flex-direction:column; align-self:stretch; }
+      .tables-block{ display:flex; flex-direction:column; width:100%; flex:1; }
+      .score-side td, .score-side th{ padding:2px 4px; vertical-align:middle; }
+      .score-side tr{ height:49px; }
+      table{ width:100%; border-collapse:collapse; margin-bottom:0; font-size:12px; border:1.4px solid #000; }
+      td, th{ border:1.4px solid #000; padding:2px 3px; text-align:center; vertical-align:middle; }
+      th{ background:#e2e2e2; font-weight:900; }
+      td.item{ text-align:right; padding-right:6px; word-break:break-word; font-size:11px; }
+      td.grade{ width:42px; white-space:nowrap; font-size:11px; }
+      .section-hdr{ background:#e2e2e2; font-weight:900; text-align:center; padding:5px; border:1.4px solid #000; font-size:12px; }
+      .notes-block{ margin:2px 0 2px; font-size:11px; }
+      .notes-row{ display:flex; align-items:baseline; gap:8px; margin:0 0 4px; }
+      .notes-row .dotline{ flex:1; border-bottom:1.4px dotted #000; min-height:20px; padding:0 4px; font-weight:900; }
+      .bottom-rect{ display:flex; border:1.8px solid #000; margin-top:2px; align-items:stretch; }
+      .legend-part{ flex:0 0 auto; border-right:1.8px solid #000; display:flex; flex-direction:column; }
+      .legend-part .legend-title{ text-align:center; font-weight:900; font-size:10px; letter-spacing:1px; padding:0 8px; height:56px; line-height:56px; border-bottom:1.4px solid #000; box-sizing:border-box; }
+      .legend-part table{ margin:0; border-collapse:collapse; height:100%; }
+      .legend-part th{ padding:0 10px; height:56px; line-height:56px; font-size:11px; border:1.4px solid #000; box-sizing:border-box; }
+      .legend-part td{ padding:1px 10px; font-size:11px; border:1.4px solid #000; }
+      .legend-part tr th:first-child, .legend-part tr td:first-child{ border-right:none; }
+      .legend-part tr th:last-child, .legend-part tr td:last-child{ border-left:none; }
+      .legend-part tr:last-child td{ border-bottom:none; }
+      .legend-part .sym{ font-size:14px; font-weight:900; }
+      .lines-part{ flex:1; display:flex; flex-direction:column; justify-content:flex-start; padding:0; }
+      .dotrow{ border-bottom:1.4px dotted #000; height:32px; }
+      .marker-section{ display:flex; align-items:stretch; gap:0; margin:0; padding:0; }
+      .marker-lines{ flex:1; display:flex; flex-direction:column; justify-content:space-between; padding-top:0; }
+      .marker-box{ border-top:none; border-right:1.4px solid #000; border-left:1.4px solid #000; border-bottom:none; padding:4px 8px; font-weight:900; font-size:10px; text-align:center; line-height:1.4; white-space:nowrap; display:flex; align-items:center; justify-content:center; align-self:stretch; }
+      @media print{ .no-print{ display:none !important; } }
+    </style></head>
+    <body>
+      <div class="sheet">
+
+      <div class="header" style="margin-top:16px;">
+        <div class="right">
+          <div class="big">دولة فلسطين</div>
+          <div>وزارة النقل والمواصلات</div>
+          <div>الادارة العامة لسلطة الترخيص</div>
+        </div>
+        <div class="emblem"><img src="${PALESTINE_EMBLEM_DATA_URI}" alt="شعار دولة فلسطين"></div>
+        <div class="title-box">
+          <div>إستمارة فحص عملي للسياقة</div>
+          <div class="title-underlines"></div>
+        </div>
+      </div>
+
+      <div class="top-info">
+        <div class="info-list">
+          <div class="row"><span class="lbl">الاسم الشخصي:</span>${fld(firstName)}</div>
+          <div class="row"><span class="lbl">إسم العائلة:</span>${fld(familyName)}</div>
+          <div class="row"><span class="lbl">رقم الهوية:</span>${fld(nid)}</div>
+          <div class="row"><span class="lbl">نوع المركبة:</span>${fld(vehicleType)}</div>
+          <div class="row"><span class="lbl">رقمها:</span>${fld(vehicleNumber)}</div>
+          <div class="row"><span class="lbl">إسم المدرسة ورقمها:</span>${fld(schoolShortName)}</div>
+          <div class="row"><span class="lbl">تاريخ الفحص:</span>${fld(examDate)}</div>
+          <div class="row"><span class="lbl">نتيجة الفحص:</span>${fld('')}</div>
+          <div class="row"><span class="lbl">إسم الفاحص:</span>${fld('')}</div>
+          <div class="row"><span class="lbl">رقمه:</span>${fld('')}</div>
+          <div class="row"><span class="lbl">ساعة الفحص:</span>${fld(examTimeVal)}</div>
+          <div class="row"><span class="lbl">توقيع الفاحص:</span>${fld('')}</div>
+          <div class="row"><span class="lbl">رقم الفحص:</span>${fld(examNumberVal)}</div>
+        </div>
+        <div class="score-side">
+          <div class="tables-spacer"></div>
+          <div class="tables-block">
+          <table style="table-layout:fixed; border-bottom:none;">
+            <col><col style="width:52px;"><col><col style="width:52px;">
+            <tr><th>أ ـ السيطرة على المركبة</th><th style="width:52px;">الدرجة</th><th>ج ـ الإندماج في الحركة</th><th style="width:52px;">الدرجة</th></tr>
+            <tr><td class="item">1. ضبط المركبة</td><td class="grade"></td><td class="item">1. النظر إلى الأمام والجوانب</td><td class="grade"></td></tr>
+            <tr><td class="item">2. ضبط المقود</td><td class="grade"></td><td class="item">2. السرعة</td><td class="grade"></td></tr>
+            <tr><td class="item">3. إستعمال الغيار</td><td class="grade"></td><td class="item">3. سرعة الحركة في السفر</td><td class="grade"></td></tr>
+            <tr><td class="item">4. الوقوف</td><td class="grade"></td><td class="item">4. المحافظة على مسافة عن المركبة الأمامية</td><td class="grade"></td></tr>
+            <tr><td class="item">5. الرجوع إلى الخلف</td><td class="grade"></td><td class="item">5. تقدير العرض</td><td class="grade"></td></tr>
+            <tr><td class="item">6. الإندفاع</td><td class="grade"></td><td class="item">6. الحذر</td><td class="grade"></td></tr>
+            <tr><td class="item">7. الإشارة</td><td class="grade"></td><td class="item">7. إعطاء حق الأولوية</td><td class="grade"></td></tr>
+            <tr><td class="item">8. الإنتباه</td><td class="grade"></td><td class="item">8. التصرف عند التقابل</td><td class="grade"></td></tr>
+          </table>
+          <table style="table-layout:fixed; border-top:none;">
+            <col><col style="width:52px;"><col><col style="width:52px;">
+            <tr><th colspan="4" class="section-hdr">ب ـ الحركة على الطريق</th></tr>
+            <tr><td class="item">1. موقع المركبة في الطريق</td><td class="grade"></td><td class="item">4. الوقوف في المفترقات</td><td class="grade"></td></tr>
+            <tr><td class="item">2. الإستدارة</td><td class="grade"></td><td class="item">5. التجاوز</td><td class="grade"></td></tr>
+            <tr><td class="item">3. إستعمال المرايا</td><td class="grade"></td><td class="item"></td><td class="grade"></td></tr>
+          </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes-block">
+        <div class="notes-row"><span class="lbl">ملاحظات:</span><span class="dotline">${examNotes}</span></div>
+        <div class="notes-row"><span class="dotline"></span></div>
+        <div class="notes-row"><span class="dotline"></span></div>
+      </div>
+
+      <div class="bottom-rect">
+        <div class="lines-part">
+          <div class="dotrow"></div>
+          <div class="dotrow"></div>
+          <div class="dotrow"></div>
+          <div class="marker-section" style="border-top:1.4px dotted #000;">
+            <div class="marker-lines">
+              <div class="dotrow"></div>
+              <div class="dotrow"></div>
+            </div>
+            <div class="marker-box">على الفاحص أن<br>يؤشر بــ</div>
+          </div>
+        </div>
+        <div class="legend-part">
+          <div class="legend-title">درجــــات الإمتــــحــــان</div>
+          <table>
+            <tr><th>غير معقول</th><th>ســيء</th><th>أخذ السيطرة</th></tr>
+            <tr><td class="sym">✓</td><td class="sym">✗</td><td class="sym">⊗</td></tr>
+          </table>
+        </div>
+      </div>
+
+      </div>
+      <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة استمارة الفحص العملي</button></div>
+    </body></html>
+  `);
+  win.document.close();
+}
+
+
+// طباعة "قائمة بأسماء المتقدمين للامتحان العملي للسياقة" الرسمية
+// (السلطة الوطنية الفلسطينية — وزارة النقل والمواصلات — سلطة الترخيص)
+// تُعبَّأ تلقائياً ببيانات الطلاب المسجلين على امتحانات عملية في النظام
+
+
+function printExamCandidatesList(preselectedDate){
+  if(preselectedDate){ _doPrintCandidatesList(preselectedDate); return; }
+  const practicalDates = [...new Set(
+    (state.officialPapers || [])
+      .filter(p => p.paperType === 'استمارة فحص عملي' && p.submitDate)
+      .map(p => p.submitDate)
+  )].sort();
+
+  if(!practicalDates.length){
+    alert('لا توجد استمارات فحص عملي مسجلة في أوراق العمل الرسمية.');
+    return;
+  }
+
+  // بناء قائمة التواريخ للـselect
+  const opts = practicalDates.map(d => `<option value="${d}">${d}</option>`).join('');
+
+  // نستخدم نافذة حوار مؤقتة لاختيار التاريخ
+  const dlgWin = window.open('', '_blank', 'width=400,height=220');
+  if(!dlgWin){ alert('يرجى السماح بفتح النوافذ المنبثقة'); return; }
+
+  dlgWin.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+  <title>اختيار تاريخ الامتحان</title>
+  <style>
+    body{ font-family:Tahoma,Arial,sans-serif; padding:24px; background:#f5f5f5; }
+    label{ display:block; margin-bottom:8px; font-weight:bold; font-size:14px; }
+    select{ width:100%; padding:8px; font-size:14px; margin-bottom:16px; }
+    button{ padding:10px 28px; font-size:14px; background:#1d4ed8; color:#fff; border:none; border-radius:4px; cursor:pointer; }
+    button:hover{ background:#1e40af; }
+  </style></head><body>
+  <label>اختر تاريخ الامتحان:</label>
+  <select id="dateSelect">${opts}</select>
+  <button onclick="
+    const d = document.getElementById('dateSelect').value;
+    window.opener._candidatesDateCallback(d);
+    window.close();
+  ">🖨 طباعة القائمة</button>
+  </body></html>`);
+  dlgWin.document.close();
+
+  // callback يُستدعى من نافذة الاختيار
+  window._candidatesDateCallback = function(selectedDate){
+    _doPrintCandidatesList(selectedDate);
+  };
+}
+
+function _doPrintCandidatesList(selectedDate){
+  const info = getSchoolInfo();
+  const schoolName = info.schoolName || '';
+
+  const papers = (state.officialPapers || [])
+    .filter(p => p.paperType === 'استمارة فحص عملي' && p.submitDate === selectedDate);
+
+  const getLinkedExam = (paper) => {
+    const student = paper.studentId ? state.students.find(s=>s.id===paper.studentId) : null;
+    if(!student) return null;
+    return (state.exams||[])
+      .filter(e=>e.studentId===student.id && e.examType==='عملي' && (e.datetime||'').slice(0,10)===selectedDate)
+      .sort((a,b)=>(b.datetime||'').localeCompare(a.datetime||''))[0] || null;
+  };
+  papers.sort((a,b)=>((getLinkedExam(a)||{}).examTime||'').localeCompare(((getLinkedExam(b)||{}).examTime||'')));
+
+  const ROWS = 20;
+  const arabicNums = ['١','٢','٣','٤','٥','٦','٧','٨','٩','١٠','١١','١٢','١٣','١٤','١٥','١٦','١٧','١٨','١٩','٢٠'];
+  let rows = '';
+
+  for(let i = 0; i < ROWS; i++){
+    const paper = papers[i];
+    const student = (paper && paper.studentId) ? state.students.find(s=>s.id===paper.studentId) : null;
+    const linkedExam = paper ? getLinkedExam(paper) : null;
+    const instructor = (linkedExam && linkedExam.instructorId) ? state.staff.find(s=>s.id===linkedExam.instructorId) : null;
+
+    const nameParts = student ? (student.name||'').trim().split(/\s+/).filter(Boolean) : [];
+    const COMPOUND = ['عبد','عبدال','أبو','ابو','أم','ام','ابن','بنت'];
+    let firstName = '', familyName = '';
+    if(nameParts.length){
+      firstName = (nameParts.length>=2 && COMPOUND.includes(nameParts[0]))
+        ? nameParts[0]+' '+nameParts[1] : nameParts[0];
+      familyName = nameParts.length > 1 ? nameParts[nameParts.length-1] : '';
+    }
+
+    const vehicleType  = student ? (student.licenseCategory || '') : '';
+    const vehiclePlate = instructor ? (instructor.vehiclePlate || '') : '';
+    const examTime     = linkedExam ? (linkedExam.examTime || '') : '';
+    const examNumber   = linkedExam ? (linkedExam.examNumber || '') : '';
+    const nid          = student ? (student.nid || '') : '';
+
+    rows += `<tr>
+      <td style="text-align:center;">${arabicNums[i]}</td>
+      <td>${schoolName}</td>
+      <td>${examTime}</td>
+      <td>${firstName}</td>
+      <td>${familyName}</td>
+      <td>${nid}</td>
+      <td>${vehicleType}</td>
+      <td>${vehiclePlate}</td>
+      <td>${examNumber}</td>
+      <td></td>
+    </tr>`;
+  }
+
+  // تحويل التاريخ لليوم بالعربية
+  const dateObj = new Date(selectedDate + 'T00:00:00');
+  const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  const dayName = days[dateObj.getDay()] || '';
+
+  const win = window.open('', '_blank', 'width=900,height=1200');
+  if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+  <title>قائمة المتقدمين للامتحان العملي - ${selectedDate}</title>
+  <style>
+    @page{ size:A4; margin:10mm; }
+    *{ box-sizing:border-box; margin:0; padding:0; }
+    body{ font-family:Tahoma,Arial,sans-serif; font-size:11px; font-weight:900; color:#000; }
+    .sheet{ display:flex; flex-direction:column; min-height:277mm; }
+    .header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:6px; }
+    .header .right{ text-align:center; line-height:1.7; font-size:15px; }
+    .header .right .big{ font-size:22px; font-weight:900; }
+    .header .left img{ height:90px; }
+    .title{ text-align:center; font-size:16px; font-weight:900; margin:8px 0 12px; }
+    .meta{ display:flex; gap:30px; margin-bottom:10px; font-size:11px; }
+    .meta .field{ display:flex; gap:6px; align-items:baseline; }
+    .meta .line{ border-bottom:1.2px solid #000; min-width:80px; padding:0 4px; font-size:12px; }
+    table{ width:100%; border-collapse:collapse; font-size:10.5px; }
+    th, td{ border:1.2px solid #000; padding:9px 3px; text-align:center; vertical-align:middle; }
+    th{ background:#f0f0f0; font-size:10px; }
+    .footer{ margin-top:14px; display:flex; justify-content:space-between; font-size:11px; }
+    .footer-right div, .footer-left div{ margin-bottom:16px; display:flex; gap:6px; align-items:baseline; }
+    .fline{ border-bottom:1.2px solid #000; min-width:120px; flex:1; }
+    @media print{ .no-print{ display:none !important; } }
+  </style></head><body>
+  <div class="sheet">
+    <div class="header">
+      <div class="right">
+        <div class="big">السلطة الوطنية الفلسطينية</div>
+        <div>وزارة النقل والمواصلات</div>
+        <div>سلطة الترخيص</div>
+      </div>
+      <div class="left"><img src="${PALESTINE_EMBLEM_DATA_URI}" alt="شعار"></div>
+    </div>
+    <div class="title">قائمة بأسماء المتقدمين للإمتحان العملي للسياقة</div>
+    <div class="meta">
+      <div class="field"><span>اليوم</span><span class="line">${dayName}</span></div>
+      <div class="field"><span>الموافق</span><span class="line">${selectedDate}</span></div>
+      <div class="field"><span>المنطقة</span><span class="line"></span></div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2">الرقم</th>
+          <th rowspan="2">إسم<br>المدرسة</th>
+          <th rowspan="2">ساعة<br>الفحص</th>
+          <th colspan="2">إسم الطالب</th>
+          <th rowspan="2">رقم<br>الهوية</th>
+          <th rowspan="2">النوع</th>
+          <th rowspan="2">رقم<br>السيارة</th>
+          <th rowspan="2">رقم<br>الفحص</th>
+          <th rowspan="2">نتيجة<br>الفحص</th>
+        </tr>
+        <tr>
+          <th>الإسم الشخصي</th>
+          <th>إسم العائلة</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="footer">
+      <div class="footer-right">
+        <div><span>مجموع الناجحين</span><span class="fline"></span></div>
+        <div><span>مجموع الراسبين</span><span class="fline"></span></div>
+        <div><span>المجموع الإجمالي</span><span class="fline"></span></div>
+      </div>
+      <div class="footer-left">
+        <div><span>توقيع الفاحص</span><span class="fline"></span></div>
+        <div><span>التـــاريـــخ</span><span class="fline"></span></div>
+        <div><span>توقيع رئيس الفاحصين</span><span class="fline"></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="no-print" style="margin-top:16px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة القائمة</button></div>
+  </body></html>`);
+  win.document.close();
+}
 
 function renderOfficialPapers(){
   saveState();
@@ -7389,6 +7842,8 @@ function renderOfficialPapers(){
       <td class="row-actions">
         ${p.paperType==='طلب استمارة طالب' ? `<button class="btn" onclick="printOfficialCombinedForm(${p.id})">🖨 النموذج الرسمي (صفحتان)</button>` : ''}
         ${p.paperType==='تجديد رخصة المدرسة' ? `<button class="btn" onclick="printSchoolLicenseRenewalForm(${p.id})">🖨 نموذج تجديد الرخصة</button>` : ''}
+        ${p.paperType==='استمارة فحص عملي' ? `<button class="btn" onclick="printPracticalExamForm(${p.id})">🖨 استمارة الفحص العملي</button>` : ''}
+        ${p.paperType==='استمارة فحص عملي' ? `<button class="btn" onclick="printExamCandidatesList('${p.submitDate||''}')">📋 قائمة المتقدمين</button>` : ''}
         ${p.status==='قيد الإجراء' ? `<button class="btn" onclick="setPaperStatus(${p.id},'منجزة')">✅ منجزة</button>
         <button class="btn btn-danger" onclick="setPaperStatus(${p.id},'مرفوضة')">❌ مرفوضة</button>` : ''}
         <button class="btn btn-danger" onclick="deleteOfficialPaper(${p.id})">🗑 حذف</button>
@@ -7973,7 +8428,7 @@ function renderAll(){
   renderVehicleExpenses(); renderGeneralExpenses(); renderReceipts(); renderPricing(); renderExams();
   renderVehicleDailyLogs();
   renderDisbursements(); renderCheques(); renderOfficialPapers();
-  refreshLessonDropdowns(); refreshInvoiceDropdowns(); refreshExpenseDropdown(); refreshExamDropdowns(); renderReports();
+  refreshLessonDropdowns(); refreshInvoiceDropdowns(); refreshExpenseDropdown(); refreshExamDropdowns(); renderReports(); onExamTypeChange();
   renderUsers();
   renderHome();
   updateUserBadge();
