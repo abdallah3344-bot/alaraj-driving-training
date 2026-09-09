@@ -480,7 +480,7 @@
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-09-sync-fix-b</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-09-egress-fix</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -2174,7 +2174,7 @@ const PERIODIC_SYNC_INTERVAL_MS = 25000; // فحص دوري كل 25 ثانية �
 function startPeriodicSync(){
   if(periodicSyncStarted) return;
   periodicSyncStarted = true;
-  setInterval(pollForRemoteUpdates, PERIODIC_SYNC_INTERVAL_MS);
+  setInterval(()=>pollForRemoteUpdates(false), 60000);
   // فحص فوري إضافي عند الرجوع لعلامة التبويب بعد تصفّحها بالخلفية، بدل انتظار الدورة التالية
   document.addEventListener('visibilitychange', ()=>{
     if(document.visibilityState === 'visible' && syncEnabled) pollForRemoteUpdates();
@@ -2197,11 +2197,25 @@ function updateSyncBadge(ok, detail){
     el.textContent = '⚠️ تعذّرت آخر محاولة مزامنة (' + (detail||'خطأ غير معروف') + ') — البيانات محفوظة محلياً على أي حال';
   }
 }
+// تتبّع "تغييرات لم تُرفع بعد": يمنع إغلاق البرنامج قبل اكتمال الرفع، ويعيد المحاولة تلقائياً عند الفشل
+let _syncDirty = false, _syncDirtySeq = 0, _syncRetryTimer = null;
+function updateUnsyncedPill(){
+  let el = document.getElementById('unsyncedPill');
+  const show = syncEnabled && (_syncDirty || (typeof _mediaMigrationRunning !== 'undefined' && _mediaMigrationRunning));
+  if(!show){ if(el) el.remove(); return; }
+  if(!el){
+    el = document.createElement('div'); el.id = 'unsyncedPill';
+    el.style.cssText = 'position:fixed;top:10px;left:10px;z-index:99998;background:#b45309;color:#fff;padding:8px 12px;border-radius:999px;font-size:13px;box-shadow:0 3px 10px rgba(0,0,0,.25);direction:rtl';
+    document.body.appendChild(el);
+  }
+  el.textContent = (typeof _mediaMigrationRunning !== 'undefined' && _mediaMigrationRunning) ? '☁️ جارٍ نقل المرفقات — لا تُغلق البرنامج' : '⏳ تغييرات لم تُرفع للسحابة بعد — لا تُغلق البرنامج';
+}
 async function pushStateToServer(){
   if(!syncEnabled || syncInFlight) return;
   const key = (localStorage.getItem(LICENSE_KEY_STORAGE) || '').trim();
   if(!key) return;
   syncInFlight = true;
+  const seqAtStart = _syncDirtySeq;
   try{
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/save_app_data`, {
       method: 'POST', headers: supabaseHeaders(),
@@ -2209,12 +2223,19 @@ async function pushStateToServer(){
     });
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const result = await res.json();
-    updateSyncBadge(!!result.ok, result.message);
+    if(!result.ok) throw new Error(result.message || 'رفض الخادم الحفظ');
+    updateSyncBadge(true, result.message);
+    if(seqAtStart === _syncDirtySeq){ _syncDirty = false; clearTimeout(_syncRetryTimer); }
+    fetchServerVersion().then(v=>{ if(v) _knownServerVersion = v; });
   }catch(err){
     console.warn('تعذّر رفع البيانات للمزامنة:', err);
     updateSyncBadge(false, err.message);
+    // إعادة محاولة تلقائية كل 15 ثانية حتى ينجح الرفع (بدل انتظار تعديل جديد)
+    clearTimeout(_syncRetryTimer);
+    _syncRetryTimer = setTimeout(()=>{ if(_syncDirty && navigator.onLine) pushStateToServer(); }, 15000);
   }finally{
     syncInFlight = false;
+    updateUnsyncedPill();
   }
 }
 // المزامنة تحدث فقط عند حفظ أي إدخال فعلي (عبر saveState → scheduleSync)، وليست على مؤقّت دوري ثابت.
@@ -2222,7 +2243,10 @@ async function pushStateToServer(){
 let _suppressServerPush = false; // أثناء ترحيل المرفقات: لا نرفع الحالة الكبيرة للخادم مع كل ملف، بل مرة واحدة في النهاية
 function scheduleSync(){
   lastLocalEditAt = Date.now();
-  if(!syncEnabled || _suppressServerPush) return;
+  if(!syncEnabled) return;
+  _syncDirty = true; _syncDirtySeq++;
+  updateUnsyncedPill();
+  if(_suppressServerPush) return;
   clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(pushStateToServer, 2500);
 }
@@ -2240,16 +2264,49 @@ function flushSyncOnExit(){
     });
   }catch(e){ /* لا يوجد ما يمكن فعله إضافياً لحظة الإغلاق الفعلي */ }
 }
-window.addEventListener('beforeunload', flushSyncOnExit);
+// منع إغلاق/تحديث الصفحة قبل اكتمال الرفع للسحابة أو انتهاء ترحيل المرفقات — يعرض المتصفح تنبيهاً يطلب التأكيد
+window.addEventListener('beforeunload', (e)=>{
+  flushSyncOnExit();
+  const migrating = (typeof _mediaMigrationRunning !== 'undefined' && _mediaMigrationRunning);
+  if(syncEnabled && (_syncDirty || migrating)){
+    e.preventDefault();
+    e.returnValue = 'لم تكتمل مزامنة البيانات مع السحابة بعد — لا تُغلق البرنامج الآن';
+    // إن ألغى المستخدم الإغلاق، نرفع فوراً (الرفع المؤجَّل أُلغي أعلاه في flushSyncOnExit)
+    if(_syncDirty && !migrating) setTimeout(()=>{ if(_syncDirty) pushStateToServer(); }, 500);
+    return e.returnValue;
+  }
+});
 window.addEventListener('pagehide', flushSyncOnExit);
 document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState === 'hidden') flushSyncOnExit();
 });
-async function pollForRemoteUpdates(){
+// آخر إصدار (updated_at) معروف لبيانات الخادم — الفحص الدوري يسأل عن الإصدار فقط (بضع بايتات)
+// ولا ينزّل البيانات كاملة إلا إذا تغيّر فعلاً. هذا يخفض استهلاك البيانات (egress) بنسبة تفوق 99%.
+let _knownServerVersion = null;
+async function fetchServerVersion(){
+  const key = (localStorage.getItem(LICENSE_KEY_STORAGE) || '').trim();
+  if(!key) return null;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/app_data_version`, {
+      method: 'POST', headers: supabaseHeaders(),
+      body: JSON.stringify({ p_license_key: key, p_program: LICENSE_PROGRAM, p_device_id: getDeviceId() })
+    });
+    if(!res.ok) return null;
+    const r = await res.json();
+    return (r && r.ok) ? (r.updated_at || null) : null;
+  }catch(_){ return null; }
+}
+async function pollForRemoteUpdates(force){
   if(!syncEnabled || syncInFlight) return;
-  if(Date.now() - lastLocalEditAt < SYNC_POLL_SAFETY_GAP_MS) return; // تفادي تعارض مع حفظ محلي حديث لم يُرفع بعد
+  if(!force && Date.now() - lastLocalEditAt < SYNC_POLL_SAFETY_GAP_MS) return; // تفادي تعارض مع حفظ محلي حديث لم يُرفع بعد
   const key = (localStorage.getItem(LICENSE_KEY_STORAGE) || '').trim();
   if(!key) return;
+  if(!force){
+    const v = await fetchServerVersion();
+    if(v === null) return; // الخادم لا يستجيب — لا نحمّل شيئاً الآن
+    if(v === _knownServerVersion) return; // لا تغيير على الخادم — لا حاجة لتنزيل البيانات
+    _knownServerVersion = v;
+  }
   syncInFlight = true;
   try{
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/load_app_data`, {
@@ -2294,7 +2351,7 @@ async function manualSyncNow(){
   if(!syncEnabled){ alert('المزامنة غير مفعّلة — تتطلب ترخيصاً مفعَّلاً (وليس نسخة تجريبية).'); return; }
   clearTimeout(syncDebounceTimer);
   lastLocalEditAt = 0; // نسمح بجلب أي تحديثات واردة فوراً عند الطلب اليدوي
-  await pollForRemoteUpdates();
+  await pollForRemoteUpdates(true);
   await pushStateToServer();
   alert('تمت محاولة المزامنة.');
 }
@@ -2349,6 +2406,7 @@ async function initDataSync(){
       await pushStateToServer();
     }
     updateSyncBadge(true);
+    fetchServerVersion().then(v=>{ if(v) _knownServerVersion = v; });
     setTimeout(()=> migrateInlineMediaToStorage().catch(e=>console.warn('ترحيل المرفقات:', e)), 1500);
   }catch(err){
     console.warn('تعذّرت تهيئة المزامنة، سيعمل البرنامج محلياً فقط على هذا الجهاز:', err);
@@ -3573,6 +3631,7 @@ async function migrateInlineMediaToStorage(){
   if(!total) return;
   _mediaMigrationRunning = true;
   _suppressServerPush = true;
+  updateUnsyncedPill();
   let done = 0, failed = 0;
   const tick = ()=> showMigrationToast(`☁️ نقل المرفقات إلى التخزين السحابي… ${done}/${total}${failed?` (فشل ${failed})`:''}`);
   tick();
@@ -3621,6 +3680,7 @@ async function migrateInlineMediaToStorage(){
   } finally {
     _mediaMigrationRunning = false;
     _suppressServerPush = false;
+    updateUnsyncedPill();
     if(done){
       // بعد التقليص، نعيد محاولة الحفظ المحلي إن كان قد فشل سابقاً بسبب امتلاء التخزين
       storageAvailable = true;
