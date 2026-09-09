@@ -480,7 +480,7 @@
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">ocr-build-2026-09-07-tesseract-ai-supabase</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-09-search-fix</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -1225,9 +1225,10 @@
         <div class="field"><label>التاريخ</label><input id="ls_date" type="date"></div>
         <div class="field"><label>المدة (دقيقة)</label><input id="ls_duration" type="number" step="5" value="40" oninput="suggestLessonPrice()"></div>
         <div class="field"><label>سعر الحصة (اختياري)</label><input id="ls_price" type="number" step="0.01" placeholder="0"></div>
+        <div class="field"><label>💰 المبلغ المدفوع (اختياري)</label><input id="ls_paid" type="number" step="0.01" placeholder="0" min="0"></div>
       </div>
       <div class="form-actions"><button class="btn btn-accent" onclick="addLesson()">✅ تسجيل الحصة</button></div>
-      <div class="note" style="margin-top:12px;">عند تسجيل الحصة تُعتبر منجزة مباشرة (لا حاجة لضغط "إنجاز" لاحقاً): تُحتسَب ساعات الطالب وعمولة المدرب فوراً، وتُصدَر فاتورة تلقائية إن كان لها سعر.</div>
+      <div class="note" style="margin-top:12px;">عند تسجيل الحصة تُعتبر منجزة مباشرة (لا حاجة لضغط "إنجاز" لاحقاً): تُحتسَب ساعات الطالب وعمولة المدرب فوراً، وتُصدَر فاتورة تلقائية إن كان لها سعر. وإن أُدخل مبلغ مدفوع تُرصَّد ذمة الطالب فوراً ويُصدَر سند قبض تلقائياً.</div>
     </div>
     <div class="card">
       <h2>سجل الحصص</h2>
@@ -2010,19 +2011,44 @@ function initSelectSearch(searchInputId, selectId){
   const select = document.getElementById(selectId);
   if(!input || !select) return;
   _searchableSelectsWired.add(selectId);
-  input.addEventListener('focus', ()=>{
-    if(!select.dataset.searching) select._fullOptionsHtml = select.innerHTML;
-  });
+  // القائمة الكاملة تُؤخذ دائماً من آخر حالة "غير مُفلترة" للقائمة (تتجدد تلقائياً بعد أي إعادة رسم)
+  const snapshotFull = ()=>{ if(!select.dataset.searching) select._fullOptionsHtml = select.innerHTML; };
+  const restoreFull = (keepValue)=>{
+    if(select.dataset.searching && select._fullOptionsHtml != null){
+      select.innerHTML = select._fullOptionsHtml;
+      delete select.dataset.searching;
+    }
+    if(keepValue != null && [...select.options].some(o=>o.value===String(keepValue))) select.value = String(keepValue);
+  };
+  const fireChange = ()=>{ select._programmaticChange = true; try{ select.dispatchEvent(new Event('change', { bubbles:true })); } finally { select._programmaticChange = false; } };
+  input.addEventListener('focus', snapshotFull);
   input.addEventListener('input', ()=>{
+    snapshotFull();
     if(select._fullOptionsHtml == null) select._fullOptionsHtml = select.innerHTML;
     const term = input.value.trim();
+    if(!term){ restoreFull(select.value); return; }
     const temp = document.createElement('select');
     temp.innerHTML = select._fullOptionsHtml;
-    const currentValue = select.value;
-    const filtered = [...temp.options].filter(o => !term || o.textContent.includes(term));
+    const prevValue = select.value;
+    const filtered = [...temp.options].filter(o => o.value !== '' && o.textContent.includes(term));
     select.dataset.searching = '1';
-    select.innerHTML = filtered.map(o=>o.outerHTML).join('') || '<option value="">لا نتائج مطابقة</option>';
-    if([...select.options].some(o=>o.value===currentValue)) select.value = currentValue;
+    select.innerHTML = filtered.length ? filtered.map(o=>o.outerHTML).join('') : '<option value="">لا نتائج مطابقة</option>';
+    // أول نتيجة مطابقة تُختار فعلياً (مع إطلاق حدث change حتى تعمل التعبئة التلقائية المرتبطة بالقائمة)
+    const newValue = filtered.length ? (filtered.some(o=>o.value===prevValue) ? prevValue : filtered[0].value) : '';
+    select.value = newValue;
+    if(newValue !== prevValue) fireChange();
+  });
+  // Enter في خانة البحث = اعتماد النتيجة الأولى والانتقال للحقل التالي
+  input.addEventListener('keydown', e=>{
+    if(e.key === 'Enter'){ e.preventDefault(); if(select.value) { input.value = select.options[select.selectedIndex].textContent; restoreFull(select.value); } select.focus(); }
+  });
+  // عند اختيار اسم من القائمة: يُكتب في خانة البحث، وتُعاد القائمة الكاملة مع بقاء الاختيار
+  select.addEventListener('change', ()=>{
+    if(select._programmaticChange) return; // تغيير ناتج عن الفلترة نفسها — تبقى القائمة مُفلترة ليختار المستخدم منها
+    const opt = select.options[select.selectedIndex];
+    if(opt && opt.value !== '') input.value = opt.textContent;
+    else if(!select.dataset.searching) input.value = '';
+    restoreFull(select.value);
   });
 }
 // يُعاد استدعاؤها من renderAll() لتغطية أي قائمة جديدة تُنشأ لاحقاً (لا تكرر الربط لنفس القائمة)
@@ -2315,6 +2341,7 @@ async function initDataSync(){
       await pushStateToServer();
     }
     updateSyncBadge(true);
+    setTimeout(()=> migrateInlineMediaToStorage().catch(e=>console.warn('ترحيل المرفقات:', e)), 1500);
   }catch(err){
     console.warn('تعذّرت تهيئة المزامنة، سيعمل البرنامج محلياً فقط على هذا الجهاز:', err);
     updateSyncBadge(false, err.message);
@@ -3222,14 +3249,14 @@ async function finalizeScanArtifactsForNewStudent(student){
   // إرفاق صورة الهوية الممسوحة (كاميرا/ملف/مجلد سكانر) كمرفق دائم للطالب بعد نجاح إضافته —
   // منفصل عن مسار "Local Agent" أدناه الذي له آلية تخزين خاصة به عبر Supabase.
   if(pendingIdImage && !pendingScanEventId){
-    if(!student.attachments) student.attachments = [];
-    student.attachments.push({
-      id: Date.now()+'_'+Math.floor(Math.random()*10000),
-      name: 'صورة الهوية الشخصية',
-      dataUrl: pendingIdImage
-    });
-    saveState();
-    renderAttachments('student', student.id);
+    try{
+      const att = await uploadAttachmentToStorage('student', student.id, pendingIdImage, 'صورة الهوية الشخصية.jpg');
+      att.name = 'صورة الهوية الشخصية';
+      if(!student.attachments) student.attachments = [];
+      student.attachments.push(att);
+      saveState();
+      renderAttachments('student', student.id);
+    }catch(err){ console.warn('تعذّر رفع صورة الهوية كمرفق:', err.message); }
   }
 
   if(pendingPhoto){
@@ -3427,37 +3454,211 @@ function getEntityArray(type){
 function getEntityById(type, id){
   return getEntityArray(type).find(e=>e.id===id);
 }
-function handleAttachmentFileInput(type, id, inputEl){
+// ==================================================================
+// مرفقات Supabase Storage — بديل تخزين base64 داخل حالة البرنامج (app_data/localStorage)
+// كل ملف يُرفع إلى bucket خاص (entity-attachments) معزول بمسار {program}/{license}/...
+// ويُخزَّن في الحالة المسار فقط (storagePath) بدل الصورة نفسها.
+// ==================================================================
+const ATTACH_FN_URL = `${SUPABASE_URL}/functions/v1/entity-attachments`;
+const ATTACH_MAX_IMAGE_PX = 1800;
+function attachmentScope(){
+  return { program: LICENSE_PROGRAM, license_key: (localStorage.getItem(LICENSE_KEY_STORAGE)||'').trim() };
+}
+async function attachmentsApi(payload){
+  const scope = attachmentScope();
+  if(!scope.license_key) throw new Error('لا يوجد ترخيص مفعَّل — رفع المرفقات يتطلب ترخيصاً');
+  const res = await fetch(ATTACH_FN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+    body: JSON.stringify(Object.assign({}, scope, payload))
+  });
+  let json = {};
+  try{ json = await res.json(); }catch(_){ }
+  if(!res.ok || !json.ok) throw new Error(json.detail || json.error || ('HTTP ' + res.status));
+  return json;
+}
+// يصغّر الصور الكبيرة قبل الرفع (يوفّر مساحة Storage ووقت الرفع) — غير الصور تُمرَّر كما هي
+async function shrinkImageForUpload(dataUrl){
+  if(!/^data:image\/(jpeg|jpg|png|webp|bmp)/i.test(dataUrl)) return dataUrl;
+  try{
+    const img = await loadImageEl(dataUrl);
+    const scale = Math.min(1, ATTACH_MAX_IMAGE_PX / Math.max(img.naturalWidth||img.width, img.naturalHeight||img.height));
+    if(scale >= 1 && dataUrl.length < 900000) return dataUrl;
+    const c = document.createElement('canvas');
+    c.width = Math.round((img.naturalWidth||img.width) * scale);
+    c.height = Math.round((img.naturalHeight||img.height) * scale);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,c.width,c.height);
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.86);
+  }catch(_){ return dataUrl; }
+}
+function readFileAsDataUrl(file){
+  return new Promise((resolve, reject)=>{
+    const r = new FileReader();
+    r.onload = e=> resolve(e.target.result);
+    r.onerror = ()=> reject(new Error('تعذّر قراءة الملف'));
+    r.readAsDataURL(file);
+  });
+}
+// يرفع ملفاً (data URL) ويرجع كائن مرفق جاهز للتخزين في الحالة
+async function uploadAttachmentToStorage(entityType, entityId, dataUrl, fileName, attachmentId){
+  if(!navigator.onLine) throw new Error('لا يوجد اتصال بالإنترنت — رفع المرفقات يتطلب اتصالاً');
+  const prepared = await shrinkImageForUpload(dataUrl);
+  const id = attachmentId || (Date.now()+'_'+Math.floor(Math.random()*10000));
+  const res = await attachmentsApi({ action:'upload', entity_type: entityType, entity_id: entityId, attachment_id: id, file_base64: prepared, file_name: fileName||'' });
+  return { id, name: fileName || 'مرفق', storagePath: res.path, mime: res.mime, size: res.size, uploadedAt: new Date().toISOString() };
+}
+const _attachmentUrlCache = new Map(); // path -> {url, expiresAt}
+async function getAttachmentSignedUrl(path, expiresSec){
+  expiresSec = expiresSec || 300;
+  const c = _attachmentUrlCache.get(path);
+  if(c && c.expiresAt > Date.now()) return c.url;
+  const res = await attachmentsApi({ action:'url', path, expires: expiresSec });
+  _attachmentUrlCache.set(path, { url: res.url, expiresAt: Date.now() + (expiresSec-20)*1000 });
+  return res.url;
+}
+async function deleteAttachmentFromStorage(path){
+  if(!path) return;
+  try{ await attachmentsApi({ action:'delete', path }); _attachmentUrlCache.delete(path); }
+  catch(err){ console.warn('تعذّر حذف الملف من التخزين السحابي (سيُترك كما هو):', err.message); }
+}
+// يفتح ملفاً محفوظاً في التخزين السحابي في نافذة جديدة — النافذة تُفتح قبل أي await لتفادي حظر المنبثقات
+async function openStoredAttachment(path){
+  const win = window.open('', '_blank');
+  if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لعرض المرفق'); return; }
+  win.document.write('<p style="font-family:sans-serif;direction:rtl;padding:20px">جارٍ تحميل المرفق…</p>');
+  try{
+    const url = await getAttachmentSignedUrl(path, 300);
+    win.location.href = url;
+  }catch(err){
+    win.document.body.innerHTML = '<p style="font-family:sans-serif;direction:rtl;padding:20px;color:#b00">تعذّر فتح المرفق: ' + (err.message||err) + '</p>';
+  }
+}
+
+// ---------- ترحيل تلقائي لمرة واحدة: كل صورة/مرفق base64 قديم في الحالة يُرفع إلى Storage ----------
+let _mediaMigrationRunning = false;
+function countInlineMediaInState(s){
+  s = s || state; let n = 0;
+  ['students','staff','vehicles','officialPapers'].forEach(k=> (s[k]||[]).forEach(e=>{
+    (e.attachments||[]).forEach(a=>{ if(a && a.dataUrl) n++; });
+  }));
+  (s.officialPapers||[]).forEach(p=>{ if(p.photo1) n++; if(p.photo2) n++; });
+  (s.students||[]).forEach(st=>{ if(st.photo && !st.profilePhotoPath) n++; });
+  return n;
+}
+function showMigrationToast(msg){
+  let el = document.getElementById('mediaMigrationToast');
+  if(!el){
+    el = document.createElement('div'); el.id = 'mediaMigrationToast';
+    el.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:99999;background:#1f5f5b;color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.25);direction:rtl;max-width:320px';
+    document.body.appendChild(el);
+  }
+  if(!msg){ el.remove(); return; }
+  el.textContent = msg;
+}
+async function migrateInlineMediaToStorage(){
+  if(_mediaMigrationRunning) return;
+  if(!navigator.onLine) return;
+  if(!attachmentScope().license_key) return;
+  const total = countInlineMediaInState();
+  if(!total) return;
+  _mediaMigrationRunning = true;
+  let done = 0, failed = 0;
+  const tick = ()=> showMigrationToast(`☁️ نقل المرفقات إلى التخزين السحابي… ${done}/${total}${failed?` (فشل ${failed})`:''}`);
+  tick();
+  const types = { students:'student', staff:'staff', vehicles:'vehicle', officialPapers:'officialPaper' };
+  try{
+    for(const key of Object.keys(types)){
+      for(const ent of (state[key]||[])){
+        for(const att of (ent.attachments||[])){
+          if(!att || !att.dataUrl) continue;
+          try{
+            const up = await uploadAttachmentToStorage(types[key], ent.id, att.dataUrl, att.name, att.id);
+            att.storagePath = up.storagePath; att.mime = up.mime; att.size = up.size; delete att.dataUrl;
+            done++; saveState();
+          }catch(err){ failed++; console.warn('فشل ترحيل مرفق:', att.name, err.message); }
+          tick();
+        }
+      }
+    }
+    for(const p of (state.officialPapers||[])){
+      for(const slot of [1,2]){
+        const k = 'photo'+slot;
+        if(!p[k]) continue;
+        try{
+          const up = await uploadAttachmentToStorage('officialPaper', p.id, p[k], 'photo'+slot+'.jpg', 'photo'+slot);
+          p[k+'Path'] = up.storagePath; p[k] = null;
+          done++; saveState();
+        }catch(err){ failed++; console.warn('فشل ترحيل صورة معاملة:', err.message); }
+        tick();
+      }
+    }
+    for(const st of (state.students||[])){
+      if(!st.photo || st.profilePhotoPath) continue;
+      try{
+        const thumb = await makeThumbnail(st.photo, 160);
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/save-student-profile-photo`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+          body: JSON.stringify({ student_id: st.id, image_base64: st.photo, thumb_base64: thumb, action: 'created', source_device_id: CURRENT_DEVICE_ID })
+        });
+        const json = await res.json();
+        if(res.ok && json.ok){ st.profilePhotoPath = json.profile_photo_path; st.profilePhotoThumbPath = json.profile_photo_thumb_path; st.photo = null; done++; saveState(); }
+        else { failed++; }
+      }catch(err){ failed++; console.warn('فشل ترحيل صورة طالب:', err.message); }
+      tick();
+    }
+  } finally {
+    _mediaMigrationRunning = false;
+    if(done){
+      // بعد التقليص، نعيد محاولة الحفظ المحلي إن كان قد فشل سابقاً بسبب امتلاء التخزين
+      storageAvailable = true;
+      saveState();
+      if(storageAvailable){ const box = document.getElementById('storageWarning'); if(box) box.style.display='none'; }
+      try{ await pushStateToServer(); }catch(_){ }
+    }
+    showMigrationToast(failed ? `⚠️ اكتمل النقل: ${done} نجح، ${failed} فشل (ستُعاد المحاولة عند التشغيل القادم)` : `✅ تم نقل ${done} مرفقاً إلى التخزين السحابي`);
+    setTimeout(()=> showMigrationToast(null), 7000);
+  }
+}
+async function handleAttachmentFileInput(type, id, inputEl){
   const file = inputEl.files[0];
-  if(!file || !id){ inputEl.value=''; return; }
-  const reader = new FileReader();
-  reader.onload = e=>{
-    const entity = getEntityById(type, id);
-    if(!entity) return;
+  inputEl.value = '';
+  if(!file || !id) return;
+  const entity = getEntityById(type, id);
+  if(!entity) return;
+  try{
+    const dataUrl = await readFileAsDataUrl(file);
+    const att = await uploadAttachmentToStorage(type, id, dataUrl, file.name);
     if(!entity.attachments) entity.attachments = [];
-    entity.attachments.push({ id: Date.now()+'_'+Math.floor(Math.random()*10000), name: file.name, dataUrl: e.target.result });
+    entity.attachments.push(att);
     saveState();
     renderAttachments(type, id);
-  };
-  reader.readAsDataURL(file);
-  inputEl.value = '';
+  }catch(err){
+    alert('تعذّر رفع المرفق: ' + (err.message||err));
+  }
 }
 function replaceAttachment(type, id, attId){
   const input = document.createElement('input');
   input.type = 'file';
-  input.onchange = ()=>{
+  input.onchange = async ()=>{
     const file = input.files[0];
     if(!file) return;
-    const reader = new FileReader();
-    reader.onload = e=>{
-      const entity = getEntityById(type, id);
-      if(!entity) return;
-      const att = (entity.attachments||[]).find(a=>String(a.id)===String(attId));
-      if(att){ att.name = file.name; att.dataUrl = e.target.result; }
+    const entity = getEntityById(type, id);
+    if(!entity) return;
+    const att = (entity.attachments||[]).find(a=>String(a.id)===String(attId));
+    if(!att) return;
+    try{
+      const dataUrl = await readFileAsDataUrl(file);
+      const oldPath = att.storagePath;
+      const up = await uploadAttachmentToStorage(type, id, dataUrl, file.name, att.id);
+      att.name = up.name; att.storagePath = up.storagePath; att.mime = up.mime; att.size = up.size; delete att.dataUrl;
+      if(oldPath && oldPath !== up.storagePath) deleteAttachmentFromStorage(oldPath);
+      _attachmentUrlCache.delete(up.storagePath);
       saveState();
       renderAttachments(type, id);
-    };
-    reader.readAsDataURL(file);
+    }catch(err){ alert('تعذّر استبدال المرفق: ' + (err.message||err)); }
   };
   input.click();
 }
@@ -3465,9 +3666,11 @@ function deleteAttachment(type, id, attId){
   const entity = getEntityById(type, id);
   if(!entity) return;
   if(!confirm('هل تريد حذف هذا المرفق؟')) return;
+  const att = (entity.attachments||[]).find(a=>String(a.id)===String(attId));
   entity.attachments = (entity.attachments||[]).filter(a=>String(a.id)!==String(attId));
   saveState();
   renderAttachments(type, id);
+  if(att && att.storagePath) deleteAttachmentFromStorage(att.storagePath);
 }
 // يحوّل data URL (base64) إلى Blob حقيقي — يستخرج نوع الملف (MIME) من رأس الرابط نفسه
 function dataUrlToBlob(dataUrl){
@@ -3485,17 +3688,18 @@ function viewAttachment(type, id, attId){
   const entity = getEntityById(type, id);
   const att = entity && (entity.attachments||[]).find(a=>String(a.id)===String(attId));
   if(!att) return;
-  // المتصفحات الحديثة (Chrome وغيره) تحظر بصمت window.open() على رابط data: مباشر
-  // كإجراء أمني — الحل: تحويله لـBlob حقيقي وفتح رابطه المؤقت (مسموح به دائماً).
+  if(att.storagePath){ openStoredAttachment(att.storagePath); return; }
+  if(!att.dataUrl){ alert('هذا المرفق لا يحتوي ملفاً'); return; }
+  // توافق خلفي: مرفق قديم لا يزال base64 (لم يُرحَّل بعد)
   try{
     const blob = dataUrlToBlob(att.dataUrl);
     const blobUrl = URL.createObjectURL(blob);
     const win = window.open(blobUrl, '_blank');
     if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لعرض المرفق'); }
-    setTimeout(()=> URL.revokeObjectURL(blobUrl), 60000); // تنظيف الذاكرة بعد إتاحة وقت كافٍ للتحميل
+    setTimeout(()=> URL.revokeObjectURL(blobUrl), 60000);
   }catch(err){
     console.warn('تعذّر تحويل المرفق لعرضه:', err);
-    window.open(att.dataUrl, '_blank'); // احتياط أخير، قد يعمل في بعض المتصفحات رغم القيود
+    window.open(att.dataUrl, '_blank');
   }
 }
 function renderAttachments(type, id){
@@ -4527,11 +4731,16 @@ function addLesson(){
   const vehicleId = parseInt(document.getElementById('ls_vehicle').value);
   const dt = document.getElementById('ls_date').value;
   const duration = parseFloat(document.getElementById('ls_duration').value) || 40;
-  const price = parseFloat(document.getElementById('ls_price').value) || 0;
+  let price = parseFloat(document.getElementById('ls_price').value) || 0;
+  const paidNow = parseFloat(document.getElementById('ls_paid').value) || 0;
   if(!studentId || !instructorId || !vehicleId || !dt){
     alert('الرجاء تعبئة جميع الحقول (الطالب، المدرب، السيارة، التاريخ)');
     return;
   }
+  if(paidNow < 0){ alert('المبلغ المدفوع غير صالح'); return; }
+  // لا سعر للحصة لكن هناك مبلغ مدفوع: يُعتمد المبلغ المدفوع سعراً للحصة حتى تُصدَر فاتورة تُرصَّد عليها الدفعة
+  if(paidNow > 0 && price <= 0) price = paidNow;
+  if(paidNow > price){ alert('المبلغ المدفوع (' + paidNow.toFixed(2) + ') أكبر من سعر الحصة (' + price.toFixed(2) + ') — صحّح أحد المبلغين'); return; }
 
   const lesson = {
     id: newId('lessons'), studentId, instructorId, vehicleId, datetime: dt,
@@ -4541,11 +4750,25 @@ function addLesson(){
   state.lessons.push(lesson);
   // إدخال الحصة يُعتبر إنجازاً مباشراً — لا حاجة لضغط "إنجاز" لاحقاً
   applyLessonCompletionEffects(lesson);
+  // ترصيد الذمة فوراً: دفعة على فاتورة الحصة + سند قبض تلقائي
+  let receiptPaymentId = null;
+  if(paidNow > 0 && lesson.invoiceId){
+    const inv = state.invoices.find(i=>i.id===lesson.invoiceId);
+    if(inv){
+      receiptPaymentId = newId('payments');
+      state.payments.push({ id: receiptPaymentId, invoiceId: inv.id, studentId: inv.studentId, amount: paidNow, date: todayStr(), method:'نقدي',
+        notes: 'دفعة مسجَّلة مع تسجيل الحصة', lessonId: lesson.id, school: inv.school || schoolOfStudent(inv.studentId) });
+      if(paidAmount(inv.id) >= inv.amount){ inv.status='مدفوعة'; }
+      lesson.paidAtRegistration = paidNow;
+    }
+  }
   renderStudents();
   renderInvoices();
+  if(receiptPaymentId){ if(typeof renderReceipts==='function') renderReceipts(); printReceipt(receiptPaymentId); }
 
   document.getElementById('ls_date').value = todayStr();
   document.getElementById('ls_price').value='';
+  document.getElementById('ls_paid').value='';
   renderLessons();
 }
 function lessonCommission(l){
@@ -6664,43 +6887,60 @@ function openPaperAttachmentsModal(id){
   document.getElementById('paperAttachmentsModal').dataset.editingId = id;
   renderAttachments('officialPaper', id);
   const p = state.officialPapers.find(p=>p.id===id);
-  updateOfficialPaperPhotoPreview(1, p ? p.photo1 : null);
-  updateOfficialPaperPhotoPreview(2, p ? p.photo2 : null);
+  showOfficialPaperPhoto(1, p);
+  showOfficialPaperPhoto(2, p);
   document.getElementById('paperAttachmentsModal').classList.add('show');
 }
 function closePaperAttachmentsModal(){
   document.getElementById('paperAttachmentsModal').classList.remove('show');
   renderOfficialPapers();
 }
-function handleOfficialPaperPhotoInput(slot, inputEl){
+async function handleOfficialPaperPhotoInput(slot, inputEl){
   const file = inputEl.files[0];
   const id = parseInt(document.getElementById('paperAttachmentsModal').dataset.editingId);
-  if(!file || !id){ inputEl.value=''; return; }
-  const reader = new FileReader();
-  reader.onload = e=>{
-    const p = state.officialPapers.find(p=>p.id===id);
-    if(!p) return;
-    if(slot===1) p.photo1 = e.target.result; else p.photo2 = e.target.result;
-    saveState();
-    updateOfficialPaperPhotoPreview(slot, e.target.result);
-  };
-  reader.readAsDataURL(file);
   inputEl.value = '';
+  if(!file || !id) return;
+  const p = state.officialPapers.find(p=>p.id===id);
+  if(!p) return;
+  try{
+    const dataUrl = await readFileAsDataUrl(file);
+    updateOfficialPaperPhotoPreview(slot, dataUrl); // معاينة فورية
+    const up = await uploadAttachmentToStorage('officialPaper', id, dataUrl, 'photo'+slot+'.jpg', 'photo'+slot);
+    p['photo'+slot+'Path'] = up.storagePath; p['photo'+slot] = null;
+    _attachmentUrlCache.delete(up.storagePath);
+    saveState();
+  }catch(err){
+    updateOfficialPaperPhotoPreview(slot, null);
+    alert('تعذّر رفع الصورة: ' + (err.message||err));
+  }
 }
 function removeOfficialPaperPhoto(slot){
   const id = parseInt(document.getElementById('paperAttachmentsModal').dataset.editingId);
   const p = state.officialPapers.find(p=>p.id===id);
   if(!p) return;
   if(!confirm('هل تريد إزالة هذه الصورة؟')) return;
-  if(slot===1) p.photo1 = null; else p.photo2 = null;
+  const path = p['photo'+slot+'Path'];
+  p['photo'+slot] = null; p['photo'+slot+'Path'] = null;
   saveState();
   updateOfficialPaperPhotoPreview(slot, null);
+  if(path) deleteAttachmentFromStorage(path);
 }
 function updateOfficialPaperPhotoPreview(slot, dataUrl){
   const img = document.getElementById('pap_photo' + slot + '_preview');
   const removeBtn = document.getElementById('pap_photo' + slot + '_remove_btn');
   if(dataUrl){ img.src = dataUrl; img.style.display=''; removeBtn.style.display=''; }
   else { img.style.display='none'; removeBtn.style.display='none'; }
+}
+// يعرض صورة معاملة رسمية سواء كانت في Storage (مسار) أو base64 قديمة
+function showOfficialPaperPhoto(slot, p){
+  if(!p){ updateOfficialPaperPhotoPreview(slot, null); return; }
+  const path = p['photo'+slot+'Path'];
+  if(path){
+    updateOfficialPaperPhotoPreview(slot, null);
+    getAttachmentSignedUrl(path, 300).then(url=> updateOfficialPaperPhotoPreview(slot, url)).catch(()=>{});
+    return;
+  }
+  updateOfficialPaperPhotoPreview(slot, p['photo'+slot] || null);
 }
 function renderPaperAlerts(){
   const items = state.officialPapers
