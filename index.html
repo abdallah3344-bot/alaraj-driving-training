@@ -480,7 +480,7 @@
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-09-search-fix</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-09-sync-fix</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -2065,13 +2065,16 @@ function wireAllSearchableSelects(){
 }
 
 function saveState(){
-  if(!storageAvailable) return;
-  try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }catch(err){
-    storageAvailable = false;
-    console.warn('تعذّر الحفظ في localStorage:', err);
-    showStorageWarning();
+  // مهم: رفع البيانات للخادم يجب أن يحدث دائماً، حتى لو تعطّل التخزين المحلي (ممتلئ/معطّل) —
+  // وإلا تبقى كل التعديلات حبيسة هذا التبويب وتُفقد عند إغلاقه.
+  if(storageAvailable){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }catch(err){
+      storageAvailable = false;
+      console.warn('تعذّر الحفظ في localStorage:', err);
+      showStorageWarning();
+    }
   }
   scheduleSync();
 }
@@ -2323,10 +2326,14 @@ async function initDataSync(){
     const serverHasData = hasSubstantialData(serverData);
     const localHasData = hasSubstantialData(state);
 
-    if(serverHasData && localHasData){
-      // الاعتماد دائماً على نسخة الخادم عند وجود بيانات بالطرفين، بدون سؤال المستخدم —
-      // بناءً على طلب صريح. بيانات هذا الجهاز المحلية غير المُزامَنة (إن وُجدت) تُستبدَل هنا
-      // بنسخة الخادم مباشرة.
+    if(serverHasData && localHasData && countStateRecords(serverData) < countStateRecords(state)){
+      // نسخة الخادم أقل سجلات من المحلية: على الأغلب تعديلات محلية لم تُرفع بعد (مثلاً بسبب امتلاء
+      // التخزين المحلي سابقاً) — نحتفظ بالمحلية ونرفعها بدل استبدالها بصمت وفقدان سجلات.
+      console.warn(`نسخة الخادم (${countStateRecords(serverData)} سجل) أقل من المحلية (${countStateRecords(state)}) — تم الإبقاء على المحلية ورفعها`);
+      await pushStateToServer();
+    } else if(serverHasData && localHasData){
+      // الاعتماد على نسخة الخادم عند وجود بيانات بالطرفين، بدون سؤال المستخدم —
+      // بناءً على طلب صريح (باستثناء حالة النقص أعلاه).
       state = serverData;
       migrateLegacyLessonDurations(); migrateOfficialPaperDepartment();
       saveState();
