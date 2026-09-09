@@ -1214,8 +1214,10 @@
     <div class="card">
       <h2>تسجيل حصة جديدة</h2>
       <div class="form-grid">
-        <div class="field"><label>الطالب</label><select id="ls_student" onchange="applyStudentPreferences(); suggestLessonPrice();"></select></div>
-        <div class="field"><label>المدرب</label><select id="ls_instructor"></select></div>
+        <div class="field"><label>الطالب</label><input id="ls_student_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
+        <select id="ls_student" onchange="applyStudentPreferences(); suggestLessonPrice();"></select></div>
+        <div class="field"><label>المدرب</label><input id="ls_instructor_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
+        <select id="ls_instructor"></select></div>
         <div class="field"><label>السيارة</label><select id="ls_vehicle" onchange="suggestLessonPrice()"></select></div>
         <div class="field"><label>نوع الحصة</label>
           <select id="ls_type" onchange="suggestLessonPrice()"><option>عملي</option><option>نظري</option></select>
@@ -1256,14 +1258,22 @@
         <div class="field"><label>نوع الامتحان</label>
           <select id="ex_type" onchange="onExamTypeChange()"><option>نظري</option><option>عملي</option></select>
         </div>
-        <div class="field"><label>الطالب</label><select id="ex_student"></select></div>
-        <div class="field"><label>المدرب المسؤول</label><select id="ex_instructor"></select></div>
+        <div class="field"><label>الطالب</label><input id="ex_student_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
+        <select id="ex_student"></select></div>
+        <div class="field"><label>المدرب المسؤول</label><input id="ex_instructor_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
+        <select id="ex_instructor"></select></div>
         <div class="field"><label>تاريخ الامتحان</label><input id="ex_date" type="date"></div>
         <div class="field" id="ex_number_field" style="display:none;"><label>رقم الفحص</label><input id="ex_number" placeholder="رقم الفحص العملي"></div>
         <div class="field" id="ex_time_field" style="display:none;"><label>ساعة الفحص</label><input id="ex_time" type="time"></div>
+        <div class="field"><label>مبلغ رسوم الفحص (اختياري)</label><input id="ex_fee" type="number" step="0.01" placeholder="0"></div>
+        <div class="field"><label>حالة دفع الرسوم</label><select id="ex_fee_paid"><option value="0">غير مدفوعة</option><option value="1">مدفوعة</option></select></div>
         <div class="field"><label>ملاحظات (اختياري)</label><input id="ex_notes"></div>
       </div>
       <div class="form-actions"><button class="btn btn-accent" onclick="addExam()">📝 تسجيل الامتحان</button></div>
+      <div class="form-actions" style="margin-top:8px;">
+        <input id="ex_theory_report_date" type="date">
+        <button class="btn" onclick="printTheoreticalExamCandidatesList(document.getElementById('ex_theory_report_date').value || todayStr())">🖨️ طباعة قائمة المتقدمين للفحص النظري</button>
+      </div>
     </div>
 
     <div class="card">
@@ -1343,7 +1353,8 @@
     <div class="card" id="invoiceFormCard">
       <h2>إصدار فاتورة</h2>
       <div class="form-grid">
-        <div class="field"><label>الطالب</label><select id="inv_student"></select></div>
+        <div class="field"><label>الطالب</label><input id="inv_student_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
+        <select id="inv_student"></select></div>
         <div class="field"><label>نوع الفاتورة</label>
           <select id="inv_type" onchange="handleDynamicSelect(this,'invoiceTypes')"></select>
         </div>
@@ -1378,7 +1389,8 @@
         <input type="checkbox" id="rcpt_unlinked" onchange="onReceiptLinkModeChange()"> سند غير مرتبط بطالب مسجَّل (اكتب اسم المقبوض منه يدوياً)
       </label>
       <div class="form-grid">
-        <div class="field" id="rcpt_student_field"><label>الطالب</label><select id="rcpt_student"></select></div>
+        <div class="field" id="rcpt_student_field"><label>الطالب</label><input id="rcpt_student_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
+        <select id="rcpt_student"></select></div>
         <div class="field" id="rcpt_payer_field" style="display:none;"><label>المقبوض منه (اسم حر)</label><input id="rcpt_payer_name" placeholder="اسم الشخص أو الجهة..."></div>
         <div class="field"><label>المبلغ</label><input id="rcpt_amount" type="number"></div>
         <div class="field"><label>التاريخ</label><input id="rcpt_date" type="date"></div>
@@ -1414,7 +1426,8 @@
         <div class="field">
           <label>صُرف إلى (اسم الجهة/الشخص)</label>
           <input id="dsb_recipient" placeholder="مثال: شركة الصيانة، أ. سليم...">
-          <select id="dsb_recipient_staff" style="display:none; margin-top:6px;" onchange="syncDisbursementStaffRecipient()">
+          <input id="dsb_recipient_staff_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
+        <select id="dsb_recipient_staff" style="display:none; margin-top:6px;" onchange="syncDisbursementStaffRecipient()">
             <option value="">اختر الموظف...</option>
           </select>
         </div>
@@ -1466,7 +1479,8 @@
         <div class="field"><label>النوع</label>
           <select id="chq_direction"><option value="قبض">قبض (شيك وارد من طالب)</option><option value="صرف">صرف (شيك صادر منّا)</option></select>
         </div>
-        <div class="field"><label>الطالب (عند القبض فقط)</label><select id="chq_student"><option value="">بدون ربط</option></select></div>
+        <div class="field"><label>الطالب (عند القبض فقط)</label><input id="chq_student_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
+        <select id="chq_student"><option value="">بدون ربط</option></select></div>
         <div class="field"><label>الجهة / الاسم على الشيك</label><input id="chq_party" placeholder="اسم الطالب أو المورّد..."></div>
         <div class="field"><label>رقم الشيك</label><input id="chq_number"></div>
         <div class="field"><label>اسم البنك</label><input id="chq_bank"></div>
@@ -1500,7 +1514,8 @@
       <h2>📑 تسجيل معاملة رسمية</h2>
       <div class="form-grid">
         <div class="field"><label>المدرسة</label><div id="pap_school_wrap"></div></div>
-        <div class="field"><label>الطالب (اختياري)</label><select id="pap_student"><option value="">بدون ربط بطالب</option></select></div>
+        <div class="field"><label>الطالب (اختياري)</label><input id="pap_student_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
+        <select id="pap_student"><option value="">بدون ربط بطالب</option></select></div>
         <div class="field"><label>نوع الورقة/المعاملة</label>
           <select id="pap_type" onchange="handleDynamicSelect(this,'paperTypes')"></select>
         </div>
@@ -1986,6 +2001,43 @@ function requireOnlineOrBlock(){
   }
   return true;
 }
+// يضيف مربع بحث فوق أي قائمة منسدلة لاختيار طالب/مدرب، ويفلتر خياراتها أثناء الكتابة —
+// بدون أي تغيير على طريقة قراءة القيمة المختارة (.value) في بقية الكود.
+const _searchableSelectsWired = new Set();
+function initSelectSearch(searchInputId, selectId){
+  if(_searchableSelectsWired.has(selectId)) return;
+  const input = document.getElementById(searchInputId);
+  const select = document.getElementById(selectId);
+  if(!input || !select) return;
+  _searchableSelectsWired.add(selectId);
+  input.addEventListener('focus', ()=>{
+    if(!select.dataset.searching) select._fullOptionsHtml = select.innerHTML;
+  });
+  input.addEventListener('input', ()=>{
+    if(select._fullOptionsHtml == null) select._fullOptionsHtml = select.innerHTML;
+    const term = input.value.trim();
+    const temp = document.createElement('select');
+    temp.innerHTML = select._fullOptionsHtml;
+    const currentValue = select.value;
+    const filtered = [...temp.options].filter(o => !term || o.textContent.includes(term));
+    select.dataset.searching = '1';
+    select.innerHTML = filtered.map(o=>o.outerHTML).join('') || '<option value="">لا نتائج مطابقة</option>';
+    if([...select.options].some(o=>o.value===currentValue)) select.value = currentValue;
+  });
+}
+// يُعاد استدعاؤها من renderAll() لتغطية أي قائمة جديدة تُنشأ لاحقاً (لا تكرر الربط لنفس القائمة)
+function wireAllSearchableSelects(){
+  initSelectSearch('ls_student_search', 'ls_student');
+  initSelectSearch('ls_instructor_search', 'ls_instructor');
+  initSelectSearch('ex_student_search', 'ex_student');
+  initSelectSearch('ex_instructor_search', 'ex_instructor');
+  initSelectSearch('inv_student_search', 'inv_student');
+  initSelectSearch('rcpt_student_search', 'rcpt_student');
+  initSelectSearch('chq_student_search', 'chq_student');
+  initSelectSearch('pap_student_search', 'pap_student');
+  initSelectSearch('dsb_recipient_staff_search', 'dsb_recipient_staff');
+}
+
 function saveState(){
   if(!storageAvailable) return;
   try{
@@ -3256,10 +3308,10 @@ function renderStudents(){
   if(wrap && !wrap.innerHTML) wrap.innerHTML = schoolFilterHtml('st_school_filter','renderStudents');
   const stSchoolFilter = schoolFilterValue('st_school_filter');
   const body = document.getElementById('studentsBody');
-  body.innerHTML = state.students.filter(s=>!stSchoolFilter || s.school===stSchoolFilter).map(s=>`
+  body.innerHTML = state.students.filter(s=>!stSchoolFilter || s.school===stSchoolFilter).map((s,i)=>`
     <tr>
       <td><span class="avatar-sm" id="st_avatar_${s.id}" data-student-id="${s.id}">${avatarInitial(s.name)}</span></td>
-      <td>${s.id}</td><td>${schoolBadge(s.school||'alaraj')}</td><td>${s.name}</td><td>${s.phone||'-'}</td><td>${s.license}</td>
+      <td>${i+1}</td><td>${schoolBadge(s.school||'alaraj')}</td><td>${s.name}</td><td>${s.phone||'-'}</td><td>${s.license}</td>
       <td>${s.gearType||'-'}</td>
       <td>${s.preferredInstructorId ? nameOf(state.staff, s.preferredInstructorId) : '-'}</td>
       <td>${s.preferredVehicleId ? nameOf(state.vehicles, s.preferredVehicleId) : '-'}</td>
@@ -4020,9 +4072,9 @@ function renderStaff(){
   if(sfWrap && !sfWrap.innerHTML) sfWrap.innerHTML = schoolFilterHtml('sf_school_filter','renderStaff');
   const sfSchoolFilter = schoolFilterValue('sf_school_filter');
   const body = document.getElementById('staffBody');
-  body.innerHTML = state.staff.filter(s=>!sfSchoolFilter || s.school===sfSchoolFilter).map(s=>`
+  body.innerHTML = state.staff.filter(s=>!sfSchoolFilter || s.school===sfSchoolFilter).map((s,i)=>`
     <tr>
-      <td>${s.id}</td><td>${schoolBadge(s.school||'alaraj')}</td><td>${s.name}</td><td>${s.phone||'-'}</td><td>${s.address||'-'}</td><td>${s.role}</td>
+      <td>${i+1}</td><td>${schoolBadge(s.school||'alaraj')}</td><td>${s.name}</td><td>${s.phone||'-'}</td><td>${s.address||'-'}</td><td>${s.role}</td>
       <td>${s.nationalId||'-'}</td><td>${s.personalLicenseNo||'-'}</td><td>${licenseBadge(s.personalLicenseExpiry)}</td><td>${s.drivingLicenseNo||'-'}</td><td>${s.trainingLicenseIssueDate||'-'}</td><td>${s.license||'-'}</td>
       <td>${licenseBadge(s.licenseExpiry)}</td>
       <td>${s.vehiclePlate ? s.vehiclePlate + (s.vehicleType ? ' — ' + s.vehicleType : '') : '-'}</td>
@@ -4159,9 +4211,9 @@ function renderVehicles(){
   if(vhWrap && !vhWrap.innerHTML) vhWrap.innerHTML = schoolFilterHtml('vh_school_filter','renderVehicles');
   const vhSchoolFilter = schoolFilterValue('vh_school_filter');
   const body = document.getElementById('vehiclesBody');
-  body.innerHTML = state.vehicles.filter(v=>!vhSchoolFilter || v.school===vhSchoolFilter).map(v=>`
+  body.innerHTML = state.vehicles.filter(v=>!vhSchoolFilter || v.school===vhSchoolFilter).map((v,i)=>`
     <tr>
-      <td>${v.id}</td><td>${schoolBadge(v.school||'alaraj')}</td><td>${v.plate}</td><td>${v.ownerName||'-'}</td><td>${v.model||'-'}</td><td>${v.year||'-'}</td><td>${v.type}</td>
+      <td>${i+1}</td><td>${schoolBadge(v.school||'alaraj')}</td><td>${v.plate}</td><td>${v.ownerName||'-'}</td><td>${v.model||'-'}</td><td>${v.year||'-'}</td><td>${v.type}</td>
       <td><span class="badge ${v.status==='متاحة'?'badge-green':'badge-amber'}">${v.status}</span></td>
       <td>${v.nextMaint||'-'}</td>
       <td>${licenseBadge(v.licenseExpiry)}</td>
@@ -4576,11 +4628,11 @@ function renderLessons(){
   const body = document.getElementById('lessonsBody');
   let sorted = state.lessons.filter(l=>!lsSchoolFilter || l.school===lsSchoolFilter).sort((a,b)=> b.datetime.localeCompare(a.datetime));
   sorted = filterTodayOnly(sorted, 'datetime', 'ls_today_only');
-  body.innerHTML = sorted.map(l=>{
+  body.innerHTML = sorted.map((l,i)=>{
     let badgeClass = l.status==='مجدول'?'badge-amber':(l.status==='منجز'?'badge-green':'badge-red');
     const commission = lessonCommission(l);
     return `<tr>
-      <td>${l.id}</td><td>${schoolBadge(l.school||'alaraj')}</td><td>${nameOf(state.students,l.studentId)}</td><td>${nameOf(state.staff,l.instructorId)}</td>
+      <td>${i+1}</td><td>${schoolBadge(l.school||'alaraj')}</td><td>${nameOf(state.students,l.studentId)}</td><td>${nameOf(state.staff,l.instructorId)}</td>
       <td>${nameOf(state.vehicles,l.vehicleId)}</td><td>${l.datetime.replace('T',' ')}</td><td>${l.type}</td>
       <td>${(l.price||0).toFixed(2)}</td><td>${commission.toFixed(2)}</td>
       <td><span class="badge ${badgeClass}">${l.status}</span></td>
@@ -4749,6 +4801,53 @@ function onExamTypeChange(){
   document.getElementById('ex_number_field').style.display = isPractical ? '' : 'none';
   document.getElementById('ex_time_field').style.display = isPractical ? '' : 'none';
 }
+function printTheoreticalExamCandidatesList(selectedDate){
+  const list = (state.exams||[]).filter(e=> e.examType==='نظري' && (e.datetime||'').slice(0,10)===selectedDate);
+  const dateObj = new Date(selectedDate + 'T00:00:00');
+  const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  const dayName = days[dateObj.getDay()] || '';
+  const rows = list.map((e,i)=>{
+    const student = state.students.find(s=>s.id===e.studentId);
+    const fee = (e.examFee || 0);
+    const paidLabel = e.examFeePaid ? 'مدفوعة' : 'غير مدفوعة';
+    const paidClass = e.examFeePaid ? 'paid-yes' : 'paid-no';
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${student ? student.name : '-'}</td>
+      <td>${student ? (student.nid||'-') : '-'}</td>
+      <td>${student ? (student.license||'-') : '-'}</td>
+      <td>${fee ? fee.toFixed(2) : '-'}</td>
+      <td class="${paidClass}">${paidLabel}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="6" style="text-align:center;">لا يوجد متقدمون مسجلون لهذا التاريخ</td></tr>`;
+
+  const win = window.open('', '_blank', 'width=900,height=1100');
+  if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+  <title>قائمة المتقدمين للفحص النظري - ${selectedDate}</title>
+  <style>
+    @page{ size:A4; margin:12mm; }
+    *{ box-sizing:border-box; }
+    body{ font-family:Tahoma,Arial,sans-serif; padding:0; color:#111; }
+    h1{ text-align:center; font-size:18px; margin-bottom:4px; }
+    .meta{ text-align:center; font-size:13px; margin-bottom:16px; color:#333; }
+    table{ width:100%; border-collapse:collapse; font-size:13px; }
+    th, td{ border:1px solid #333; padding:8px 6px; text-align:center; }
+    th{ background:#f0f0f0; }
+    .paid-yes{ color:#15803d; font-weight:700; }
+    .paid-no{ color:#b91c1c; font-weight:700; }
+  </style></head><body>
+  <h1>قائمة أسماء المتقدمين للفحص النظري</h1>
+  <div class="meta">اليوم: ${dayName} — التاريخ: ${selectedDate}</div>
+  <table>
+    <thead><tr><th>#</th><th>اسم الطالب</th><th>رقم الهوية</th><th>نوع الرخصة</th><th>مبلغ الرسوم</th><th>حالة الدفع</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <script>window.onload = ()=> window.print();<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
 function addExam(){
   if(!requireOnlineOrBlock()) return;
   const studentId = parseInt(document.getElementById('ex_student').value);
@@ -4761,6 +4860,8 @@ function addExam(){
     datetime: dt, result: 'لم يحدد بعد',
     examNumber: document.getElementById('ex_number').value.trim(),
     examTime: document.getElementById('ex_time').value,
+    examFee: parseFloat(document.getElementById('ex_fee').value) || 0,
+    examFeePaid: document.getElementById('ex_fee_paid').value === '1',
     notes: document.getElementById('ex_notes').value.trim(),
     school: schoolOfStudent(studentId)
   });
@@ -4822,9 +4923,9 @@ function renderExams(){
   const body = document.getElementById('examsBody');
   let sorted = state.exams.filter(e=>!exSchoolFilter || e.school===exSchoolFilter).sort((a,b)=> b.datetime.localeCompare(a.datetime));
   sorted = filterTodayOnly(sorted, 'datetime', 'ex_today_only');
-  body.innerHTML = sorted.map(e=>`
+  body.innerHTML = sorted.map((e,i)=>`
     <tr>
-      <td>${e.id}</td><td>${schoolBadge(e.school||'alaraj')}</td><td>${nameOf(state.students, e.studentId)}</td>
+      <td>${i+1}</td><td>${schoolBadge(e.school||'alaraj')}</td><td>${nameOf(state.students, e.studentId)}</td>
       <td>${e.instructorId ? nameOf(state.staff, e.instructorId) : '-'}</td>
       <td>${e.examType}</td><td>${e.datetime.replace('T',' ')}</td>
       <td>${e.examNumber||'-'}</td><td>${e.examTime||'-'}</td>
@@ -5002,12 +5103,12 @@ function renderInvoices(){
   const body = document.getElementById('invoicesBody');
   const filtered = filterTodayOnly(state.invoices.filter(inv=>!invSchoolFilter || inv.school===invSchoolFilter), 'created', 'inv_today_only');
   const admin = isAdmin();
-  body.innerHTML = filtered.map(inv=>{
+  body.innerHTML = filtered.map((inv,i)=>{
     const paid = paidAmount(inv.id);
     const remaining = inv.amount - paid;
     const badgeClass = inv.status==='مدفوعة'?'badge-green':'badge-amber';
     return `<tr>
-      <td>${inv.id}</td><td>${schoolBadge(inv.school||'alaraj')}</td><td>${nameOf(state.students, inv.studentId)}</td>
+      <td>${i+1}</td><td>${schoolBadge(inv.school||'alaraj')}</td><td>${nameOf(state.students, inv.studentId)}</td>
       <td>${inv.invoiceType ? `<span class="badge badge-gray">${inv.invoiceType}</span>` : '-'}</td>
       <td>${inv.amount.toFixed(2)}</td>
       <td>${paid.toFixed(2)}</td><td>${remaining.toFixed(2)}</td><td>${inv.due||'-'}</td>
@@ -7962,10 +8063,10 @@ function renderOfficialPapers(){
   const papSchoolFilter = schoolFilterValue('pap_school_filter');
   let sorted = state.officialPapers.filter(p=>!papSchoolFilter || p.school===papSchoolFilter).sort((a,b)=> b.submitDate.localeCompare(a.submitDate));
   sorted = filterTodayOnly(sorted, 'submitDate', 'pap_today_only');
-  body.innerHTML = sorted.map(p=>{
+  body.innerHTML = sorted.map((p,i)=>{
     const attCount = (p.attachments||[]).length;
     return `<tr>
-      <td>${p.id}</td><td>${schoolBadge(p.school||'alaraj')}</td><td>${p.studentId ? nameOf(state.students, p.studentId) : '-'}</td>
+      <td>${i+1}</td><td>${schoolBadge(p.school||'alaraj')}</td><td>${p.studentId ? nameOf(state.students, p.studentId) : '-'}</td>
       <td>${p.paperType}</td><td>${p.department}</td>
       <td>${p.submitDate}</td><td>${p.dueDate || '-'}</td>
       <td><span class="badge ${paperStatusBadgeClass(p.status)}">${p.status}</span></td>
@@ -8563,6 +8664,7 @@ function refreshSchoolSelects(){
   });
 }
 function renderAll(){
+  wireAllSearchableSelects();
   refreshSchoolSelects();
   populateDynamicSelect('licenseTypes');
   populateDynamicSelect('expenseTypes');
