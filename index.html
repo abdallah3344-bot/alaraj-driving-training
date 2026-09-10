@@ -432,11 +432,30 @@
     <button class="btn" id="licenseStatusBtn" onclick="openLicenseModal()">🔑 الترخيص</button>
     <span id="currentUserBadge" style="display:none; font-size:13px; color:var(--muted); align-self:center;"></span>
     <button class="btn" id="logoutBtn" style="display:none;" onclick="logout()">🚪 تسجيل خروج</button>
+    <button class="btn" onclick="openAutoBackupsModal()">🗄 النسخ التلقائية</button>
     <button class="btn" onclick="exportData()">⬇ تصدير نسخة احتياطية</button>
     <button class="btn" onclick="document.getElementById('fileInput').click()">⬆ استيراد نسخة</button>
     <input type="file" id="fileInput" accept=".json" onchange="importData(event)">
   </div>
 </header>
+
+<div id="autoBackupsOverlay" class="modal-overlay">
+  <div class="modal-box card">
+    <h2>🗄 النسخ الاحتياطية التلقائية</h2>
+    <div class="note" style="margin-bottom:10px;">يحفظ البرنامج نسخة احتياطية كاملة تلقائياً داخل هذا الجهاز، ويحتفظ بنسخ آخر <b>7 أيام</b> ثم يحذف الأقدم. النسخ محفوظة في هذا المتصفح على هذا الجهاز فقط.</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>التاريخ</th><th>الوقت</th><th>عدد السجلات</th><th>الحجم</th><th>إجراءات</th></tr></thead>
+        <tbody id="autoBackupsBody"></tbody>
+      </table>
+    </div>
+    <p class="empty" id="autoBackupsEmpty" style="display:none;">لا توجد نسخ تلقائية بعد — ستُنشأ أول نسخة تلقائياً خلال لحظات.</p>
+    <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn" onclick="createAutoBackupNow()">💾 إنشاء نسخة الآن</button>
+      <button class="btn" onclick="closeAutoBackupsModal()">إغلاق</button>
+    </div>
+  </div>
+</div>
 
 <div id="licenseModalOverlay" class="modal-overlay">
   <div class="modal-box card">
@@ -480,7 +499,7 @@
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-09-sync-verified</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-lesson-fix</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -2039,59 +2058,64 @@ function initSelectSearch(searchInputId, selectId){
   const select = document.getElementById(selectId);
   if(!input || !select) return;
   _searchableSelectsWired.add(selectId);
-  // القائمة الكاملة تُؤخذ دائماً من آخر حالة "غير مُفلترة" للقائمة (تتجدد تلقائياً بعد أي إعادة رسم)
-  const snapshotFull = ()=>{ if(!select.dataset.searching) select._fullOptionsHtml = select.innerHTML; };
-  const restoreFull = (keepValue)=>{
-    if(select.dataset.searching && select._fullOptionsHtml != null){
-      select.innerHTML = select._fullOptionsHtml;
-      delete select.dataset.searching;
-    }
-    if(keepValue != null && [...select.options].some(o=>o.value===String(keepValue))) select.value = String(keepValue);
+
+  // مهم: لا نُعيد بناء محتوى القائمة أثناء البحث إطلاقاً — نُخفي الخيارات غير المطابقة فقط.
+  // إعادة البناء كانت تستبدل عناصر القائمة أثناء فتحها، فتضيع النقرة الأولى ويضطر المستخدم
+  // للضغط مرتين. الإخفاء يُبقي العنصر نفسه قائماً فتعمل النقرة الواحدة كالمعتاد.
+  const allOptions = ()=> Array.from(select.options);
+  const showAllOptions = ()=>{ allOptions().forEach(o=>{ o.hidden = false; }); delete select.dataset.searching; };
+  // حدث change عادي (غير برمجي) حتى تُعبَّأ كل الحقول المرتبطة بالاسم:
+  // تفضيلات الطالب (المدرب/السيارة)، سعر الحصة المقترح، وما شابه
+  const fireChange = ()=> select.dispatchEvent(new Event('change', { bubbles:true }));
+  // إطلاق change أثناء الفلترة لتعبئة الحقول المرتبطة، مع إبقاء القائمة مفلترة كما هي
+  const fireChangeKeepingFilter = ()=>{
+    select._autoSelecting = true;
+    try{ fireChange(); } finally { select._autoSelecting = false; }
   };
-  const fireChange = ()=>{ select._programmaticChange = true; try{ select.dispatchEvent(new Event('change', { bubbles:true })); } finally { select._programmaticChange = false; } };
-  // اعتماد اسم مختار نهائياً: اسمه الكامل في خانة البحث + القائمة الكاملة + حدث change عادي
-  // (غير برمجي) حتى تُعبَّأ كل الحقول المرتبطة به: تفضيلات الطالب، سعر الحصة، الكشوف... إلخ
-  const commitSelection = (value)=>{
-    restoreFull(value);
+  // اعتماد نهائي لاسم: الاسم كاملاً في خانة البحث + إظهار القائمة كاملة + تعبئة المرتبط به
+  const commitSelection = ()=>{
     const opt = select.options[select.selectedIndex];
-    if(opt && opt.value !== '') input.value = opt.textContent;
-    select.dispatchEvent(new Event('change', { bubbles:true }));
+    if(opt && opt.value !== '') input.value = opt.textContent.trim();
+    showAllOptions();
+    fireChange();
   };
-  input.addEventListener('focus', snapshotFull);
+
   input.addEventListener('input', ()=>{
-    snapshotFull();
-    if(select._fullOptionsHtml == null) select._fullOptionsHtml = select.innerHTML;
     const term = input.value.trim();
-    if(!term){ restoreFull(select.value); return; }
-    const temp = document.createElement('select');
-    temp.innerHTML = select._fullOptionsHtml;
-    const prevValue = select.value;
-    const filtered = [...temp.options].filter(o => o.value !== '' && o.textContent.includes(term));
+    const options = allOptions();
+    if(!term){ showAllOptions(); return; }
     select.dataset.searching = '1';
-    select.innerHTML = filtered.length ? filtered.map(o=>o.outerHTML).join('') : '<option value="">لا نتائج مطابقة</option>';
-    // أول نتيجة مطابقة تُختار فعلياً (مع إطلاق حدث change حتى تعمل التعبئة التلقائية المرتبطة بالقائمة)
-    const newValue = filtered.length ? (filtered.some(o=>o.value===prevValue) ? prevValue : filtered[0].value) : '';
-    select.value = newValue;
-    if(filtered.length === 1){
-      // تطابق وحيد = اعتماد نهائي: يُكتب الاسم كاملاً في خانة البحث، وتُعاد القائمة الكاملة،
-      // ويُطلَق حدث change عادي (غير برمجي) لتُعبَّأ كل الحقول المرتبطة بالاسم المختار
-      commitSelection(newValue);
-    } else if(newValue !== prevValue){
-      fireChange();
-    }
+    const matches = [];
+    options.forEach(o=>{
+      const isMatch = o.value !== '' && o.textContent.includes(term);
+      o.hidden = !isMatch;
+      if(isMatch) matches.push(o);
+    });
+    if(!matches.length){ select.value = ''; return; }
+    // تُختار أول نتيجة مطابقة فوراً وتُعبَّأ بياناتها المرتبطة، وتبقى بقية النتائج ظاهرة
+    // في القائمة ليختار المستخدم منها بنقرة واحدة إن أراد غيرها
+    const keepCurrent = matches.some(o=> o.value === select.value);
+    if(!keepCurrent){ select.value = matches[0].value; fireChangeKeepingFilter(); }
+    if(matches.length === 1) commitSelection();
   });
-  // Enter في خانة البحث = اعتماد النتيجة الأولى والانتقال للحقل التالي
+
+  // Enter = اعتماد النتيجة المختارة والانتقال للحقل التالي
   input.addEventListener('keydown', e=>{
-    if(e.key === 'Enter'){ e.preventDefault(); if(select.value) commitSelection(select.value); select.focus(); }
+    if(e.key === 'Enter'){ e.preventDefault(); if(select.value) commitSelection(); select.focus(); }
   });
-  // عند اختيار اسم من القائمة: يُكتب في خانة البحث، وتُعاد القائمة الكاملة مع بقاء الاختيار
+
+  // اختيار اسم من القائمة بنقرة واحدة: يُكتب في خانة البحث وتعود القائمة كاملة
+  // (لا نُطلق change إضافياً هنا — المتصفح أطلقه بالفعل فتعبّأت الحقول المرتبطة)
   select.addEventListener('change', ()=>{
-    if(select._programmaticChange) return; // تغيير ناتج عن الفلترة نفسها — تبقى القائمة مُفلترة ليختار المستخدم منها
+    if(select._autoSelecting) return; // اختيار تلقائي أثناء الكتابة — تبقى النتائج مفلترة ليختار المستخدم
     const opt = select.options[select.selectedIndex];
-    if(opt && opt.value !== '') input.value = opt.textContent;
+    if(opt && opt.value !== '') input.value = opt.textContent.trim();
     else if(!select.dataset.searching) input.value = '';
-    restoreFull(select.value);
+    showAllOptions();
   });
+
+  // مغادرة خانة البحث دون اختيار: تعود القائمة كاملة مع بقاء الاختيار الحالي
+  input.addEventListener('blur', ()=>{ setTimeout(()=>{ if(document.activeElement !== select) showAllOptions(); }, 150); });
 }
 // يُعاد استدعاؤها من renderAll() لتغطية أي قائمة جديدة تُنشأ لاحقاً (لا تكرر الربط لنفس القائمة)
 function wireAllSearchableSelects(){
@@ -2217,6 +2241,8 @@ function startPeriodicSync(){
   if(periodicSyncStarted) return;
   periodicSyncStarted = true;
   setInterval(()=>pollForRemoteUpdates(false), 60000);
+setTimeout(()=> maybeAutoBackup(), 8000);
+setInterval(()=> maybeAutoBackup(), AUTO_BACKUP_INTERVAL_MS);
   // فحص فوري إضافي عند الرجوع لعلامة التبويب بعد تصفّحها بالخلفية، بدل انتظار الدورة التالية
   document.addEventListener('visibilitychange', ()=>{
     if(document.visibilityState === 'visible' && syncEnabled) pollForRemoteUpdates();
@@ -4866,7 +4892,8 @@ function addLesson(){
     if(inv){
       receiptPaymentId = newId('payments');
       state.payments.push({ id: receiptPaymentId, invoiceId: inv.id, studentId: inv.studentId, amount: paidNow, date: todayStr(), method:'نقدي',
-        notes: 'دفعة مسجَّلة مع تسجيل الحصة', lessonId: lesson.id, school: inv.school || schoolOfStudent(inv.studentId) });
+        notes: 'دفعة مسجَّلة مع تسجيل الحصة', lessonId: lesson.id,
+        school: inv.school || ((typeof schoolOfStudent === 'function') ? schoolOfStudent(inv.studentId) : undefined) });
       if(paidAmount(inv.id) >= inv.amount){ inv.status='مدفوعة'; }
       lesson.paidAtRegistration = paidNow;
     }
@@ -8521,7 +8548,7 @@ function onStatementTypeChange(){
     subjSearch.value = '';
     subjSearch.style.display = (wrap.style.display === 'none') ? 'none' : '';
     delete select.dataset.searching;
-    select._fullOptionsHtml = select.innerHTML;
+    Array.from(select.options).forEach(o=>{ o.hidden = false; });
     initSelectSearch('stmt_subject_search', 'stmt_subject');
   }
   document.getElementById('stmt_results_card').style.display = 'none';
@@ -9097,6 +9124,147 @@ function generateDetailReport(){
 // ------------------------------------------------------------------
 // التصدير والاستيراد (بديل التخزين الدائم)
 // ------------------------------------------------------------------
+// ==================================================================
+// النسخ الاحتياطية التلقائية داخل الجهاز — نسخة يومية كاملة تُحفظ في IndexedDB
+// (وليس localStorage حتى لا تزاحم بيانات البرنامج)، مع الاحتفاظ بآخر 7 أيام فقط.
+// ==================================================================
+const AUTO_BACKUP_DB = 'driving_school_backups';
+const AUTO_BACKUP_STORE = 'backups';
+const AUTO_BACKUP_RETENTION_DAYS = 7;
+const AUTO_BACKUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // فحص كل 6 ساعات أثناء التشغيل
+
+function openBackupDb(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(AUTO_BACKUP_DB, 1);
+    req.onupgradeneeded = ()=>{
+      const db = req.result;
+      if(!db.objectStoreNames.contains(AUTO_BACKUP_STORE)) db.createObjectStore(AUTO_BACKUP_STORE, { keyPath: 'id' });
+    };
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error || new Error('تعذّر فتح مخزن النسخ الاحتياطية'));
+  });
+}
+function backupTx(mode, fn){
+  return openBackupDb().then(db=> new Promise((resolve, reject)=>{
+    const tx = db.transaction(AUTO_BACKUP_STORE, mode);
+    const store = tx.objectStore(AUTO_BACKUP_STORE);
+    let out;
+    try{ out = fn(store); }catch(e){ reject(e); return; }
+    tx.oncomplete = ()=> resolve(out && out.result !== undefined ? out.result : out);
+    tx.onerror = ()=> reject(tx.error);
+  }));
+}
+function listAutoBackups(){
+  return backupTx('readonly', store=> store.getAll())
+    .then(rows=> (rows||[]).sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||'')));
+}
+function countStateRecordsForBackup(s){
+  const keys = ['students','staff','vehicles','lessons','invoices','payments','vehicleExpenses',
+    'generalExpenses','exams','disbursements','cheques','officialPapers'];
+  return keys.reduce((n,k)=> n + ((s && s[k] && s[k].length) || 0), 0);
+}
+// يحذف كل نسخة أقدم من مدة الاحتفاظ (7 أيام)
+async function pruneAutoBackups(){
+  const cutoff = new Date(Date.now() - AUTO_BACKUP_RETENTION_DAYS*24*60*60*1000).toISOString().slice(0,10);
+  const rows = await listAutoBackups();
+  const stale = rows.filter(r=> (r.date||'') < cutoff);
+  if(!stale.length) return 0;
+  await backupTx('readwrite', store=> { stale.forEach(r=> store.delete(r.id)); });
+  return stale.length;
+}
+async function saveAutoBackup(reason){
+  const json = JSON.stringify(state);
+  const now = new Date();
+  const date = todayStr();
+  const row = {
+    id: date, date,
+    createdAt: now.toISOString(),
+    time: now.toTimeString().slice(0,5),
+    records: countStateRecordsForBackup(state),
+    size: json.length,
+    reason: reason || 'تلقائي',
+    data: json
+  };
+  await backupTx('readwrite', store=> { store.put(row); });
+  await pruneAutoBackups();
+  return row;
+}
+// تُنشأ نسخة واحدة يومياً كحد أقصى؛ إن كانت نسخة اليوم موجودة تُحدَّث فقط إن زادت السجلات
+async function maybeAutoBackup(){
+  try{
+    const rows = await listAutoBackups();
+    const today = rows.find(r=> r.date === todayStr());
+    if(!today){ await saveAutoBackup('تلقائي'); return; }
+    if(countStateRecordsForBackup(state) > (today.records||0)) await saveAutoBackup('تلقائي');
+    else await pruneAutoBackups();
+  }catch(err){ console.warn('تعذّر إنشاء النسخة الاحتياطية التلقائية:', err); }
+}
+async function createAutoBackupNow(){
+  try{
+    const row = await saveAutoBackup('يدوي');
+    await renderAutoBackups();
+    alert(`💾 تم إنشاء نسخة احتياطية تحتوي ${row.records} سجلاً`);
+  }catch(err){ alert('تعذّر إنشاء النسخة: ' + (err.message||err)); }
+}
+function formatBackupSize(bytes){
+  if(bytes < 1024) return bytes + ' بايت';
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' كيلوبايت';
+  return (bytes/1024/1024).toFixed(1) + ' ميغابايت';
+}
+async function renderAutoBackups(){
+  const body = document.getElementById('autoBackupsBody');
+  if(!body) return;
+  let rows = [];
+  try{ rows = await listAutoBackups(); }catch(err){ console.warn(err); }
+  body.innerHTML = rows.map(r=>`<tr>
+      <td><b>${r.date}</b>${r.reason==='يدوي'?' <span class="badge badge-amber">يدوية</span>':''}</td>
+      <td>${r.time||'-'}</td><td>${r.records}</td><td>${formatBackupSize(r.size||0)}</td>
+      <td>
+        <button class="btn" onclick="downloadAutoBackup('${r.id}')">⬇ تنزيل</button>
+        <button class="btn btn-danger" onclick="restoreAutoBackup('${r.id}')">↩ استعادة</button>
+      </td>
+    </tr>`).join('');
+  document.getElementById('autoBackupsEmpty').style.display = rows.length ? 'none' : 'block';
+}
+async function downloadAutoBackup(id){
+  const rows = await listAutoBackups();
+  const row = rows.find(r=> r.id === id);
+  if(!row) return;
+  const blob = new Blob([row.data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `نسخة_احتياطية_${row.date}.json`; a.click();
+  URL.revokeObjectURL(url);
+}
+async function restoreAutoBackup(id){
+  const rows = await listAutoBackups();
+  const row = rows.find(r=> r.id === id);
+  if(!row) return;
+  if(!confirm(`استعادة نسخة ${row.date} (${row.records} سجلاً)؟\n\nستحل محل البيانات الحالية على هذا الجهاز، وتُرفع للسحابة بعد الاستعادة.`)) return;
+  try{
+    const data = JSON.parse(row.data);
+    const sanitized = sanitizeIncomingState(data, `النسخة التلقائية ${row.date}`);
+    if(!sanitized){ alert('⚠️ محتوى النسخة غير صالح — لم تُستعَد.'); return; }
+    // نحفظ الحالة الحالية قبل الاستبدال حتى يمكن التراجع
+    await saveAutoBackup('قبل الاستعادة');
+    state = sanitized.clean;
+    migrateLegacyLessonDurations(); migrateOfficialPaperDepartment();
+    currentUser = null;
+    saveState();
+    renderAll();
+    buildNav();
+    closeAutoBackupsModal();
+    if(isSecurityEnabled()){ showLockScreen(); }
+    alert(`✅ تمت استعادة نسخة ${row.date}`);
+  }catch(err){ alert('تعذّرت الاستعادة: ' + (err.message||err)); }
+}
+function openAutoBackupsModal(){
+  document.getElementById('autoBackupsOverlay').classList.add('show');
+  renderAutoBackups();
+}
+function closeAutoBackupsModal(){
+  document.getElementById('autoBackupsOverlay').classList.remove('show');
+}
 function exportData(){
   const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
