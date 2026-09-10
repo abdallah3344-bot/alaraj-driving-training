@@ -499,7 +499,7 @@
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-realtime-sync-3</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-no-pill</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -2264,16 +2264,27 @@ function updateSyncBadge(ok, detail){
 }
 // تتبّع "تغييرات لم تُرفع بعد": يمنع إغلاق البرنامج قبل اكتمال الرفع، ويعيد المحاولة تلقائياً عند الفشل
 let _syncDirty = false, _syncDirtySeq = 0, _syncRetryTimer = null;
+// أُلغيت الشارة البرتقالية الدائمة بطلب المستخدم — الحماية صارت عند الإغلاق فقط:
+// البرنامج يمنع الإغلاق حتى يتأكد من ترحيل البيانات للسحابة (انظر حارس beforeunload أدناه).
 function updateUnsyncedPill(){
-  let el = document.getElementById('unsyncedPill');
-  const show = syncEnabled && (_syncDirty || (typeof _mediaMigrationRunning !== 'undefined' && _mediaMigrationRunning));
-  if(!show){ if(el) el.remove(); return; }
+  const el = document.getElementById('unsyncedPill');
+  if(el) el.remove();
+}
+// رسالة مؤقتة تظهر لحظة محاولة الإغلاق فقط، وتختفي تلقائياً بعد اكتمال الرفع
+function showSyncingOnExitNotice(){
+  let el = document.getElementById('syncingExitNotice');
   if(!el){
-    el = document.createElement('div'); el.id = 'unsyncedPill';
-    el.style.cssText = 'position:fixed;top:10px;left:10px;z-index:99998;background:#b45309;color:#fff;padding:8px 12px;border-radius:999px;font-size:13px;box-shadow:0 3px 10px rgba(0,0,0,.25);direction:rtl';
+    el = document.createElement('div'); el.id = 'syncingExitNotice';
+    el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100000;background:#1f5f5b;color:#fff;padding:16px 22px;border-radius:12px;font-size:15px;box-shadow:0 8px 26px rgba(0,0,0,.35);direction:rtl;text-align:center';
     document.body.appendChild(el);
   }
-  el.textContent = (typeof _mediaMigrationRunning !== 'undefined' && _mediaMigrationRunning) ? '☁️ جارٍ نقل المرفقات — لا تُغلق البرنامج' : '⏳ تغييرات لم تُرفع للسحابة بعد — لا تُغلق البرنامج';
+  el.textContent = '☁️ جارٍ ترحيل البيانات إلى السحابة… لا تُغلق البرنامج';
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>{ if(!_syncDirty) el.remove(); }, 1200);
+}
+function hideSyncingOnExitNotice(){
+  const el = document.getElementById('syncingExitNotice');
+  if(el) el.remove();
 }
 // ==================================================================
 // المزامنة اللحظية بين أجهزة نفس الترخيص (Realtime Broadcast + Presence)
@@ -2365,7 +2376,7 @@ async function pushStateToServer(){
     const result = await res.json();
     if(!result.ok) throw new Error(result.message || 'رفض الخادم الحفظ');
     updateSyncBadge(true, result.message);
-    if(seqAtStart === _syncDirtySeq){ _syncDirty = false; clearTimeout(_syncRetryTimer); }
+    if(seqAtStart === _syncDirtySeq){ _syncDirty = false; clearTimeout(_syncRetryTimer); hideSyncingOnExitNotice(); }
     fetchServerVersion().then(v=>{ if(v) _knownServerVersion = v; });
     broadcastDataChanged();
   }catch(err){
@@ -2421,8 +2432,9 @@ window.addEventListener('beforeunload', (e)=>{
   if(syncEnabled && (_syncDirty || migrating)){
     e.preventDefault();
     e.returnValue = 'لم تكتمل مزامنة البيانات مع السحابة بعد — لا تُغلق البرنامج الآن';
-    // إن ألغى المستخدم الإغلاق، نرفع فوراً (الرفع المؤجَّل أُلغي أعلاه في flushSyncOnExit)
-    if(_syncDirty && !migrating) setTimeout(()=>{ if(_syncDirty) pushStateToServer(); }, 500);
+    // رفع فوري + رسالة مؤقتة تظهر لحظة المحاولة فقط (بدل الشارة الدائمة)
+    showSyncingOnExitNotice();
+    if(_syncDirty && !migrating) setTimeout(()=>{ if(_syncDirty) pushStateToServer(); }, 300);
     return e.returnValue;
   }
 });
