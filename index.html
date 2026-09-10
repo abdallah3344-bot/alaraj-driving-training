@@ -499,7 +499,7 @@
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-lesson-fix</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-theory-collected-col</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -5177,8 +5177,9 @@ function printTheoreticalExamCandidatesList(selectedDate){
       <td>${student ? (student.license||'-') : '-'}</td>
       <td>${fee ? fee.toFixed(2) : '-'}</td>
       <td class="${paidClass}">${paidLabel}</td>
+      <td class="collected"></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="6" style="text-align:center;">لا يوجد متقدمون مسجلون لهذا التاريخ</td></tr>`;
+  }).join('') || `<tr><td colspan="7" style="text-align:center;">لا يوجد متقدمون مسجلون لهذا التاريخ</td></tr>`;
 
   const win = window.open('', '_blank', 'width=900,height=1100');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
@@ -5195,11 +5196,13 @@ function printTheoreticalExamCandidatesList(selectedDate){
     th{ background:#f0f0f0; }
     .paid-yes{ color:#15803d; font-weight:700; }
     .paid-no{ color:#b91c1c; font-weight:700; }
+    /* عمود يُملأ بخط اليد عند الطباعة — يُترك فارغاً بمساحة كافية للكتابة */
+    th.collected-h, td.collected{ width:110px; min-width:110px; height:34px; }
   </style></head><body>
   <h1>قائمة أسماء المتقدمين للفحص النظري</h1>
   <div class="meta">اليوم: ${dayName} — التاريخ: ${selectedDate}</div>
   <table>
-    <thead><tr><th>#</th><th>اسم الطالب</th><th>رقم الهوية</th><th>نوع الرخصة</th><th>مبلغ الرسوم</th><th>حالة الدفع</th></tr></thead>
+    <thead><tr><th>#</th><th>اسم الطالب</th><th>رقم الهوية</th><th>نوع الرخصة</th><th>مبلغ الرسوم</th><th>حالة الدفع</th><th class="collected-h">المبلغ المقبوض</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <script>window.onload = ()=> window.print();<\/script>
@@ -7018,11 +7021,16 @@ function addOfficialPaper(){
     alert('الرجاء تحديد نوع الورقة والدائرة وتاريخ التقديم');
     return;
   }
+  const dueDate = document.getElementById('pap_due').value || '';
+  // حماية من خطأ كتابة السنة (مثل 2008 بدل 2026): تاريخ متابعة أقدم من سنة يُستوثق منه
+  if(dueDate && dueDate < new Date(Date.now() - 365*24*60*60*1000).toISOString().slice(0,10)){
+    if(!confirm(`تاريخ المتابعة المُدخل (${dueDate}) قديم جداً — هل هو صحيح؟\n\nإن كان خطأً في كتابة السنة، اضغط "إلغاء" وصحّحه.`)) return;
+  }
   state.officialPapers.push({
     id: newId('officialPapers'),
     studentId: studentVal ? parseInt(studentVal) : null,
     paperType, department,
-    submitDate, dueDate: document.getElementById('pap_due').value || '',
+    submitDate, dueDate: dueDate,
     status: 'قيد الإجراء',
     notes: document.getElementById('pap_notes').value.trim(),
     attachments: [],
@@ -7117,12 +7125,19 @@ function showOfficialPaperPhoto(slot, p){
   }
   updateOfficialPaperPhotoPreview(slot, p['photo'+slot] || null);
 }
+// اسم الطالب المرتبط بمعاملة رسمية — أو إشارة صريحة إلى أنه محذوف (تفادياً لظهور "—" بلا معنى)
+function officialPaperStudentLabel(studentId){
+  const s = state.students.find(x=> x.id === studentId);
+  return s ? (s.name || '—') : `⚠️ طالب محذوف (#${studentId})`;
+}
 function renderPaperAlerts(){
   const items = state.officialPapers
     .filter(p=> p.status==='قيد الإجراء' && p.dueDate && daysUntil(p.dueDate) !== null && daysUntil(p.dueDate) <= 3)
     .sort((a,b)=> daysUntil(a.dueDate) - daysUntil(b.dueDate))
     .map(p=>({
-      label: `${p.paperType} — ${p.department}${p.studentId ? ' — ' + nameOf(state.students, p.studentId) : ''}`,
+      // إن كان الطالب المرتبط محذوفاً، نوضّح ذلك برقمه بدل شرطة مبهمة لا تدل على شيء
+      label: `${p.paperType} — ${p.department}${p.studentId ? ' — ' + officialPaperStudentLabel(p.studentId) : ''}`
+             + ` (معاملة #${p.id})`,
       badge: licenseBadge(p.dueDate)
     }));
   renderAlertBanner('paperAlertBanner', items, 'معاملات رسمية على وشك موعد المتابعة');
