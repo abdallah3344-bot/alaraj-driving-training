@@ -328,6 +328,41 @@
   .school-badge-alaraj{ background:#e0ecff; color:#1d4ed8; }
   .school-badge-aqsa{ background:#fde8e8; color:#b91c1c; }
   .school-badge-israa{ background:#e7f9ee; color:#15803d; }
+
+/* ==================================================================
+   الوضع الميداني — تكبير عناصر اللمس وتبسيط التخطيط للعمل على الجوال
+   ================================================================== */
+body.field-mode{ font-size:17px; }
+body.field-mode .form-grid{ grid-template-columns:1fr !important; gap:10px; }
+body.field-mode input, body.field-mode select, body.field-mode textarea{
+  font-size:17px !important; min-height:48px; padding:10px 12px;
+}
+body.field-mode .btn, body.field-mode button{ min-height:48px; font-size:16px; padding:10px 16px; }
+body.field-mode .row-actions{ display:flex; flex-wrap:wrap; gap:6px; }
+body.field-mode .row-actions .btn{ flex:1 1 46%; }
+body.field-mode table{ font-size:15px; }
+body.field-mode th, body.field-mode td{ padding:10px 8px; }
+body.field-mode .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+body.field-mode .card{ padding:12px; }
+body.field-mode h2{ font-size:19px; }
+body.field-mode .stats-grid{ grid-template-columns:repeat(auto-fit,minmax(140px,1fr)) !important; }
+body.field-mode .modal-box{ width:96vw !important; max-width:96vw !important; padding:14px !important; }
+/* شريط إجراءات سريعة يثبت أسفل الشاشة — أكثر ما يُستعمل ميدانياً */
+#fieldQuickBar{
+  position:fixed; bottom:0; left:0; right:0; z-index:9000; display:none;
+  background:var(--panel); border-top:2px solid var(--accent);
+  box-shadow:0 -3px 12px rgba(0,0,0,.15); padding:6px; gap:6px;
+}
+body.field-mode #fieldQuickBar{ display:flex; }
+body.field-mode{ padding-bottom:76px; }
+#fieldQuickBar button{
+  flex:1; min-height:56px; border:0; border-radius:10px; cursor:pointer;
+  background:var(--panel-2); color:var(--text); font-size:13px; font-weight:700;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+}
+#fieldQuickBar button .ico{ font-size:19px; }
+#fieldQuickBar button.active{ background:var(--accent); color:#fff; }
+@media print{ #fieldQuickBar{ display:none !important; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -425,10 +460,19 @@
 
 <button id="sidebarToggle" onclick="toggleSidebar()">☰ القائمة</button>
 
+<div id="fieldQuickBar">
+  <button onclick="fieldGo('lessons')"><span class="ico">🚗</span>تسجيل حصة</button>
+  <button onclick="fieldGo('students')"><span class="ico">👨‍🎓</span>الطلاب</button>
+  <button onclick="fieldGo('invoices')"><span class="ico">💵</span>الفواتير</button>
+  <button onclick="fieldGo('receivables')"><span class="ico">💰</span>الذمم</button>
+  <button onclick="fieldGo('exams')"><span class="ico">📝</span>الامتحانات</button>
+</div>
+
 <header>
   <h1><img id="headerLogo" class="header-logo" alt="شعار مدرسة الاعرج لتعليم السياقة"> <span id="headerTitleMain" style="color:inherit">مدرسة الاعرج</span> <span id="headerTitleSuffix">لتعليم السياقة</span></h1>
   <div class="header-actions">
 
+    <button class="btn" id="fieldModeBtn" onclick="toggleFieldMode()">📱 الوضع الميداني</button>
     <button class="btn" id="licenseStatusBtn" onclick="openLicenseModal()">🔑 الترخيص</button>
     <span id="currentUserBadge" style="display:none; font-size:13px; color:var(--muted); align-self:center;"></span>
     <button class="btn" id="logoutBtn" style="display:none;" onclick="logout()">🚪 تسجيل خروج</button>
@@ -499,7 +543,7 @@
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-practical-cairo</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-field-mode-3</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -670,6 +714,7 @@
       <div class="field"><label>المدرب المعتاد (اختياري)</label><select id="ed_st_instructor"></select></div>
       <div class="field"><label>السيارة المعتادة (اختياري)</label><select id="ed_st_vehicle"></select></div>
       <div class="field"><label>الحالة</label><select id="ed_st_status"><option>نشط</option><option>متوقف</option></select></div>
+      <div class="field"><label>🏫 المدرسة</label><select id="ed_st_school"></select></div>
     </div>
     <div class="field" style="margin-top:10px;">
       <label>المرفقات (وثائق، صور رخصة، إلخ)</label>
@@ -1675,7 +1720,6 @@
       <div class="form-grid">
         <div class="field"><label>نوع التقرير</label>
           <select id="rpt_type" onchange="onReportTypeChange()">
-            <option value="receivables">📋 تقرير رصيد ذمم الطلاب</option>
             <option value="totalExpenses">🧾 تقرير إجمالي المصروفات (شامل)</option>
             <option value="profitLoss">📈 تقرير صافي الربح أو الخسارة</option>
             <option value="vehicleExpenses">🚗 تقرير مصاريف السيارات</option>
@@ -1683,6 +1727,8 @@
             <option value="generalExpenses">🏢 تقرير مصاريف المكتب العامة</option>
             <option value="topInstructors">🏆 أفضل المدربين (حسب الحصص المنجزة)</option>
             <option value="commissions">💰 تقرير عمولات المدربين</option>
+            <option value="staffDues">👔 تقرير ذمم الموظفين (المستحق مقابل المصروف)</option>
+            <option value="lessonsExams">📚 تقرير الدروس والامتحانات</option>
             <option value="exams">📝 تقرير الامتحانات حسب المدرب</option>
           </select>
         </div>
@@ -2165,6 +2211,14 @@ function wireAllSearchableSelects(){
   initSelectSearch('dsb_recipient_staff_search', 'dsb_recipient_staff');
 }
 
+// تنسيق الأرقام مع فاصل الآلاف — يُستخدَم في كل مواضع العرض والطباعة
+// (لا يُستخدَم في الحسابات نفسها، فالقيم تبقى أرقاماً كما هي)
+function fmtNum(value, decimals){
+  const d = (decimals === undefined) ? 2 : decimals;
+  const n = Number(value);
+  if(!isFinite(n)) return (0).toFixed(d);
+  return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
 function saveState(){
   // مهم: رفع البيانات للخادم يجب أن يحدث دائماً، حتى لو تعطّل التخزين المحلي (ممتلئ/معطّل) —
   // وإلا تبقى كل التعديلات حبيسة هذا التبويب وتُفقد عند إغلاقه.
@@ -2277,7 +2331,7 @@ const PERIODIC_SYNC_INTERVAL_MS = 25000; // فحص دوري كل 25 ثانية �
 function startPeriodicSync(){
   if(periodicSyncStarted) return;
   periodicSyncStarted = true;
-  setTimeout(()=> installActivityLogging(), 1200);
+setTimeout(()=> installActivityLogging(), 1200);
 setTimeout(()=> maybeAutoBackup(), 8000);
   setInterval(()=> maybeAutoBackup(), AUTO_BACKUP_INTERVAL_MS);
 }
@@ -3404,6 +3458,53 @@ function isAdmin(){
   return !!(currentUser && currentUser.role === 'admin');
 }
 
+// ==================================================================
+// الوضع الميداني: تخطيط مبسّط بعناصر لمس كبيرة للعمل من الجوال.
+// يُحفظ الاختيار على الجهاز، ويُفعَّل تلقائياً أول مرة على الشاشات الصغيرة.
+// ==================================================================
+const FIELD_MODE_KEY = 'field_mode_enabled';
+function isFieldMode(){ return document.body.classList.contains('field-mode'); }
+function applyFieldMode(on){
+  document.body.classList.toggle('field-mode', !!on);
+  const btn = document.getElementById('fieldModeBtn');
+  if(btn) btn.textContent = on ? '🖥 الوضع العادي' : '📱 الوضع الميداني';
+  try{ localStorage.setItem(FIELD_MODE_KEY, on ? '1' : '0'); }catch(_){ }
+  markFieldQuickBar();
+}
+function toggleFieldMode(){ applyFieldMode(!isFieldMode()); }
+function fieldGo(tabId){
+  if(typeof canAccessTab === 'function' && !canAccessTab(tabId)){
+    alert('لا تملك صلاحية الوصول لهذه الشاشة');
+    return;
+  }
+  showTab(tabId);
+  markFieldQuickBar('tab-' + tabId);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function markFieldQuickBar(activeTab){
+  const bar = document.getElementById('fieldQuickBar');
+  if(!bar) return;
+  const current = activeTab || (document.querySelector('.tab.active') || {}).id || '';
+  Array.from(bar.querySelectorAll('button')).forEach(b=>{
+    const t = (b.getAttribute('onclick')||'').match(/fieldGo\('([^']+)'\)/);
+    b.classList.toggle('active', !!t && ('tab-' + t[1]) === current);
+    // الأزرار التي لا يملك المستخدم صلاحيتها تُخفى بدل أن تُحبطه برسالة
+    if(t && typeof canAccessTab === 'function') b.style.display = canAccessTab(t[1]) ? '' : 'none';
+  });
+}
+function initFieldMode(){
+  let saved = null;
+  try{ saved = localStorage.getItem(FIELD_MODE_KEY); }catch(_){ }
+  if(saved === null){
+    // أول تشغيل: نفعّله تلقائياً على الشاشات الصغيرة (جوال) دون فرضه على الحاسوب
+    applyFieldMode(window.innerWidth <= 820);
+  } else {
+    applyFieldMode(saved === '1');
+  }
+}
+// الوضع الميداني يُهيَّأ عند تحميل الصفحة مباشرة (لا يعتمد على الترخيص أو المزامنة)
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ()=> initFieldMode());
+else setTimeout(()=> initFieldMode(), 0);
 function toggleSidebar(force){
   const nav = document.getElementById('tabNav');
   const overlay = document.getElementById('navOverlay');
@@ -3432,6 +3533,7 @@ function showTab(id){
   if(id==='lessons'){ refreshLessonDropdowns(); }
   if(id==='exams'){ refreshExamDropdowns(); renderExamCalendar(); onExamTypeChange(); }
   if(id==='receivables'){ renderReceivables(); }
+  if(typeof markFieldQuickBar === 'function') markFieldQuickBar('tab-' + id);
   if(id==='users'){ if(!document.getElementById('act_from').value) setActivityRange('today'); else renderActivityLog(); }
   if(id==='invoices'){ refreshInvoiceDropdowns(); onInvoiceEntryTypeChange(); populatePosStudentSelect(); populateDiscountStudentSelect(); }
   if(id==='cheques'){ renderCheques(); }
@@ -3653,7 +3755,7 @@ const PRINT_TYPOGRAPHY_CSS = `
   body{ font-weight:700 !important; color:#000 !important; }
   th, .label, label, h1, h2, h3{ font-weight:900 !important; color:#000 !important; }
   td{ font-weight:700 !important; color:#000 !important; }
-  tfoot td, b, strong, .value, .val{ font-weight:900 !important; }
+  tfoot td, tr.totals-row td, b, strong, .value, .val{ font-weight:900 !important; }
   table, th, td{ border-color:#000 !important; }
   .paid-yes, .paid-no, .res-pass, .res-fail{ font-weight:900 !important; }
 `;
@@ -4125,6 +4227,11 @@ function openEditStudentModal(id){
   instructorSel.value = s.preferredInstructorId || '';
   vehicleSel.value = s.preferredVehicleId || '';
   document.getElementById('ed_st_status').value = s.status || 'نشط';
+  // المدرسة التي يتبعها الطالب — قابلة للتعديل (تنعكس على أوراقه وكشوفه وفواتيره)
+  const schoolSel = document.getElementById('ed_st_school');
+  schoolSel.innerHTML = Object.entries(SCHOOLS).map(([key, sc])=>
+    `<option value="${key}">${sc.name}</option>`).join('');
+  schoolSel.value = s.school || getLastSelectedSchool();
   updateStudentPhotoPreview(null);
   getStudentPhotoUrl(id, 'full').then(url=> updateStudentPhotoPreview(url));
   renderAttachments('student', id);
@@ -4156,8 +4263,21 @@ function saveEditStudent(){
   s.preferredInstructorId = instructorVal ? parseInt(instructorVal) : null;
   s.preferredVehicleId = vehicleVal ? parseInt(vehicleVal) : null;
   s.status = document.getElementById('ed_st_status').value;
+  const newSchool = document.getElementById('ed_st_school').value;
+  if(newSchool && newSchool !== s.school){
+    const oldName = (SCHOOLS[s.school] || {}).name || '—';
+    const newName = (SCHOOLS[newSchool] || {}).name || newSchool;
+    if(confirm(`نقل الطالب من "${oldName}" إلى "${newName}"؟\n\nستُنقل معه حصصه وفواتيره وسنداته وامتحاناته ومعاملاته حتى تبقى كشوفه وتقاريره متطابقة.`)){
+      s.school = newSchool;
+      // السجلات المرتبطة تتبع الطالب، وإلا ظهرت كشوف المدرستين غير متطابقة
+      ['lessons','invoices','payments','exams','officialPapers'].forEach(key=>{
+        (state[key]||[]).forEach(r=>{ if(r.studentId === s.id) r.school = newSchool; });
+      });
+    }
+  }
   closeEditStudentModal();
   renderStudents();
+  renderLessons(); renderInvoices(); renderExams();
 }
 
 // ------------------------------------------------------------------
@@ -4675,8 +4795,8 @@ async function openStudentFile(id){
       <table>
         <tr><td class="label">عدد الحصص المنجزة</td><td class="value">${completedLessons.length}</td></tr>
         <tr><td class="label">إجمالي الساعات المنجزة</td><td class="value">${s.usedHours}</td></tr>
-        <tr><td class="label">إجمالي المستحق (فواتير)</td><td class="value">${totalInvoiced.toFixed(2)}</td></tr>
-        <tr><td class="label">إجمالي المدفوع</td><td class="value">${totalPaid.toFixed(2)}</td></tr>
+        <tr><td class="label">إجمالي المستحق (فواتير)</td><td class="value">${fmtNum(totalInvoiced, 2)}</td></tr>
+        <tr><td class="label">إجمالي المدفوع</td><td class="value">${fmtNum(totalPaid, 2)}</td></tr>
       </table>
 
       <div class="section-title">المرفقات (${attachments.length})</div>
@@ -4732,7 +4852,7 @@ function gatherDebtAlertItems(){
   .sort((a,b)=> b.balance - a.balance)
   .map(x=>({
     label: `${x.student.name} — عليه ذمة مستحقة`,
-    badge: `<span class="badge badge-red">${x.balance.toFixed(2)} شيكل</span>`
+    badge: `<span class="badge badge-red">${fmtNum(x.balance, 2)} شيكل</span>`
   }));
 }
 
@@ -4800,8 +4920,8 @@ function renderHomeStats(){
     {label:'إجمالي الطلاب', value: totalStudents, cls:''},
     {label:'الطلاب النشطون', value: activeStudents, cls:'accent'},
     {label:'حصص اليوم', value: todaysLessons, cls:''},
-    {label:'إجمالي المصاريف', value: totalExpenses.toFixed(2), cls:'amber'},
-    {label:'إجمالي الإيرادات', value: totalIncome.toFixed(2), cls:'accent'},
+    {label:'إجمالي المصاريف', value: fmtNum(totalExpenses, 2), cls:'amber'},
+    {label:'إجمالي الإيرادات', value: fmtNum(totalIncome, 2), cls:'accent'},
   ];
   el.innerHTML = stats.map(s=>`
     <div class="stat-card"><div class="label">${s.label}</div><div class="value ${s.cls}">${s.value}</div></div>
@@ -5256,7 +5376,7 @@ function renderVehicleDailyLogs(){
     <tr>
       <td>${l.id}</td><td>${schoolBadge(l.school||'alaraj')}</td><td>${nameOf(state.vehicles, l.vehicleId)}</td><td>${l.date||'-'}</td>
       <td>${l.startOdo}</td><td>${l.endOdo}</td><td>${l.distanceKm}</td>
-      <td>${l.fuelType}</td><td>${l.fuelCost.toFixed(2)}</td><td><b>${l.costPerKm.toFixed(2)}</b></td>
+      <td>${l.fuelType}</td><td>${fmtNum(l.fuelCost, 2)}</td><td><b>${fmtNum(l.costPerKm, 2)}</b></td>
       <td class="row-actions"><button class="btn btn-danger" onclick="deleteVehicleDailyLog(${l.id})">حذف</button></td>
     </tr>`).join('');
   document.getElementById('vehicleDailyLogsEmpty').style.display = state.vehicleDailyLogs.length? 'none':'block';
@@ -5294,7 +5414,7 @@ function renderVehicleExpenses(){
     return `<tr>
       <td>${e.id}</td><td>${schoolBadge(e.school||'alaraj')}</td><td>${nameOf(state.vehicles, e.vehicleId)}</td>
       <td><span class="badge ${badgeClass}">${e.type}</span></td>
-      <td>${e.cost.toFixed(2)}</td><td>${e.date||'-'}</td><td>${e.notes||'-'}</td>
+      <td>${fmtNum(e.cost, 2)}</td><td>${e.date||'-'}</td><td>${e.notes||'-'}</td>
       <td class="row-actions"><button class="btn btn-danger" onclick="deleteVehicleExpense(${e.id})">حذف</button></td>
     </tr>`;
   }).join('');
@@ -5331,7 +5451,7 @@ function renderGeneralExpenses(){
   body.innerHTML = sorted.map(e=>`
     <tr>
       <td>${e.id}</td><td>${schoolBadge(e.school||'alaraj')}</td><td><span class="badge badge-amber">${e.type}</span></td>
-      <td>${e.amount.toFixed(2)}</td><td>${e.date||'-'}</td><td>${e.notes||'-'}</td>
+      <td>${fmtNum(e.amount, 2)}</td><td>${e.date||'-'}</td><td>${e.notes||'-'}</td>
       <td class="row-actions"><button class="btn btn-danger" onclick="deleteGeneralExpense(${e.id})">حذف</button></td>
     </tr>`).join('');
   updateEmptyStateForToday('generalExpensesEmpty', sorted.length, state.generalExpenses.length, 'ge_today_only', 'لا توجد مصاريف مسجلة بعد');
@@ -5373,7 +5493,7 @@ function renderPricing(){
   const sorted = [...state.lessonPrices].sort((a,b)=> a.license.localeCompare(b.license) || a.lessonType.localeCompare(b.lessonType));
   body.innerHTML = sorted.map(p=>`
     <tr>
-      <td>${p.license}</td><td>${p.lessonType}</td><td>${p.gear==='-' ? '—' : p.gear}</td><td>${p.price.toFixed(2)}</td>
+      <td>${p.license}</td><td>${p.lessonType}</td><td>${p.gear==='-' ? '—' : p.gear}</td><td>${fmtNum(p.price, 2)}</td>
       <td class="row-actions"><button class="btn btn-danger" onclick="deleteLessonPrice(${p.id})">حذف</button></td>
     </tr>`).join('');
   document.getElementById('pricingEmpty').style.display = state.lessonPrices.length? 'none':'block';
@@ -5465,7 +5585,7 @@ function addLesson(){
   if(paidNow < 0){ alert('المبلغ المدفوع غير صالح'); return; }
   // لا سعر للحصة لكن هناك مبلغ مدفوع: يُعتمد المبلغ المدفوع سعراً للحصة حتى تُصدَر فاتورة تُرصَّد عليها الدفعة
   if(paidNow > 0 && price <= 0) price = paidNow;
-  if(paidNow > price){ alert('المبلغ المدفوع (' + paidNow.toFixed(2) + ') أكبر من سعر الحصة (' + price.toFixed(2) + ') — صحّح أحد المبلغين'); return; }
+  if(paidNow > price){ alert('المبلغ المدفوع (' + fmtNum(paidNow, 2) + ') أكبر من سعر الحصة (' + fmtNum(price, 2) + ') — صحّح أحد المبلغين'); return; }
 
   const lesson = {
     id: newId('lessons'), studentId, instructorId, vehicleId, datetime: dt,
@@ -5553,7 +5673,7 @@ function renderCommissionRates(){
   body.innerHTML = sorted.map(r=>`
     <tr>
       <td>${r.license==='__default__' ? 'باقي الفئات (الافتراضي)' : r.license}</td>
-      <td>${r.amount.toFixed(2)}</td>
+      <td>${fmtNum(r.amount, 2)}</td>
       <td class="row-actions">${r.license!=='__default__' ? `<button class="btn btn-danger" onclick="deleteCommissionRate(${r.id})">حذف</button>` : ''}</td>
     </tr>`).join('');
   document.getElementById('commissionRatesEmpty').style.display = state.commissionRates.length? 'none':'block';
@@ -5583,7 +5703,7 @@ function renderLessons(){
     return `<tr>
       <td>${i+1}</td><td>${schoolBadge(l.school||'alaraj')}</td><td>${nameOf(state.students,l.studentId)}</td><td>${nameOf(state.staff,l.instructorId)}</td>
       <td>${nameOf(state.vehicles,l.vehicleId)}</td><td>${l.datetime.replace('T',' ')}</td><td>${l.type}</td>
-      <td>${(l.price||0).toFixed(2)}</td><td>${commission.toFixed(2)}</td>
+      <td>${fmtNum((l.price||0), 2)}</td><td>${fmtNum(commission, 2)}</td>
       <td><span class="badge ${badgeClass}">${l.status}</span></td>
       <td class="row-actions">
         ${l.status==='مجدول' ? `<button class="btn" onclick="openEditLessonModal(${l.id})">✏ تعديل</button>
@@ -5769,7 +5889,7 @@ function printTheoreticalExamCandidatesList(selectedDate){
       <td>${student ? student.name : '-'}</td>
       <td>${student ? (student.nid||'-') : '-'}</td>
       <td>${student ? (student.license||'-') : '-'}</td>
-      <td>${fee ? fee.toFixed(2) : '-'}</td>
+      <td>${fee ? fmtNum(fee, 2) : '-'}</td>
       <td class="${paidClass}">${paidLabel}</td>
       <td class="collected"></td>
       <td class="result-cell ${resultClass}">${resultLabel}</td>
@@ -5779,7 +5899,7 @@ function printTheoreticalExamCandidatesList(selectedDate){
   // صف الإجمالي (مبلغ الرسوم وما شابه) — يُحسب من الصفوف نفسها
   const totalFees = list.reduce((sum,e)=> sum + (e.examFee || 0), 0);
   const totalsRow = list.length
-    ? `<tfoot><tr><td colspan="4"><b>الإجمالي (${list.length} متقدماً)</b></td><td><b>${totalFees.toFixed(2)}</b></td><td></td><td></td><td></td></tr></tfoot>`
+    ? `<tr class="totals-row"><td colspan="4"><b>الإجمالي (${list.length} متقدماً)</b></td><td><b>${fmtNum(totalFees, 2)}</b></td><td></td><td></td><td></td></tr>`
     : '';
   const win = window.open('', '_blank', 'width=900,height=1100');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
@@ -5802,7 +5922,7 @@ function printTheoreticalExamCandidatesList(selectedDate){
     th.result-h, td.result-cell{ width:90px; min-width:90px; height:34px; }
     .res-pass{ color:#15803d; font-weight:700; }
     .res-fail{ color:#b91c1c; font-weight:700; }
-    tfoot td{ background:#f0f0f0; font-weight:800; }
+    tr.totals-row td{ background:#f0f0f0; font-weight:800; border-top:2px solid #000; }
     .brand-row{ display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:6px; }
     .brand-logo-corner{ width:58px; height:58px; object-fit:contain; flex-shrink:0; }
     .brand-center{ text-align:center; flex:1; } .brand-center h1{ font-size:18px; margin:0; }
@@ -5816,8 +5936,7 @@ function printTheoreticalExamCandidatesList(selectedDate){
   <div class="meta">اليوم: ${dayName} — التاريخ: ${selectedDate}</div>
   <table>
     <thead><tr><th>#</th><th>اسم الطالب</th><th>رقم الهوية</th><th>نوع الرخصة</th><th>مبلغ الرسوم</th><th>حالة الدفع</th><th class="collected-h">المبلغ المقبوض</th><th class="result-h">النتيجة</th></tr></thead>
-    <tbody>${rows}</tbody>
-    ${totalsRow}
+    <tbody>${rows}${totalsRow}</tbody>
   </table>
   <script>window.onload = ()=> window.print();<\/script>
   </body></html>`);
@@ -5837,7 +5956,7 @@ function addExam(){
   if(paidNow < 0){ alert('المبلغ المدفوع غير صالح'); return; }
   // لا رسوم مُدخلة لكن هناك مبلغ مدفوع: يُعتمد المبلغ المدفوع رسوماً للامتحان حتى تُصدَر فاتورة تُرصَّد عليها الدفعة
   if(paidNow > 0 && fee <= 0) fee = paidNow;
-  if(paidNow > fee){ alert('المبلغ المدفوع (' + paidNow.toFixed(2) + ') أكبر من رسوم الامتحان (' + fee.toFixed(2) + ') — صحّح أحد المبلغين'); return; }
+  if(paidNow > fee){ alert('المبلغ المدفوع (' + fmtNum(paidNow, 2) + ') أكبر من رسوم الامتحان (' + fmtNum(fee, 2) + ') — صحّح أحد المبلغين'); return; }
   const school = (typeof schoolOfStudent === 'function') ? schoolOfStudent(studentId) : undefined;
   const student = state.students.find(s=>s.id===studentId);
   const exam = {
@@ -6043,7 +6162,7 @@ function cleanupOrphanedLessonInvoices(){
 
   let msg = `تم العثور على ${orphaned.length} فاتورة يتيمة (صادرة عن حصص محذوفة):\n\n`;
   if(unpaid.length){
-    msg += `• ${unpaid.length} فاتورة غير مدفوعة بإجمالي ${unpaidTotal.toFixed(2)} — سيتم حذفها الآن.\n`;
+    msg += `• ${unpaid.length} فاتورة غير مدفوعة بإجمالي ${fmtNum(unpaidTotal, 2)} — سيتم حذفها الآن.\n`;
   }
   if(paid.length){
     msg += `• ${paid.length} فاتورة مدفوعة بالفعل — لن تُحذف تلقائياً (حفاظاً على السجلات المالية)، ستحتاج مراجعتها يدوياً إن رغبت.\n`;
@@ -6063,7 +6182,7 @@ function cleanupOrphanedLessonInvoices(){
 
   renderInvoices();
   renderStudents();
-  alert(`تم حذف ${unpaid.length} فاتورة يتيمة بإجمالي ${unpaidTotal.toFixed(2)}. ✅`);
+  alert(`تم حذف ${unpaid.length} فاتورة يتيمة بإجمالي ${fmtNum(unpaidTotal, 2)}. ✅`);
 }
 function addInvoice(){
   if(!requireOnlineOrBlock()) return;
@@ -6126,8 +6245,8 @@ function renderInvoices(){
     return `<tr>
       <td>${i+1}</td><td>${schoolBadge(inv.school||'alaraj')}</td><td>${nameOf(state.students, inv.studentId)}</td>
       <td>${inv.invoiceType ? `<span class="badge badge-gray">${inv.invoiceType}</span>` : '-'}</td>
-      <td>${inv.amount.toFixed(2)}</td>
-      <td>${paid.toFixed(2)}</td><td>${remaining.toFixed(2)}</td><td>${inv.due||'-'}</td>
+      <td>${fmtNum(inv.amount, 2)}</td>
+      <td>${fmtNum(paid, 2)}</td><td>${fmtNum(remaining, 2)}</td><td>${inv.due||'-'}</td>
       <td><span class="badge ${badgeClass}">${inv.status}</span></td>
       <td>${inv.notes||'-'}</td>
       <td class="row-actions">
@@ -6178,9 +6297,9 @@ function deleteInvoice(id){
   const inv = state.invoices.find(i=>i.id===id);
   if(!inv) return;
   const paid = paidAmount(id);
-  let msg = `هل تريد حذف فاتورة #${inv.id} (${nameOf(state.students, inv.studentId)}) بمبلغ ${inv.amount.toFixed(2)}؟`;
+  let msg = `هل تريد حذف فاتورة #${inv.id} (${nameOf(state.students, inv.studentId)}) بمبلغ ${fmtNum(inv.amount, 2)}؟`;
   if(paid > 0){
-    msg = `⚠️ تنبيه: هذه الفاتورة عليها مدفوعات سابقة بقيمة ${paid.toFixed(2)}. حذفها لن يحذف سندات القبض المرتبطة بها تلقائياً — ستبقى موجودة بدون ربط بأي فاتورة.\n\n` + msg;
+    msg = `⚠️ تنبيه: هذه الفاتورة عليها مدفوعات سابقة بقيمة ${fmtNum(paid, 2)}. حذفها لن يحذف سندات القبض المرتبطة بها تلقائياً — ستبقى موجودة بدون ربط بأي فاتورة.\n\n` + msg;
   }
   if(inv.lessonId){
     msg = `⚠️ تنبيه إضافي: هذه الفاتورة صادرة تلقائياً عن حصة رقم #${inv.lessonId}.\n\n` + msg;
@@ -6215,7 +6334,7 @@ function onPosStudentChange(){
   const unpaidInvoices = state.invoices.filter(inv=> inv.studentId===studentId && inv.status!=='مدفوعة');
   unpaidInvoices.forEach(inv=>{
     const remaining = inv.amount - paidAmount(inv.id);
-    invoiceSelect.innerHTML += `<option value="${inv.id}">فاتورة #${inv.id} — ${inv.invoiceType||''} — متبقي ${remaining.toFixed(2)}</option>`;
+    invoiceSelect.innerHTML += `<option value="${inv.id}">فاتورة #${inv.id} — ${inv.invoiceType||''} — متبقي ${fmtNum(remaining, 2)}</option>`;
   });
 }
 function onPosInvoiceChange(){
@@ -6224,14 +6343,14 @@ function onPosInvoiceChange(){
   const inv = state.invoices.find(i=>i.id===invoiceId);
   if(!inv) return;
   const remaining = inv.amount - paidAmount(inv.id);
-  document.getElementById('pos_amount').value = remaining.toFixed(2);
+  document.getElementById('pos_amount').value = fmtNum(remaining, 2);
 }
 function openPosPaymentScreen(){
   const studentId = parseInt(document.getElementById('pos_student').value);
   const amount = parseFloat(document.getElementById('pos_amount').value);
   if(!studentId){ alert('الرجاء اختيار الطالب'); return; }
   if(!amount || amount<=0){ alert('الرجاء إدخال مبلغ صحيح'); return; }
-  document.getElementById('pos_display_amount').textContent = amount.toFixed(2) + ' ₪';
+  document.getElementById('pos_display_amount').textContent = fmtNum(amount, 2) + ' ₪';
   document.getElementById('pos_display_student').textContent = 'الطالب: ' + nameOf(state.students, studentId);
   document.getElementById('posPaymentModal').classList.add('show');
 }
@@ -7079,7 +7198,7 @@ function onDiscountFieldsChange(){
   if(discountAmount < 0) discountAmount = 0;
   const newBalance = balance - discountAmount;
   preview.style.display = 'block';
-  preview.textContent = `الرصيد الحالي: ${balance.toFixed(2)} ₪  —  قيمة الخصم: ${discountAmount.toFixed(2)} ₪  —  الرصيد بعد الخصم: ${newBalance.toFixed(2)} ₪`;
+  preview.textContent = `الرصيد الحالي: ${fmtNum(balance, 2)} ₪  —  قيمة الخصم: ${fmtNum(discountAmount, 2)} ₪  —  الرصيد بعد الخصم: ${fmtNum(newBalance, 2)} ₪`;
 }
 function applyStudentDiscount(){
   const studentId = parseInt(document.getElementById('disc_student').value);
@@ -7095,7 +7214,7 @@ function applyStudentDiscount(){
   if(discountAmount <= 0){ alert('لا يوجد رصيد ذمة موجب لهذا الطالب يمكن تطبيق خصم عليه'); return; }
 
   const typeLabel = type==='percent' ? `خصم ${value}%` : 'خصم';
-  const confirmMsg = `تأكيد تطبيق خصم بقيمة ${discountAmount.toFixed(2)} ₪ على الطالب "${nameOf(state.students, studentId)}"؟\nالرصيد الحالي: ${balance.toFixed(2)} ₪ → بعد الخصم: ${(balance-discountAmount).toFixed(2)} ₪`;
+  const confirmMsg = `تأكيد تطبيق خصم بقيمة ${fmtNum(discountAmount, 2)} ₪ على الطالب "${nameOf(state.students, studentId)}"؟\nالرصيد الحالي: ${fmtNum(balance, 2)} ₪ → بعد الخصم: ${fmtNum((balance-discountAmount), 2)} ₪`;
   if(!confirm(confirmMsg)) return;
 
   state.invoices.push({
@@ -7109,7 +7228,7 @@ function applyStudentDiscount(){
   document.getElementById('disc_reason').value = '';
   document.getElementById('disc_preview').style.display = 'none';
   renderInvoices();
-  alert(`تم تطبيق الخصم بنجاح (${discountAmount.toFixed(2)} ₪).`);
+  alert(`تم تطبيق الخصم بنجاح (${fmtNum(discountAmount, 2)} ₪).`);
 }
 function addStandalonePayment(){
   if(!requireOnlineOrBlock()) return;
@@ -7157,7 +7276,7 @@ function renderReceipts(){
     const invoiceCell = p.invoiceId ? `#${p.invoiceId}` : `<span class="badge badge-gray">بدون فاتورة</span>`;
     return `<tr>
       <td>${receiptNo(p.id)}</td><td>${payerLabel(p)}</td><td>${invoiceCell}</td>
-      <td>${p.amount.toFixed(2)}</td><td>${p.date}</td><td>${p.method}</td>
+      <td>${fmtNum(p.amount, 2)}</td><td>${p.date}</td><td>${p.method}</td>
       <td class="row-actions">
         <button class="btn" onclick="printReceipt(${p.id})">🖨 طباعة</button>
         ${admin ? `<button class="btn" onclick="openEditPaymentModal(${p.id})">✏ تعديل</button>
@@ -7216,7 +7335,7 @@ function deletePayment(id){
   if(!isAdmin()){ alert('⛔ هذه الصلاحية مقتصرة على مدير النظام فقط'); return; }
   const p = state.payments.find(p=>p.id===id);
   if(!p) return;
-  let msg = `هل تريد حذف سند القبض ${receiptNo(p.id)} بمبلغ ${p.amount.toFixed(2)}؟`;
+  let msg = `هل تريد حذف سند القبض ${receiptNo(p.id)} بمبلغ ${fmtNum(p.amount, 2)}؟`;
   if(p.invoiceId){
     msg = `⚠️ تنبيه: هذا السند مرتبط بالفاتورة #${p.invoiceId} — حذفه سيقلل المبلغ المدفوع على تلك الفاتورة تلقائياً.\n\n` + msg;
   }
@@ -7232,8 +7351,8 @@ function printReceipt(paymentId){
   const inv = p.invoiceId ? state.invoices.find(i=>i.id===p.invoiceId) : null;
   const extraRows = inv
     ? `<tr><td class="label">رقم الفاتورة المرتبطة</td><td class="value">#${inv.id}</td></tr>
-       <tr><td class="label">إجمالي الفاتورة</td><td class="value">${inv.amount.toFixed(2)}</td></tr>
-       <tr><td class="label">المتبقي بعد هذه الدفعة</td><td class="value">${(inv.amount - paidAmount(inv.id)).toFixed(2)}</td></tr>`
+       <tr><td class="label">إجمالي الفاتورة</td><td class="value">${fmtNum(inv.amount, 2)}</td></tr>
+       <tr><td class="label">المتبقي بعد هذه الدفعة</td><td class="value">${fmtNum((inv.amount - paidAmount(inv.id)), 2)}</td></tr>`
     : `<tr><td class="label">نوع السند</td><td class="value">سند قبض مستقل (غير مرتبط بفاتورة)</td></tr>
        ${p.notes ? `<tr><td class="label">ملاحظات</td><td class="value">${p.notes}</td></tr>` : ''}`;
 
@@ -7275,7 +7394,7 @@ function printReceipt(paymentId){
         <tr><td class="label">طريقة الدفع</td><td class="value">${p.method}</td></tr>
         ${extraRows}
       </table>
-      <div class="amount-box">وذلك مبلغاً وقدره<br><span class="num">${p.amount.toFixed(2)}</span></div>
+      <div class="amount-box">وذلك مبلغاً وقدره<br><span class="num">${fmtNum(p.amount, 2)}</span></div>
       <div class="sign"><div>توقيع المستلم</div><div>توقيع العميل</div></div>
       <div class="no-print" style="text-align:center;margin-top:24px;">
         <button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة</button>
@@ -7376,7 +7495,7 @@ function renderDisbursements(){
   body.innerHTML = sorted.map(d=>`
     <tr>
       <td>${disbursementNo(d.id)}</td><td>${schoolBadge(d.school||'alaraj')}</td><td>${d.recipientName}</td><td>${d.disbursementType}</td>
-      <td>${d.amount.toFixed(2)}</td><td>${d.date}</td><td>${d.method}</td><td>${d.notes||'-'}</td>
+      <td>${fmtNum(d.amount, 2)}</td><td>${d.date}</td><td>${d.method}</td><td>${d.notes||'-'}</td>
       <td class="row-actions">
         <button class="btn" onclick="printDisbursement(${d.id})">🖨 طباعة</button>
         ${admin ? `<button class="btn" onclick="openEditDisbursementModal(${d.id})">✏ تعديل</button>
@@ -7424,7 +7543,7 @@ function deleteDisbursement(id){
   if(!isAdmin()){ alert('⛔ هذه الصلاحية مقتصرة على مدير النظام فقط'); return; }
   const d = state.disbursements.find(d=>d.id===id);
   if(!d) return;
-  let msg = `هل تريد حذف سند الصرف ${disbursementNo(d.id)} (${d.recipientName}) بمبلغ ${d.amount.toFixed(2)}؟`;
+  let msg = `هل تريد حذف سند الصرف ${disbursementNo(d.id)} (${d.recipientName}) بمبلغ ${fmtNum(d.amount, 2)}؟`;
   if(d.chequeId){
     msg = `⚠️ تنبيه: هذا السند ناتج عن تجيير شيك رقم مرتبط (#${d.chequeId}) — حذفه لن يغيّر حالة الشيك تلقائياً.\n\n` + msg;
   }
@@ -7474,7 +7593,7 @@ function printDisbursement(id){
         <tr><td class="label">طريقة الدفع</td><td class="value">${d.method}</td></tr>
         ${d.notes ? `<tr><td class="label">ملاحظات</td><td class="value">${d.notes}</td></tr>` : ''}
       </table>
-      <div class="amount-box">وذلك مبلغاً وقدره<br><span class="num">${d.amount.toFixed(2)}</span></div>
+      <div class="amount-box">وذلك مبلغاً وقدره<br><span class="num">${fmtNum(d.amount, 2)}</span></div>
       <div class="sign"><div>توقيع الصارف</div><div>توقيع المستلم</div></div>
       <div class="no-print" style="text-align:center;margin-top:24px;">
         <button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة</button>
@@ -7538,7 +7657,7 @@ function endorseCheque(id){
   const purpose = prompt('الغرض من هذا الدفع (مثال: صيانة سيارة، مصروف مكتب...):', 'مصروف عام');
   if(purpose===null) return;
 
-  if(!confirm(`سيتم تجيير شيك رقم ${chq.chequeNumber} بقيمة ${chq.amount.toFixed(2)} لصالح "${recipient.trim()}"، وسيُسجَّل تلقائياً كسند صرف موثَّق. هل تريد المتابعة؟`)) return;
+  if(!confirm(`سيتم تجيير شيك رقم ${chq.chequeNumber} بقيمة ${fmtNum(chq.amount, 2)} لصالح "${recipient.trim()}"، وسيُسجَّل تلقائياً كسند صرف موثَّق. هل تريد المتابعة؟`)) return;
 
   chq.status = 'مجيّر';
   chq.endorsedTo = recipient.trim();
@@ -7602,7 +7721,7 @@ function renderCheques(){
       : `<span class="badge ${chequeStatusBadgeClass(c.status)}">${c.status}</span>`;
     return `<tr>
       <td>${c.id}</td><td>${schoolBadge(c.school||'alaraj')}</td><td>${c.direction}</td><td>${c.partyName}</td><td>${c.chequeNumber}</td>
-      <td>${c.bankName||'-'}</td><td>${c.amount.toFixed(2)}</td><td>${c.dueDate}</td>
+      <td>${c.bankName||'-'}</td><td>${fmtNum(c.amount, 2)}</td><td>${c.dueDate}</td>
       <td>${statusCell}</td>
       <td class="row-actions">
         ${c.status==='قيد الانتظار' ? `<button class="btn" onclick="setChequeStatus(${c.id},'${cashLabel}')">✅ ${cashLabel}</button>
@@ -9235,7 +9354,7 @@ function generateStatement(){
     head.innerHTML = '<tr><th>#</th><th>التاريخ</th><th>نوع الفاتورة</th><th>تاريخ الحصة</th><th>اليوم</th><th>مدين (عليه)</th><th>دائن (له)</th><th>الرصيد</th></tr>';
     body.innerHTML = txns.map((t,i)=>{
       balance += t.debit - t.credit;
-      return `<tr><td>${i+1}</td><td>${t.date}</td><td>${t.invType}</td><td>${t.lessonDate || '-'}</td><td>${t.lessonDate ? arabicDayName(t.lessonDate) : '-'}</td><td>${t.debit? t.debit.toFixed(2):'-'}</td><td>${t.credit? t.credit.toFixed(2):'-'}</td><td>${balance.toFixed(2)}</td></tr>`;
+      return `<tr><td>${i+1}</td><td>${t.date}</td><td>${t.invType}</td><td>${t.lessonDate || '-'}</td><td>${t.lessonDate ? arabicDayName(t.lessonDate) : '-'}</td><td>${t.debit? fmtNum(t.debit, 2):'-'}</td><td>${t.credit? fmtNum(t.credit, 2):'-'}</td><td>${fmtNum(balance, 2)}</td></tr>`;
     }).join('');
     const totalDebit = txns.reduce((s,t)=>s+t.debit,0);
     const totalCredit = txns.reduce((s,t)=>s+t.credit,0);
@@ -9249,11 +9368,11 @@ function generateStatement(){
     const lessonsCount = Math.round((totalLessonMinutes / 40) * 100) / 100;
     summaryHtml = statSummary([
       {label:'عدد الدروس (بمعدّل 40 دقيقة/درس)', value: lessonsCount},
-      {label:'إجمالي رسوم الدروس', value: totalLessonFees.toFixed(2)},
-      {label:'إجمالي رسوم الفحص العملي (التست)', value: totalExamFees.toFixed(2)},
-      {label:'إجمالي الفواتير (عليه)', value: totalDebit.toFixed(2)},
-      {label:'إجمالي المقبوضات (له)', value: totalCredit.toFixed(2)},
-      {label:'الرصيد النهائي (متبقي عليه)', value: balance.toFixed(2)},
+      {label:'إجمالي رسوم الدروس', value: fmtNum(totalLessonFees, 2)},
+      {label:'إجمالي رسوم الفحص العملي (التست)', value: fmtNum(totalExamFees, 2)},
+      {label:'إجمالي الفواتير (عليه)', value: fmtNum(totalDebit, 2)},
+      {label:'إجمالي المقبوضات (له)', value: fmtNum(totalCredit, 2)},
+      {label:'الرصيد النهائي (متبقي عليه)', value: fmtNum(balance, 2)},
     ]);
     typeCountsHtmlStr = typeCountsHtml(txns, t=>t.invType);
     rowCount = txns.length;
@@ -9278,7 +9397,7 @@ function generateStatement(){
     head.innerHTML = '<tr><th>#</th><th>التاريخ</th><th>البيان</th><th>مستحق (له)</th><th>مدفوع (عليه)</th><th>الرصيد</th></tr>';
     body.innerHTML = txns.map((t,i)=>{
       balance += t.earned - t.paid;
-      return `<tr><td>${i+1}</td><td>${t.date}</td><td>${t.desc}</td><td>${t.earned? t.earned.toFixed(2):'-'}</td><td>${t.paid? t.paid.toFixed(2):'-'}</td><td>${balance.toFixed(2)}</td></tr>`;
+      return `<tr><td>${i+1}</td><td>${t.date}</td><td>${t.desc}</td><td>${t.earned? fmtNum(t.earned, 2):'-'}</td><td>${t.paid? fmtNum(t.paid, 2):'-'}</td><td>${fmtNum(balance, 2)}</td></tr>`;
     }).join('');
 
     const totalCommission = lessons.reduce((s,l)=>s+lessonCommission(l),0);
@@ -9287,9 +9406,9 @@ function generateStatement(){
     const lessonsCount = Math.round((totalLessonMinutes / 40) * 100) / 100;
     summaryHtml = statSummary([
       {label:'عدد الدروس (بمعدّل 40 دقيقة/درس)', value: lessonsCount},
-      {label:'إجمالي العمولة المستحقة', value: totalCommission.toFixed(2)},
-      {label:'إجمالي المدفوع فعلياً (سندات صرف)', value: totalPaid.toFixed(2)},
-      {label:'الرصيد المتبقي له', value: balance.toFixed(2)},
+      {label:'إجمالي العمولة المستحقة', value: fmtNum(totalCommission, 2)},
+      {label:'إجمالي المدفوع فعلياً (سندات صرف)', value: fmtNum(totalPaid, 2)},
+      {label:'الرصيد المتبقي له', value: fmtNum(balance, 2)},
     ]);
     typeCountsHtmlStr = typeCountsHtml(txns, t=>t.txType);
     rowCount = txns.length;
@@ -9304,11 +9423,11 @@ function generateStatement(){
       .map(e=>({date:e.date, category:'مكتب عام', type:e.type, amount:e.amount, notes:e.notes}));
     const all = [...vExp, ...gExp].sort((a,b)=> (a.date||'').localeCompare(b.date||''));
     head.innerHTML = '<tr><th>#</th><th>التاريخ</th><th>الفئة</th><th>النوع</th><th>المبلغ</th><th>ملاحظات</th></tr>';
-    body.innerHTML = all.map((e,i)=>`<tr><td>${i+1}</td><td>${e.date||'-'}</td><td>${e.category}</td><td>${e.type}</td><td>${e.amount.toFixed(2)}</td><td>${e.notes||'-'}</td></tr>`).join('');
+    body.innerHTML = all.map((e,i)=>`<tr><td>${i+1}</td><td>${e.date||'-'}</td><td>${e.category}</td><td>${e.type}</td><td>${fmtNum(e.amount, 2)}</td><td>${e.notes||'-'}</td></tr>`).join('');
     const total = all.reduce((s,e)=>s+e.amount,0);
     summaryHtml = statSummary([
       {label:'عدد المصاريف', value: all.length},
-      {label:'إجمالي المصاريف', value: total.toFixed(2)},
+      {label:'إجمالي المصاريف', value: fmtNum(total, 2)},
     ]);
     typeCountsHtmlStr = typeCountsHtml(all, e=>e.type);
     rowCount = all.length;
@@ -9319,11 +9438,11 @@ function generateStatement(){
       .sort((a,b)=> a.date.localeCompare(b.date));
     head.innerHTML = '<tr><th>#</th><th>رقم السند</th><th>التاريخ</th><th>الطالب</th><th>الفاتورة</th><th>المبلغ</th><th>طريقة الدفع</th></tr>';
     body.innerHTML = list.map((p,i)=>`<tr><td>${i+1}</td><td>${receiptNo(p.id)}</td><td>${p.date}</td><td>${nameOf(state.students,p.studentId)}</td>
-      <td>${p.invoiceId? '#'+p.invoiceId : 'بدون فاتورة'}</td><td>${p.amount.toFixed(2)}</td><td>${p.method}</td></tr>`).join('');
+      <td>${p.invoiceId? '#'+p.invoiceId : 'بدون فاتورة'}</td><td>${fmtNum(p.amount, 2)}</td><td>${p.method}</td></tr>`).join('');
     const total = list.reduce((s,p)=>s+p.amount,0);
     summaryHtml = statSummary([
       {label:'عدد السندات', value: list.length},
-      {label:'إجمالي المقبوضات', value: total.toFixed(2)},
+      {label:'إجمالي المقبوضات', value: fmtNum(total, 2)},
     ]);
     typeCountsHtmlStr = typeCountsHtml(list, p=>p.method);
     rowCount = list.length;
@@ -9383,16 +9502,16 @@ function renderReceivables(){
     const badge = r.hasOverdue ? '<span class="badge badge-red">متأخرة</span>' : '<span class="badge badge-amber">ضمن الموعد</span>';
     return `<tr>
       <td>${i+1}</td><td><b>${s.name}</b></td><td>${s.phone||'-'}</td>
-      <td>${r.invoiced.toFixed(2)}</td><td>${r.paid.toFixed(2)}</td>
-      <td><b style="color:#b91c1c;">${r.balance.toFixed(2)}</b></td>
+      <td>${fmtNum(r.invoiced, 2)}</td><td>${fmtNum(r.paid, 2)}</td>
+      <td><b style="color:#b91c1c;">${fmtNum(r.balance, 2)}</b></td>
       <td>${r.oldestDue||'-'}</td><td>${badge}</td>
       <td><button class="btn" onclick="openStatementForStudent(${s.id})">📑 كشف حساب</button></td>
     </tr>`;
   }).join('');
   const total = rows.reduce((s,r)=>s+r.balance,0);
   document.getElementById('rcv_count').textContent = rows.length;
-  document.getElementById('rcv_total').textContent = total.toFixed(2);
-  document.getElementById('rcv_max').textContent = rows.length ? rows[0].balance.toFixed(2) : '0.00';
+  document.getElementById('rcv_total').textContent = fmtNum(total, 2);
+  document.getElementById('rcv_max').textContent = rows.length ? fmtNum(rows[0].balance, 2) : '0.00';
   document.getElementById('rcv_overdue').textContent = rows.filter(r=>r.hasOverdue).length;
   document.getElementById('receivablesEmpty').style.display = rows.length ? 'none' : 'block';
 }
@@ -9410,7 +9529,7 @@ function printReceivables(){
   const total = rows.reduce((s,r)=>s+r.balance,0);
   const win = window.open('', '_blank', 'width=850,height=900');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
-  const bodyHtml = rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.student.name}</td><td>${r.student.phone||'-'}</td><td>${r.invoiced.toFixed(2)}</td><td>${r.paid.toFixed(2)}</td><td><b>${r.balance.toFixed(2)}</b></td><td>${r.oldestDue||'-'}</td><td>${r.hasOverdue?'متأخرة':'ضمن الموعد'}</td></tr>`).join('');
+  const bodyHtml = rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.student.name}</td><td>${r.student.phone||'-'}</td><td>${fmtNum(r.invoiced, 2)}</td><td>${fmtNum(r.paid, 2)}</td><td><b>${fmtNum(r.balance, 2)}</b></td><td>${r.oldestDue||'-'}</td><td>${r.hasOverdue?'متأخرة':'ضمن الموعد'}</td></tr>`).join('');
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>الذمم المترصدة</title>
     <style>
@@ -9423,7 +9542,7 @@ function printReceivables(){
       hr{ border:none; border-top:2px solid #111; margin:16px 0; }
       h2{ text-align:center; font-size:16px; margin:0 0 6px; } .range{ text-align:center; color:#555; font-size:12px; margin-bottom:14px; }
       table{ width:100%; border-collapse:collapse; font-size:12.5px; } th, td{ padding:7px 6px; border-bottom:1px solid #ddd; text-align:right; } th{ background:#f3f3f3; }
-      tfoot td{ font-weight:800; background:#f5f5f5; }
+      tr.totals-row td{ font-weight:800; background:#f5f5f5; border-top:2px solid #111; }
       @media print{ .no-print{ display:none; } }
     </style></head><body>
       <div class="brand-row"><img class="brand-logo-corner" src="${logoForSchool(getLastSelectedSchool())}"><div class="brand-center"><h1>${(SCHOOLS[getLastSelectedSchool()]||SCHOOLS.alaraj).name}</h1><p>الذمم المترصدة</p><p class="contact">${schoolContactLine(getLastSelectedSchool())}</p></div><div class="brand-left"><img src="${FACEBOOK_QR_DATA_URI}"><div>تابعونا على فيسبوك</div></div></div>
@@ -9431,8 +9550,8 @@ function printReceivables(){
       <h2>قائمة الذمم المترصدة على الطلاب</h2>
       <div class="range">مرتّبة من الأعلى إلى الأدنى — عدد المدينين: ${rows.length} — تاريخ الطباعة: ${todayStr()}</div>
       <table><thead><tr><th>#</th><th>الطالب</th><th>الهاتف</th><th>إجمالي الفواتير</th><th>المدفوع</th><th>الرصيد المستحق</th><th>أقدم استحقاق</th><th>الحالة</th></tr></thead>
-      <tbody>${bodyHtml}</tbody>
-      <tfoot><tr><td colspan="5">الإجمالي</td><td>${total.toFixed(2)}</td><td colspan="2"></td></tr></tfoot></table>
+      <tbody>${bodyHtml}
+      <tr class="totals-row"><td colspan="5">الإجمالي</td><td>${fmtNum(total, 2)}</td><td colspan="2"></td></tr></tbody></table>
       <div class="no-print" style="text-align:center;margin-top:24px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة</button></div>
       <script>window.onload = () => window.print();<\/script>
     </body></html>`);
@@ -9520,14 +9639,14 @@ function renderReports(){
   const stats = [
     {label:'عدد الطلاب الكلي', value: totalStudents, cls:''},
     {label:'الطلاب النشطون', value: activeStudents, cls:'accent'},
-    {label:'إجمالي الإيرادات المحصّلة', value: totalIncome.toFixed(2), cls:'accent'},
-    {label:'صافي ذمم الطلاب (الفواتير - الدفعات)', value: netReceivables.toFixed(2), cls:'amber'},
+    {label:'إجمالي الإيرادات المحصّلة', value: fmtNum(totalIncome, 2), cls:'accent'},
+    {label:'صافي ذمم الطلاب (الفواتير - الدفعات)', value: fmtNum(netReceivables, 2), cls:'amber'},
     {label:'الحصص القادمة', value: upcoming, cls:''},
     {label:'سيارات في الصيانة', value: inMaintenance, cls:'amber'},
-    {label:'إجمالي مصاريف السيارات', value: totalVehicleExpenses.toFixed(2), cls:'amber'},
-    {label:'إجمالي مصاريف المكتب', value: totalGeneralExpenses.toFixed(2), cls:'amber'},
-    {label:'إجمالي عمولات المدربين', value: totalCommissions.toFixed(2), cls:'amber'},
-    {label:'صافي الربح (تقريبي)', value: netProfit.toFixed(2), cls: netProfit>=0 ? 'accent' : 'amber'},
+    {label:'إجمالي مصاريف السيارات', value: fmtNum(totalVehicleExpenses, 2), cls:'amber'},
+    {label:'إجمالي مصاريف المكتب', value: fmtNum(totalGeneralExpenses, 2), cls:'amber'},
+    {label:'إجمالي عمولات المدربين', value: fmtNum(totalCommissions, 2), cls:'amber'},
+    {label:'صافي الربح (تقريبي)', value: fmtNum(netProfit, 2), cls: netProfit>=0 ? 'accent' : 'amber'},
   ];
   document.getElementById('statsGrid').innerHTML = stats.map(s=>`
     <div class="stat-card"><div class="label">${s.label}</div><div class="value ${s.cls}">${s.value}</div></div>
@@ -9546,10 +9665,11 @@ function onReportTypeChange(){
   const label = document.getElementById('rpt_filter_label');
   const select = document.getElementById('rpt_filter');
 
-  if(type==='receivables'){
+  if(type==='lessonsExams'){
     wrap.style.display = '';
-    label.textContent = 'تصفية حسب الطالب';
-    select.innerHTML = '<option value="">— كل الطلاب —</option>' + state.students.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+    label.textContent = 'تصفية حسب المدرب';
+    select.innerHTML = '<option value="">— كل المدربين —</option>'
+      + state.staff.filter(s=>s.role==='مدرب').map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   } else if(type==='vehicleExpenses' || type==='vehicleMovement'){
     wrap.style.display = '';
     label.textContent = 'تصفية حسب السيارة';
@@ -9568,7 +9688,21 @@ function onReportTypeChange(){
 // تُعاد صياغة الجدول المعروض على الشاشة كما هو، مع إزالة أعمدة الإجراءات إن وُجدت.
 // يحسب مجموع كل عمود رقمي في جدول (من HTML الترويسة والجسم) ويُرجع صف <tfoot> جاهزاً.
 // الأعمدة النصية تبقى فارغة، وأول خلية تحمل كلمة "الإجمالي".
+// تقارير لا يصح فيها جمع عمود المبالغ: تقرير الربح والخسارة كشف حساب متسلسل
+// (رصيد افتتاحي + إيرادات − مصاريف = صافٍ ثم رصيد ختامي)، فجمع أسطره بلا معنى.
+const REPORTS_WITHOUT_TOTALS = ['profitLoss', 'lessonsExams'];
+function reportTotalsDisabled(){
+  const el = document.getElementById('rpt_type');
+  return !!el && REPORTS_WITHOUT_TOTALS.includes(el.value);
+}
+// عند الطباعة يكرّر المتصفح محتوى tfoot أسفل كل صفحة. لذا في المطبوعات نضع صف
+// الإجمالي كآخر صف داخل tbody فيظهر مرة واحدة في نهاية التقرير فقط.
+function totalsRowForPrint(headHtml, bodyHtml){
+  const t = buildTotalsRow(headHtml, bodyHtml);
+  return t ? t.replace(/^<tfoot>/, '').replace(/<\/tfoot>$/, '') : '';
+}
 function buildTotalsRow(headHtml, bodyHtml, labelColIndex){
+  if(reportTotalsDisabled()) return '';
   const tmp = document.createElement('table');
   tmp.innerHTML = `<thead>${headHtml}</thead><tbody>${bodyHtml}</tbody>`;
   const headCells = tmp.querySelectorAll('thead tr:last-child th');
@@ -9591,7 +9725,7 @@ function buildTotalsRow(headHtml, bodyHtml, labelColIndex){
   const labelIdx = (typeof labelColIndex === 'number') ? labelColIndex : 0;
   const cells = [];
   for(let i=0;i<colCount;i++){
-    if(sums[i] !== null) cells.push(`<td><b>${(Math.round(sums[i]*100)/100).toFixed(2)}</b></td>`);
+    if(sums[i] !== null) cells.push(`<td><b>${fmtNum((Math.round(sums[i]*100)/100), 2)}</b></td>`);
     else if(i === labelIdx) cells.push('<td><b>الإجمالي</b></td>');
     else cells.push('<td></td>');
   }
@@ -9624,7 +9758,7 @@ function printDetailReport(){
       table{ width:100%; border-collapse:collapse; font-size:12.5px; }
       th, td{ padding:7px 6px; border-bottom:1px solid #ddd; text-align:right; } th{ background:#f3f3f3; }
       .badge, .badge-red, .badge-amber, .badge-green{ font-size:11px; }
-      tfoot td{ background:#f5f5f5; font-weight:800; border-top:2px solid #111; }
+      tr.totals-row td{ background:#f5f5f5; font-weight:800; border-top:2px solid #111; }
       button, .no-print{ }
       @media print{ .no-print{ display:none; } }
     </style></head><body>
@@ -9632,7 +9766,7 @@ function printDetailReport(){
       <hr>
       <h2>${reportTitle}</h2>
       <div class="range">${rangeLine} — تاريخ الطباعة: ${todayStr()}</div>
-      <table><thead>${headHtml}</thead><tbody>${bodyHtml}</tbody>${buildTotalsRow(headHtml, bodyHtml)}</table>
+      <table><thead>${headHtml}</thead><tbody>${bodyHtml}${totalsRowForPrint(headHtml, bodyHtml)}</tbody></table>
       <div class="no-print" style="text-align:center;margin-top:24px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة</button></div>
       <script>window.onload = () => window.print();<\/script>
     </body></html>`);
@@ -9649,36 +9783,7 @@ function generateDetailReport(){
   const body = document.getElementById('reportResultsBody');
   let title = '', rowCount = 0;
 
-  if(type==='receivables'){
-    title = '📋 تقرير رصيد ذمم الطلاب';
-    const byStudent = {};
-    state.invoices
-      .filter(inv=> inRange(inv.created, from, to) && (!filterId || inv.studentId===filterId))
-      .forEach(inv=>{
-        if(!byStudent[inv.studentId]) byStudent[inv.studentId] = { invoiced:0, paid:0, oldestDue:null, hasOverdue:false };
-        const s = byStudent[inv.studentId];
-        s.invoiced += inv.amount;
-        s.paid += paidAmount(inv.id);
-        if(inv.due && inv.status!=='مدفوعة'){
-          if(!s.oldestDue || inv.due < s.oldestDue) s.oldestDue = inv.due;
-          if(inv.due < todayStr()) s.hasOverdue = true;
-        }
-      });
-    const rows = Object.entries(byStudent)
-      .map(([sid, v])=> ({ sid: parseInt(sid), invoiced:v.invoiced, paid:v.paid, remaining: v.invoiced - v.paid, oldestDue:v.oldestDue, hasOverdue:v.hasOverdue }))
-      .filter(r=> Math.round(r.remaining*100)!==0)
-      .sort((a,b)=> b.remaining - a.remaining);
-    head.innerHTML = '<tr><th>الطالب</th><th>إجمالي الفواتير</th><th>إجمالي المدفوع</th><th>الرصيد المتبقي (الذمة)</th><th>أقدم استحقاق غير مسدد</th><th>الحالة</th></tr>';
-    body.innerHTML = rows.map(r=>{
-      const badgeClass = r.hasOverdue ? 'badge-red' : 'badge-amber';
-      const statusLabel = r.hasOverdue ? 'متأخرة' : 'ضمن الموعد';
-      return `<tr><td>${nameOf(state.students, r.sid)}</td><td>${r.invoiced.toFixed(2)}</td>
-        <td>${r.paid.toFixed(2)}</td><td><b>${r.remaining.toFixed(2)}</b></td><td>${r.oldestDue||'-'}</td>
-        <td><span class="badge ${badgeClass}">${statusLabel}</span></td></tr>`;
-    }).join('');
-    rowCount = rows.length;
-
-  } else if(type==='totalExpenses'){
+    if(type==='totalExpenses'){
     title = '🧾 تقرير إجمالي المصروفات (شامل)';
     const vExp = state.vehicleExpenses.filter(e=> inRange(e.date, from, to))
       .map(e=>({date:e.date, category:'سيارات', detail: nameOf(state.vehicles, e.vehicleId) + ' — ' + e.type, amount:e.cost, notes:e.notes||''}));
@@ -9688,12 +9793,12 @@ function generateDetailReport(){
       .map(d=>({date:d.date, category:'سندات صرف', detail: d.disbursementType + ' — ' + d.recipientName, amount:d.amount, notes:d.notes||''}));
     const all = [...vExp, ...gExp, ...dExp].sort((a,b)=> (a.date||'').localeCompare(b.date||''));
     head.innerHTML = '<tr><th>#</th><th>التاريخ</th><th>الفئة</th><th>التفاصيل</th><th>المبلغ</th><th>ملاحظات</th></tr>';
-    body.innerHTML = all.map((e,i)=>`<tr><td>${i+1}</td><td>${e.date||'-'}</td><td>${e.category}</td><td>${e.detail}</td><td>${e.amount.toFixed(2)}</td><td>${e.notes||'-'}</td></tr>`).join('');
+    body.innerHTML = all.map((e,i)=>`<tr><td>${i+1}</td><td>${e.date||'-'}</td><td>${e.category}</td><td>${e.detail}</td><td>${fmtNum(e.amount, 2)}</td><td>${e.notes||'-'}</td></tr>`).join('');
     const totalVehicles = vExp.reduce((s,e)=>s+e.amount,0);
     const totalOffice = gExp.reduce((s,e)=>s+e.amount,0);
     const totalDisb = dExp.reduce((s,e)=>s+e.amount,0);
     const grandTotal = totalVehicles + totalOffice + totalDisb;
-    body.innerHTML += `<tr style="font-weight:800; background:#f5f5f5;"><td colspan="4">الإجمالي — مصاريف سيارات: ${totalVehicles.toFixed(2)} | مصاريف مكتب: ${totalOffice.toFixed(2)} | سندات صرف: ${totalDisb.toFixed(2)}</td><td colspan="2">${grandTotal.toFixed(2)}</td></tr>`;
+    body.innerHTML += `<tr style="font-weight:800; background:#f5f5f5;"><td colspan="4">الإجمالي — مصاريف سيارات: ${fmtNum(totalVehicles, 2)} | مصاريف مكتب: ${fmtNum(totalOffice, 2)} | سندات صرف: ${fmtNum(totalDisb, 2)}</td><td colspan="2">${fmtNum(grandTotal, 2)}</td></tr>`;
     rowCount = all.length;
 
   } else if(type==='profitLoss'){
@@ -9722,14 +9827,14 @@ function generateDetailReport(){
       const netLabel = periodNet >= 0 ? 'صافي ربح الفترة' : 'صافي خسارة الفترة';
       const netBadge = periodNet >= 0 ? 'badge-green' : 'badge-red';
       body.innerHTML = `
-        <tr><td>الرصيد الافتتاحي (كل الحركات قبل ${from})</td><td><b>${openingBalance.toFixed(2)}</b></td></tr>
+        <tr><td>الرصيد الافتتاحي (كل الحركات قبل ${from})</td><td><b>${fmtNum(openingBalance, 2)}</b></td></tr>
         <tr><td colspan="2" style="background:#f5f5f5; font-weight:800;">حركات الفترة (${from} → ${to})</td></tr>
-        <tr><td>+ إيرادات الفترة (مقبوضات فعلية)</td><td style="color:#12998a;">+${periodIncome.toFixed(2)}</td></tr>
-        <tr><td>− مصاريف السيارات</td><td style="color:#c0392b;">−${periodVehicles.toFixed(2)}</td></tr>
-        <tr><td>− مصاريف المكتب العامة</td><td style="color:#c0392b;">−${periodOffice.toFixed(2)}</td></tr>
-        <tr><td>− سندات الصرف (عمولات/رواتب/أخرى)</td><td style="color:#c0392b;">−${periodDisb.toFixed(2)}</td></tr>
-        <tr style="font-weight:800; background:#f5f5f5;"><td>= ${netLabel}</td><td><span class="badge ${netBadge}">${periodNet.toFixed(2)}</span></td></tr>
-        <tr style="font-weight:900; font-size:14px;"><td>الرصيد الختامي (الافتتاحي + صافي حركة الفترة)</td><td>${closingBalance.toFixed(2)}</td></tr>
+        <tr><td>+ إيرادات الفترة (مقبوضات فعلية)</td><td style="color:#12998a;">+${fmtNum(periodIncome, 2)}</td></tr>
+        <tr><td>− مصاريف السيارات</td><td style="color:#c0392b;">−${fmtNum(periodVehicles, 2)}</td></tr>
+        <tr><td>− مصاريف المكتب العامة</td><td style="color:#c0392b;">−${fmtNum(periodOffice, 2)}</td></tr>
+        <tr><td>− سندات الصرف (عمولات/رواتب/أخرى)</td><td style="color:#c0392b;">−${fmtNum(periodDisb, 2)}</td></tr>
+        <tr style="font-weight:800; background:#f5f5f5;"><td>= ${netLabel}</td><td><span class="badge ${netBadge}">${fmtNum(periodNet, 2)}</span></td></tr>
+        <tr style="font-weight:900; font-size:14px;"><td>الرصيد الختامي (الافتتاحي + صافي حركة الفترة)</td><td>${fmtNum(closingBalance, 2)}</td></tr>
       `;
       rowCount = 1;
     }
@@ -9748,8 +9853,8 @@ function generateDetailReport(){
     const rows = Object.entries(byVehicle);
     body.innerHTML = rows.map(([vid,v])=>{
       const total = v.maint + v.fuel + v.other;
-      return `<tr><td>${nameOf(state.vehicles, parseInt(vid))}</td><td>${v.maint.toFixed(2)}</td>
-        <td>${v.fuel.toFixed(2)}</td><td>${v.other.toFixed(2)}</td><td><b>${total.toFixed(2)}</b></td></tr>`;
+      return `<tr><td>${nameOf(state.vehicles, parseInt(vid))}</td><td>${fmtNum(v.maint, 2)}</td>
+        <td>${fmtNum(v.fuel, 2)}</td><td>${fmtNum(v.other, 2)}</td><td><b>${fmtNum(total, 2)}</b></td></tr>`;
     }).join('');
     rowCount = rows.length;
 
@@ -9768,7 +9873,7 @@ function generateDetailReport(){
     body.innerHTML = vRows.map(([vid,v])=>{
       const avgCostPerKm = v.distance>0 ? (v.fuelCost/v.distance) : 0;
       return `<tr><td>${nameOf(state.vehicles, parseInt(vid))}</td><td>${v.count}</td>
-        <td>${v.distance.toFixed(2)}</td><td>${v.fuelCost.toFixed(2)}</td><td><b>${avgCostPerKm.toFixed(2)}</b></td></tr>`;
+        <td>${fmtNum(v.distance, 2)}</td><td>${fmtNum(v.fuelCost, 2)}</td><td><b>${fmtNum(avgCostPerKm, 2)}</b></td></tr>`;
     }).join('');
     rowCount = vRows.length;
 
@@ -9779,7 +9884,7 @@ function generateDetailReport(){
     filtered.forEach(e=>{ byType[e.type] = (byType[e.type]||0) + e.amount; });
     head.innerHTML = '<tr><th>نوع المصروف</th><th>الإجمالي</th></tr>';
     const rows = Object.entries(byType).sort((a,b)=>b[1]-a[1]);
-    body.innerHTML = rows.map(([t,total])=> `<tr><td>${t}</td><td>${total.toFixed(2)}</td></tr>`).join('');
+    body.innerHTML = rows.map(([t,total])=> `<tr><td>${t}</td><td>${fmtNum(total, 2)}</td></tr>`).join('');
     rowCount = rows.length;
 
   } else if(type==='topInstructors'){
@@ -9807,7 +9912,56 @@ function generateDetailReport(){
     }).filter(r=>r.count>0 || r.examCommissionTotal>0);
     head.innerHTML = '<tr><th>المدرب</th><th>عدد الحصص المنجزة</th><th>إجمالي إيرادات الحصص</th><th>عمولة الحصص</th><th>عمولة الفحص العملي</th><th>إجمالي العمولة (شيكل)</th></tr>';
     body.innerHTML = rows.map(r=> `<tr><td>${r.name}</td><td>${r.count}</td>
-      <td>${r.revenue.toFixed(2)}</td><td>${r.lessonCommissionTotal.toFixed(2)}</td><td>${r.examCommissionTotal.toFixed(2)}</td><td><b>${r.commission.toFixed(2)} ₪</b></td></tr>`).join('');
+      <td>${fmtNum(r.revenue, 2)}</td><td>${fmtNum(r.lessonCommissionTotal, 2)}</td><td>${fmtNum(r.examCommissionTotal, 2)}</td><td><b>${fmtNum(r.commission, 2)} ₪</b></td></tr>`).join('');
+    rowCount = rows.length;
+
+  } else if(type==='lessonsExams'){
+    title = '📚 تقرير الدروس والامتحانات';
+    const inPeriod = (dt)=> dt && inRange(String(dt).slice(0,10), from, to);
+    const lessons = state.lessons.filter(l=> inPeriod(l.datetime) && (!filterId || l.instructorId===filterId));
+    const exams   = state.exams.filter(e=> inPeriod(e.datetime) && (!filterId || e.instructorId===filterId));
+    const doneLessons = lessons.filter(l=> l.status==='منجز');
+    const theory    = exams.filter(e=> e.examType==='نظري');
+    const practical = exams.filter(e=> e.examType==='عملي');
+    const passed = (arr)=> arr.filter(e=> (e.result||'').trim()==='ناجح').length;
+    const failed = (arr)=> arr.filter(e=> (e.result||'').trim()==='راسب').length;
+    head.innerHTML = '<tr><th>البيان</th><th>العدد</th><th>تفاصيل</th></tr>';
+    body.innerHTML = `
+      <tr><td><b>عدد الدروس</b></td><td><b>${lessons.length}</b></td>
+          <td>منجزة: ${doneLessons.length} — غير منجزة: ${lessons.length - doneLessons.length}</td></tr>
+      <tr><td colspan="3" style="background:#f5f5f5; font-weight:800;">الامتحانات</td></tr>
+      <tr><td><b>الامتحانات النظرية</b></td><td><b>${theory.length}</b></td>
+          <td>ناجح: ${passed(theory)} — راسب: ${failed(theory)} — لم يُحدَّد: ${theory.length - passed(theory) - failed(theory)}</td></tr>
+      <tr><td><b>الامتحانات العملية</b></td><td><b>${practical.length}</b></td>
+          <td>ناجح: ${passed(practical)} — راسب: ${failed(practical)} — لم يُحدَّد: ${practical.length - passed(practical) - failed(practical)}</td></tr>
+      <tr><td>إجمالي الامتحانات</td><td>${exams.length}</td><td></td></tr>`;
+    rowCount = 5;
+
+  } else if(type==='staffDues'){
+    title = '👔 تقرير ذمم الموظفين';
+    // المستحق للموظف = عمولات حصصه المنجزة ضمن الفترة (للمدربين)
+    // المصروف له   = سندات الصرف المرتبطة به ضمن الفترة (راتب/عمولة/غيرها)
+    const staffList = state.staff.filter(s=> !filterId || s.id===filterId);
+    const rows = staffList.map(sf=>{
+      const doneLessons = state.lessons.filter(l=> l.status==='منجز' && l.instructorId===sf.id
+        && l.datetime && inRange(l.datetime.slice(0,10), from, to));
+      const earned = doneLessons.reduce((s,l)=> s + lessonCommission(l), 0);
+      const paidRows = (state.disbursements||[]).filter(d=> d.staffId===sf.id && inRange(d.date, from, to));
+      const paid = paidRows.reduce((s,d)=> s + (d.amount||0), 0);
+      const balance = Math.round((earned - paid) * 100) / 100;
+      return { name: sf.name, role: sf.role || '—', count: doneLessons.length,
+               earned, paid, payments: paidRows.length, balance };
+    }).filter(r=> r.count > 0 || r.paid > 0 || r.earned > 0)
+      .sort((a,b)=> b.balance - a.balance);
+    head.innerHTML = '<tr><th>الموظف</th><th>الوظيفة</th><th>عدد الحصص المنجزة</th>'
+      + '<th>المستحق (عمولات)</th><th>عدد سندات الصرف</th><th>المصروف له</th><th>الرصيد</th><th>الحالة</th></tr>';
+    body.innerHTML = rows.map(r=>{
+      const cls = r.balance > 0 ? 'badge-amber' : (r.balance < 0 ? 'badge-red' : 'badge-green');
+      const label = r.balance > 0 ? 'له رصيد' : (r.balance < 0 ? 'مصروف زائد' : 'مسوّى');
+      return `<tr><td><b>${r.name}</b></td><td>${r.role}</td><td>${r.count}</td>
+        <td>${fmtNum(r.earned, 2)}</td><td>${r.payments}</td><td>${fmtNum(r.paid, 2)}</td>
+        <td><b>${fmtNum(r.balance, 2)}</b></td><td><span class="badge ${cls}">${label}</span></td></tr>`;
+    }).join('');
     rowCount = rows.length;
 
   } else if(type==='exams'){
@@ -9928,8 +10082,8 @@ async function createAutoBackupNow(){
 }
 function formatBackupSize(bytes){
   if(bytes < 1024) return bytes + ' بايت';
-  if(bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' كيلوبايت';
-  return (bytes/1024/1024).toFixed(1) + ' ميغابايت';
+  if(bytes < 1024*1024) return fmtNum((bytes/1024), 0) + ' كيلوبايت';
+  return fmtNum((bytes/1024/1024), 1) + ' ميغابايت';
 }
 async function renderAutoBackups(){
   const body = document.getElementById('autoBackupsBody');
