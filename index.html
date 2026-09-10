@@ -499,7 +499,7 @@
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-no-pill</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-report-branding</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -1699,6 +1699,7 @@
 
     <div class="card" id="reportResultsCard" style="display:none;">
       <h2 id="reportResultsTitle"></h2>
+      <div style="margin-bottom:10px;"><button class="btn" onclick="printDetailReport()">🖨 طباعة التقرير</button></div>
       <div class="table-wrap"><table>
         <thead id="reportResultsHead"></thead>
         <tbody id="reportResultsBody"></tbody>
@@ -5284,8 +5285,9 @@ function printTheoreticalExamCandidatesList(selectedDate){
       <td>${fee ? fee.toFixed(2) : '-'}</td>
       <td class="${paidClass}">${paidLabel}</td>
       <td class="collected"></td>
+      <td class="result-cell"></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="7" style="text-align:center;">لا يوجد متقدمون مسجلون لهذا التاريخ</td></tr>`;
+  }).join('') || `<tr><td colspan="8" style="text-align:center;">لا يوجد متقدمون مسجلون لهذا التاريخ</td></tr>`;
 
   const win = window.open('', '_blank', 'width=900,height=1100');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
@@ -5304,11 +5306,13 @@ function printTheoreticalExamCandidatesList(selectedDate){
     .paid-no{ color:#b91c1c; font-weight:700; }
     /* عمود يُملأ بخط اليد عند الطباعة — يُترك فارغاً بمساحة كافية للكتابة */
     th.collected-h, td.collected{ width:110px; min-width:110px; height:34px; }
+    /* خانة النتيجة تُملأ بخط اليد بعد الامتحان (ناجح/راسب) */
+    th.result-h, td.result-cell{ width:90px; min-width:90px; height:34px; }
   </style></head><body>
   <h1>قائمة أسماء المتقدمين للفحص النظري</h1>
   <div class="meta">اليوم: ${dayName} — التاريخ: ${selectedDate}</div>
   <table>
-    <thead><tr><th>#</th><th>اسم الطالب</th><th>رقم الهوية</th><th>نوع الرخصة</th><th>مبلغ الرسوم</th><th>حالة الدفع</th><th class="collected-h">المبلغ المقبوض</th></tr></thead>
+    <thead><tr><th>#</th><th>اسم الطالب</th><th>رقم الهوية</th><th>نوع الرخصة</th><th>مبلغ الرسوم</th><th>حالة الدفع</th><th class="collected-h">المبلغ المقبوض</th><th class="result-h">النتيجة</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <script>window.onload = ()=> window.print();<\/script>
@@ -9045,6 +9049,48 @@ function onReportTypeChange(){
     wrap.style.display = 'none';
     select.innerHTML = '<option value="">— الكل —</option>';
   }
+}
+// طباعة التقرير التفصيلي بترويسة المدرسة الرسمية (الشعار + باركود فيسبوك)
+// تُعاد صياغة الجدول المعروض على الشاشة كما هو، مع إزالة أعمدة الإجراءات إن وُجدت.
+function printDetailReport(){
+  const card = document.getElementById('reportResultsCard');
+  if(!card || card.style.display === 'none'){ alert('اعرض التقرير أولاً ثم اضغط طباعة'); return; }
+  const headHtml = document.getElementById('reportResultsHead').innerHTML;
+  const bodyHtml = document.getElementById('reportResultsBody').innerHTML;
+  if(!bodyHtml.trim()){ alert('لا توجد بيانات في التقرير للطباعة'); return; }
+  const reportTitle = (document.getElementById('reportResultsTitle').textContent || 'تقرير').trim();
+  const from = document.getElementById('rpt_from').value;
+  const to = document.getElementById('rpt_to').value;
+  const rangeLine = (from || to) ? `الفترة: من ${from || '—'} إلى ${to || '—'}` : 'كل الفترات';
+  const win = window.open('', '_blank', 'width=900,height=950');
+  if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
+  win.document.write(`
+    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${reportTitle}</title>
+    <style>
+      body{ font-family: Tahoma, Arial, sans-serif; padding:26px; color:#111; }
+      .brand-row{ display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:6px; }
+      .brand-logo-corner{ width:58px; height:58px; object-fit:contain; flex-shrink:0; }
+      .brand-center{ text-align:center; flex:1; } .brand-center h1{ font-size:20px; margin:0; }
+      .brand-center p{ margin:4px 0 0; color:#666; font-size:12px; } .brand-center .contact{ margin:2px 0 0; color:#888; font-size:10.5px; }
+      .brand-left{ text-align:center; flex-shrink:0; } .brand-left img{ width:58px; height:58px; } .brand-left div{ font-size:9px; color:#888; margin-top:2px; }
+      hr{ border:none; border-top:2px solid #111; margin:14px 0; }
+      h2{ text-align:center; font-size:16px; margin:0 0 6px; }
+      .range{ text-align:center; color:#555; font-size:12px; margin-bottom:14px; }
+      table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+      th, td{ padding:7px 6px; border-bottom:1px solid #ddd; text-align:right; } th{ background:#f3f3f3; }
+      .badge, .badge-red, .badge-amber, .badge-green{ font-size:11px; }
+      button, .no-print{ }
+      @media print{ .no-print{ display:none; } }
+    </style></head><body>
+      <div class="brand-row"><img class="brand-logo-corner" src="${logoForSchool(getLastSelectedSchool())}"><div class="brand-center"><h1>${(SCHOOLS[getLastSelectedSchool()]||SCHOOLS.alaraj).name}</h1><p>${reportTitle}</p><p class="contact">${schoolContactLine(getLastSelectedSchool())}</p></div><div class="brand-left"><img src="${FACEBOOK_QR_DATA_URI}"><div>تابعونا على فيسبوك</div></div></div>
+      <hr>
+      <h2>${reportTitle}</h2>
+      <div class="range">${rangeLine} — تاريخ الطباعة: ${todayStr()}</div>
+      <table><thead>${headHtml}</thead><tbody>${bodyHtml}</tbody></table>
+      <div class="no-print" style="text-align:center;margin-top:24px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة</button></div>
+      <script>window.onload = () => window.print();<\/script>
+    </body></html>`);
+  win.document.close();
 }
 function generateDetailReport(){
   const type = document.getElementById('rpt_type').value;
