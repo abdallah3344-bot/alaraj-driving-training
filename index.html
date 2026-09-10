@@ -543,7 +543,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-field-mode-3</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-practical-table-half</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -8910,7 +8910,11 @@ function printPracticalExamForm(paperId){
         text-align:center;
       }
       .fill.filled{ border-bottom:1.4px solid #000; font-weight:900; }
-      .score-side{ display:flex; flex-direction:column; align-self:stretch; }
+      .score-side{ display:flex; flex-direction:column; align-self:stretch; justify-content:flex-end; }
+      /* الجدول يُنزَّل لأسفل العمود ثم يُرفع نصف سطر (سطر البيانات = 49px، فالرفع 24.5px)
+         فيقع بين "توقيع الفاحص" و"رقم الفحص" */
+      .score-side .tables-spacer{ flex:1 1 auto; }
+      .score-side .tables-block{ flex:0 0 auto; margin-bottom:24.5px; }
       .tables-block{ display:flex; flex-direction:column; width:100%; flex:1; }
       .score-side td, .score-side th{ padding:2px 4px; vertical-align:middle; }
       .score-side tr{ height:45px; }
