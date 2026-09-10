@@ -499,7 +499,7 @@
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-theory-collected-col</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-10-realtime-sync-3</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -2237,16 +2237,13 @@ let lastLocalEditAt = 0;
 let periodicSyncStarted = false;
 const SYNC_POLL_SAFETY_GAP_MS = 6000;  // لا تُطبَّق تحديثات واردة إن كان هناك تعديل محلي خلال آخر 6 ثوانٍ
 const PERIODIC_SYNC_INTERVAL_MS = 25000; // فحص دوري كل 25 ثانية لالتقاط تعديلات أي جهاز آخر يشارك نفس الترخيص تلقائياً
+// المزامنة تحدث فقط عند: فتح البرنامج، أي حفظ/تعديل/حذف، إغلاق البرنامج، وزر "مزامنة الآن".
+// لا يوجد فحص دوري للخادم (أُلغي بطلب المستخدم) — هذا يقلّل الاستهلاك السحابي إلى أدنى حد.
 function startPeriodicSync(){
   if(periodicSyncStarted) return;
   periodicSyncStarted = true;
-  setInterval(()=>pollForRemoteUpdates(false), 60000);
-setTimeout(()=> maybeAutoBackup(), 8000);
-setInterval(()=> maybeAutoBackup(), AUTO_BACKUP_INTERVAL_MS);
-  // فحص فوري إضافي عند الرجوع لعلامة التبويب بعد تصفّحها بالخلفية، بدل انتظار الدورة التالية
-  document.addEventListener('visibilitychange', ()=>{
-    if(document.visibilityState === 'visible' && syncEnabled) pollForRemoteUpdates();
-  });
+  setTimeout(()=> maybeAutoBackup(), 8000);
+  setInterval(()=> maybeAutoBackup(), AUTO_BACKUP_INTERVAL_MS);
 }
 
 function hasSubstantialData(s){
@@ -2278,6 +2275,81 @@ function updateUnsyncedPill(){
   }
   el.textContent = (typeof _mediaMigrationRunning !== 'undefined' && _mediaMigrationRunning) ? '☁️ جارٍ نقل المرفقات — لا تُغلق البرنامج' : '⏳ تغييرات لم تُرفع للسحابة بعد — لا تُغلق البرنامج';
 }
+// ==================================================================
+// المزامنة اللحظية بين أجهزة نفس الترخيص (Realtime Broadcast + Presence)
+// - عند أي حفظ/تعديل/حذف يُرسَل إشعار فوري لبقية الأجهزة فتسحب التحديث مباشرة.
+// - Presence يعرف كم جهازاً مفتوحاً على نفس الترخيص، فيُميَّز "آخر جهاز مفتوح"
+//   ليقوم برفع نهائي مؤكَّد عند الإغلاق.
+// ==================================================================
+let _syncChannel = null;
+let _syncChannelKey = null;
+let _openDevicesCount = 1;
+
+function isLastOpenDevice(){ return _openDevicesCount <= 1; }
+
+function updateOpenDevicesBadge(){
+  let el = document.getElementById('openDevicesBadge');
+  if(_openDevicesCount <= 1){ if(el) el.remove(); return; }
+  if(!el){
+    el = document.createElement('span'); el.id = 'openDevicesBadge';
+    el.style.cssText = 'font-size:12px;color:var(--muted);align-self:center;margin-inline-end:6px;';
+    const host = document.querySelector('.header-actions');
+    if(host) host.insertBefore(el, host.firstChild); else return;
+  }
+  el.textContent = `🖥 ${_openDevicesCount} أجهزة مفتوحة`;
+}
+
+function initRealtimeSync(){
+  if(!syncEnabled) return;
+  const key = (localStorage.getItem(LICENSE_KEY_STORAGE) || '').trim();
+  if(!key) return;
+  if(_syncChannel && _syncChannelKey === key) return;
+  if(typeof supabase === 'undefined' || !supabase.createClient){
+    console.warn('مكتبة Supabase غير محمَّلة — المزامنة اللحظية بين الأجهزة غير مفعّلة (المزامنة عند الحفظ/الفتح/الإغلاق تبقى تعمل).');
+    return;
+  }
+  try{
+    const client = window._alarajSupabase || supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window._alarajSupabase = client;
+    if(_syncChannel){ try{ client.removeChannel(_syncChannel); }catch(_){ } }
+    _syncChannelKey = key;
+    _syncChannel = client.channel('license-sync-' + key, {
+      config: { broadcast: { self: false }, presence: { key: getDeviceId() } }
+    });
+    // إشعار من جهاز آخر بأنه حفظ تعديلاً: نسحب النسخة الجديدة فوراً
+    _syncChannel.on('broadcast', { event: 'data_changed' }, async (msg)=>{
+      const from = msg && msg.payload && msg.payload.deviceId;
+      if(from && from === getDeviceId()) return;
+      // إن كان لدينا تعديل محلي لم يُرفع بعد، نرفعه أولاً حتى لا يضيع، ثم نسحب نسخة الخادم الموحَّدة
+      if(_syncDirty){ try{ await pushStateToServer(); }catch(_){ } }
+      lastLocalEditAt = 0;
+      await pollForRemoteUpdates(true, true);
+    });
+    // Presence: عدد الأجهزة المفتوحة على نفس الترخيص
+    _syncChannel.on('presence', { event: 'sync' }, ()=>{
+      try{
+        const st = _syncChannel.presenceState() || {};
+        _openDevicesCount = Object.keys(st).length || 1;
+        updateOpenDevicesBadge();
+      }catch(_){ }
+    });
+    _syncChannel.subscribe(async (status)=>{
+      if(status === 'SUBSCRIBED'){
+        try{ await _syncChannel.track({ device: getDeviceId(), at: new Date().toISOString() }); }catch(_){ }
+      }
+    });
+  }catch(err){
+    console.warn('تعذّر تفعيل المزامنة اللحظية:', err);
+  }
+}
+// يُستدعى بعد كل رفعة ناجحة: يخبر بقية الأجهزة أن هناك تحديثاً جاهزاً
+function broadcastDataChanged(){
+  if(!_syncChannel) return;
+  try{
+    _syncChannel.send({ type: 'broadcast', event: 'data_changed',
+      payload: { deviceId: getDeviceId(), at: new Date().toISOString() } });
+  }catch(_){ }
+}
 async function pushStateToServer(){
   if(!syncEnabled || syncInFlight) return;
   const key = (localStorage.getItem(LICENSE_KEY_STORAGE) || '').trim();
@@ -2295,6 +2367,7 @@ async function pushStateToServer(){
     updateSyncBadge(true, result.message);
     if(seqAtStart === _syncDirtySeq){ _syncDirty = false; clearTimeout(_syncRetryTimer); }
     fetchServerVersion().then(v=>{ if(v) _knownServerVersion = v; });
+    broadcastDataChanged();
   }catch(err){
     console.warn('تعذّر رفع البيانات للمزامنة:', err);
     updateSyncBadge(false, err.message);
@@ -2309,7 +2382,12 @@ async function pushStateToServer(){
 // المزامنة تحدث فقط عند حفظ أي إدخال فعلي (عبر saveState → scheduleSync)، وليست على مؤقّت دوري ثابت.
 // كل تعديل يؤجَّل قليلاً (2.5 ثانية) لتجميع عدة تعديلات متتالية في رفعة واحدة بدل رفع كل حرف يُكتب.
 let _suppressServerPush = false; // أثناء ترحيل المرفقات: لا نرفع الحالة الكبيرة للخادم مع كل ملف، بل مرة واحدة في النهاية
+// أثناء تطبيق تحديث وارد من الخادم/جهاز آخر: إعادة الرسم تستدعي saveState،
+// وهذا لا يعني وجود تعديل محلي جديد — لولا هذا العلم لعاد الجهاز فرفع نسخته القديمة
+// فوق تحديث زميله (فتُلغى عمليات الحذف مثلاً).
+let _applyingRemoteState = false;
 function scheduleSync(){
+  if(_applyingRemoteState) return;
   lastLocalEditAt = Date.now();
   if(!syncEnabled) return;
   _syncDirty = true; _syncDirtySeq++;
@@ -2325,6 +2403,10 @@ function flushSyncOnExit(){
   clearTimeout(syncDebounceTimer);
   const key = (localStorage.getItem(LICENSE_KEY_STORAGE) || '').trim();
   if(!key) return;
+  // آخر جهاز مفتوح على هذا الترخيص يرفع رفعة نهائية دائماً (حتى لو ظنّ أن كل شيء مرفوع)،
+  // لأن لا جهاز آخر سيبقى ليحفظ الحالة بعده. الأجهزة الأخرى ترفع فقط إن كان لديها تغيير غير مرفوع.
+  if(!isLastOpenDevice() && !_syncDirty) return;
+  try{ if(_syncChannel) _syncChannel.untrack(); }catch(_){ }
   try{
     fetch(`${SUPABASE_URL}/rest/v1/rpc/save_app_data`, {
       method: 'POST', headers: supabaseHeaders(), keepalive: true,
@@ -2364,7 +2446,7 @@ async function fetchServerVersion(){
     return (r && r.ok) ? (r.updated_at || null) : null;
   }catch(_){ return null; }
 }
-async function pollForRemoteUpdates(force){
+async function pollForRemoteUpdates(force, fromPeer){
   if(!syncEnabled || syncInFlight) return;
   if(!force && Date.now() - lastLocalEditAt < SYNC_POLL_SAFETY_GAP_MS) return; // تفادي تعارض مع حفظ محلي حديث لم يُرفع بعد
   const key = (localStorage.getItem(LICENSE_KEY_STORAGE) || '').trim();
@@ -2397,14 +2479,25 @@ async function pollForRemoteUpdates(force){
         // ويُترك للمستخدم حسمه يدوياً عبر "مزامنة الآن" بدل فقدان بيانات بصمت.
         const incomingCount = countStateRecords(sanitized.clean);
         const localCount = countStateRecords(state);
-        if(incomingCount < localCount){
+        // تحديث وارد من جهاز آخر عبر الإشعار اللحظي، وليس لدينا أي تغيير محلي غير مرفوع:
+        // هذا ليس تعارضاً بل عملية متعمَّدة (حذف مثلاً) قام بها زميل على جهاز آخر — تُطبَّق كما هي.
+        const trustedPeerUpdate = fromPeer && !_syncDirty;
+        if(incomingCount < localCount && !trustedPeerUpdate){
           console.warn(`تجاهلنا تحديثاً دورياً لأن عدد السجلات الواردة من الخادم (${incomingCount}) أقل من المحلي (${localCount}) — على الأغلب بيانات لم تُرفع بعد من هذا الجهاز أو جهاز آخر. لن نستبدلها تلقائياً؛ استخدم "مزامنة الآن" لمراجعة الوضع يدوياً.`);
           updateSyncBadge(false, `تعارض محتمل بين الأجهزة (محلي: ${localCount} سجل، خادم: ${incomingCount} سجل) — لم تُطبَّق المزامنة الدورية تلقائياً لحماية بياناتك`);
         } else {
-          state = sanitized.clean;
-          migrateLegacyLessonDurations(); migrateOfficialPaperDepartment();
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); // حفظ محلي بدون إعادة جدولة رفع فوري
-          renderAll();
+          _applyingRemoteState = true;
+          try{
+            state = sanitized.clean;
+            migrateLegacyLessonDurations(); migrateOfficialPaperDepartment();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); // حفظ محلي بدون إعادة جدولة رفع فوري
+            renderAll();
+          } finally {
+            _applyingRemoteState = false;
+          }
+          _syncDirty = false;
+          clearTimeout(syncDebounceTimer);
+          updateUnsyncedPill();
           updateSyncBadge(true);
         }
       }
@@ -2475,6 +2568,7 @@ async function initDataSync(){
     }
     updateSyncBadge(true);
     fetchServerVersion().then(v=>{ if(v) _knownServerVersion = v; });
+    initRealtimeSync();
     setTimeout(()=> migrateInlineMediaToStorage().catch(e=>console.warn('ترحيل المرفقات:', e)), 1500);
   }catch(err){
     console.warn('تعذّرت تهيئة المزامنة، سيعمل البرنامج محلياً فقط على هذا الجهاز:', err);
