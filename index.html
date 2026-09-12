@@ -592,7 +592,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-users-merge</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-portal-share</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -4654,6 +4654,51 @@ function refreshStudentDropdowns(){
   vehicleSel.innerHTML = '<option value="">بدون تفضيل</option>' +
     state.vehicles.map(v=>`<option value="${v.id}">${v.plate}</option>`).join('');
 }
+// ------------------------------------------------------------------
+// إرسال رابط البوابة للطالب/المدرب عبر واتساب
+// ------------------------------------------------------------------
+function portalLinkForShare(){
+  const p = _portal && _portal.portal;
+  if(!p || !p.url) return '';
+  return p.url + (p.url.includes('?') ? '' : (p.url.endsWith('/' + p.slug) ? '' : '?s=' + p.slug));
+}
+function waPhoneIntl(phone){
+  const d = String(phone || '').replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\D/g, '');
+  if(d.length < 9) return '';
+  const n = d.slice(-9);
+  return (/^5[69]/.test(n) ? '970' : '972') + n;   // جوال/أوريدو ← 970، غيرها ← 972
+}
+function schoolDisplayName(schoolId){
+  const info = (typeof getSchoolInfo === 'function') ? getSchoolInfo(schoolId) : (state.schoolInfo || {});
+  return (info && info.name) || '';
+}
+function sendPortalLink(kind, id){
+  const person = kind === 'student' ? state.students.find(s=>String(s.id)===String(id))
+                                    : state.staff.find(s=>String(s.id)===String(id));
+  if(!person) return;
+  const link = portalLinkForShare();
+  if(!link){ alert('رابط البوابة غير متوفر بعد.\nافتح تبويب «📱 طلبات البوابة» أولاً ليُحمَّل الرابط، وتأكد من تفعيل البوابة لهذا الترخيص.'); return; }
+  const nid = kind === 'student' ? (person.nid || '') : (person.nationalId || '');
+  if(!nid || !person.phone){
+    if(!confirm(`تنبيه: ${!nid ? 'رقم الهوية' : 'رقم الجوال'} غير مسجَّل لـ«${person.name}»، ولن يتمكن من الدخول حتى تُكمل بياناته.\nهل تريد إرسال الرابط رغم ذلك؟`)) return;
+  }
+  const wa = waPhoneIntl(person.phone);
+  if(!wa){ alert('رقم جوال هذا الشخص غير صالح للإرسال عبر واتساب. صحّحه أولاً من شاشة التعديل.'); return; }
+  const school = schoolDisplayName(person.school);
+  const lines = kind === 'student'
+    ? [`مرحباً ${person.name} 👋`, '',
+       'صار بإمكانك متابعة حصصك وامتحاناتك ورصيدك من جوالك، وطلب حجز حصة جديدة:',
+       link, '',
+       'طريقة الدخول:', '• رقم الهوية', '• رقم الجوال المسجّل لدينا (هذا الرقم)', '',
+       'لتثبيته كتطبيق على الشاشة الرئيسية: افتح الرابط ثم اختر «إضافة إلى الشاشة الرئيسية».']
+    : [`مرحباً ${person.name} 👋`, '',
+       'رابط بوابة المدرب لمتابعة جدولك وطلابك وتسجيل الحضور:',
+       link, '',
+       'طريقة الدخول:', '• اختر «أنا مدرب»', '• رقم الهوية', '• رقم الجوال المسجّل لدينا (هذا الرقم)', '',
+       'بعد كل حصة سجّل «تمّت» أو «لم يحضر»، ويعتمدها المكتب.'];
+  if(school) lines.push('', school);
+  window.open(`https://wa.me/${wa}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
+}
 function renderStudents(){
   saveState();
   refreshStudentDropdowns();
@@ -4674,6 +4719,7 @@ function renderStudents(){
         <button class="btn" onclick="openEditStudentModal(${s.id})">✏ تعديل</button>
         <button class="btn" onclick="openStudentFile(${s.id})">📁 الملف</button>
         <button class="btn" onclick="printStudentCard(${s.id})">🪪 بطاقة الطالب</button>
+        <button class="btn" title="إرسال رابط بوابة الطالب عبر واتساب" onclick="sendPortalLink('student', ${s.id})">📤 رابط البوابة</button>
         <button class="btn btn-danger" onclick="deleteStudent(${s.id})">حذف</button>
       </td>
     </tr>`).join('');
@@ -5718,6 +5764,7 @@ function renderStaff(){
       <td class="row-actions">
         <button class="btn" onclick="openEditStaffModal(${s.id})">✏ تعديل</button>
         <button class="btn" onclick="renewStaffLicense(${s.id})">🔄 تجديد الرخصة</button>
+        ${s.role === 'مدرب' ? `<button class="btn" title="إرسال رابط بوابة المدرب عبر واتساب" onclick="sendPortalLink('trainer', ${s.id})">📤 رابط البوابة</button>` : ''}
         <button class="btn btn-danger" onclick="deleteStaff(${s.id})">حذف</button>
       </td>
     </tr>`).join('');
