@@ -364,6 +364,17 @@ body.field-mode{ padding-bottom:76px; }
 #fieldQuickBar button .ico{ font-size:19px; }
 #fieldQuickBar button.active{ background:var(--accent); color:#fff; }
 @media print{ #fieldQuickBar{ display:none !important; } }
+  /* قائمة اقتراحات البحث تحت خانة البحث */
+  .ss-wrap{ position:relative; }
+  .ss-suggest{ position:absolute; z-index:60; inset-inline:0; top:100%; margin-top:2px; background:#fff;
+    border:1px solid var(--line, #ddd); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.16);
+    max-height:260px; overflow-y:auto; display:none; }
+  .ss-suggest.show{ display:block; }
+  .ss-item{ padding:9px 12px; cursor:pointer; font-size:14px; border-bottom:1px solid #f0f0f0; }
+  .ss-item:last-child{ border-bottom:0; }
+  .ss-item .ss-hint{ display:block; font-size:12px; color:#777; margin-top:2px; }
+  .ss-item.active, .ss-item:hover{ background:#e8f0f9; }
+  .ss-empty{ padding:10px 12px; color:#999; font-size:13px; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -592,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-practical-form</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-autoupdate-2</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -2313,6 +2324,20 @@ function requireOnlineOrBlock(){
 // يضيف مربع بحث فوق أي قائمة منسدلة لاختيار طالب/مدرب، ويفلتر خياراتها أثناء الكتابة —
 // بدون أي تغيير على طريقة قراءة القيمة المختارة (.value) في بقية الكود.
 const _searchableSelectsWired = new Set();
+// قائمة اقتراحات تظهر تحت خانة البحث: تُعرض النتائج المطابقة، وباختيار أحدها
+// تُملأ القائمة المنسدلة وكل الحقول المرتبطة بها (المدرب، السيارة، السعر...)
+function buildSuggestBox(input){
+  const parent = input.parentElement;
+  if(parent && !parent.classList.contains('ss-wrap')) parent.classList.add('ss-wrap');
+  let box = input._ssBox;
+  if(!box){
+    box = document.createElement('div');
+    box.className = 'ss-suggest';
+    (parent || document.body).appendChild(box);
+    input._ssBox = box;
+  }
+  return box;
+}
 function initSelectSearch(searchInputId, selectId){
   if(_searchableSelectsWired.has(selectId)) return;
   const input = document.getElementById(searchInputId);
@@ -2341,29 +2366,103 @@ function initSelectSearch(searchInputId, selectId){
     fireChange();
   };
 
+  const box = buildSuggestBox(input);
+  let _matches = [], _active = -1;
+  const closeBox = ()=>{ box.classList.remove('show'); box.innerHTML = ''; _matches = []; _active = -1; };
+  const hintOf = (o)=>{
+    const extra = (o.dataset.search || '').split(' ').filter(v => /\d{3,}/.test(v));
+    return extra.slice(0, 2).join(' — ');
+  };
+  const paintActive = ()=>{
+    Array.from(box.children).forEach((el, i)=> el.classList.toggle('active', i === _active));
+    const el = box.children[_active];
+    if(el && el.scrollIntoView) el.scrollIntoView({ block:'nearest' });
+  };
+  // اختيار نتيجة: تُضبط القائمة المنسدلة ويُطلق change فتُعبَّأ كل الحقول المرتبطة
+  const pick = (i)=>{
+    const o = _matches[i];
+    if(!o) return;
+    select.value = o.value;
+    input.value = o.textContent.trim();
+    showAllOptions();
+    closeBox();
+    fireChange();
+  };
+  const renderBox = (term)=>{
+    if(!term){ closeBox(); return; }
+    box.innerHTML = _matches.length
+      ? _matches.slice(0, 50).map((o, i)=>{
+          const hint = hintOf(o);
+          return `<div class="ss-item${i === 0 ? ' active' : ''}" data-i="${i}">${o.textContent.trim()}`
+            + (hint ? `<span class="ss-hint">${hint}</span>` : '') + `</div>`;
+        }).join('')
+      : '<div class="ss-empty">لا توجد نتائج مطابقة</div>';
+    _active = _matches.length ? 0 : -1;
+    box.classList.add('show');
+  };
+  // الاختيار بالماوس أو باللمس: mousedown يمنع إغلاق القائمة قبل تنفيذ الاختيار،
+  // وclick/touch احتياط إن لم يصل mousedown (بعض الأجهزة واللمس على الجوال)
+  const pickFromEvent = (e)=>{
+    const item = e.target.closest && e.target.closest('.ss-item');
+    if(!item) return;
+    e.preventDefault();
+    const i = parseInt(item.dataset.i, 10);
+    if(!isNaN(i)) pick(i);
+  };
+  box.addEventListener('mousedown', pickFromEvent);
+  box.addEventListener('click', pickFromEvent);
+  box.addEventListener('touchstart', pickFromEvent, { passive:false });
+  // تمرير الماوس فوق نتيجة يجعلها المختارة (ومعاينة بياناتها المرتبطة)
+  box.addEventListener('mousemove', e=>{
+    const item = e.target.closest && e.target.closest('.ss-item');
+    if(!item) return;
+    const i = parseInt(item.dataset.i, 10);
+    if(isNaN(i) || i === _active) return;
+    _active = i;
+    paintActive();
+    if(_matches[i]){ select.value = _matches[i].value; fireChangeKeepingFilter(); }
+  });
+
   input.addEventListener('input', ()=>{
     const term = input.value.trim();
     const options = allOptions();
-    if(!term){ showAllOptions(); return; }
+    if(!term){ showAllOptions(); closeBox(); return; }
     select.dataset.searching = '1';
-    const matches = [];
+    _matches = [];
     options.forEach(o=>{
-      const isMatch = o.value !== '' && o.textContent.includes(term);
+      const hay = o.textContent + ' ' + (o.dataset.search || '');
+      const isMatch = o.value !== '' && matchesSearch(hay, term);
       o.hidden = !isMatch;
-      if(isMatch) matches.push(o);
+      if(isMatch) _matches.push(o);
     });
-    if(!matches.length){ select.value = ''; return; }
-    // تُختار أول نتيجة مطابقة فوراً وتُعبَّأ بياناتها المرتبطة، وتبقى بقية النتائج ظاهرة
-    // في القائمة ليختار المستخدم منها بنقرة واحدة إن أراد غيرها
-    const keepCurrent = matches.some(o=> o.value === select.value);
-    if(!keepCurrent){ select.value = matches[0].value; fireChangeKeepingFilter(); }
-    if(matches.length === 1) commitSelection();
+    renderBox(term);
+    if(!_matches.length){ select.value = ''; return; }
+    // النتيجة الأولى تُعرَض مباشرة في القائمة المنسدلة (معاينة)، والاختيار النهائي بالنقر أو Enter
+    const keepCurrent = _matches.some(o=> o.value === select.value);
+    if(!keepCurrent){ select.value = _matches[0].value; fireChangeKeepingFilter(); }
   });
 
-  // Enter = اعتماد النتيجة المختارة والانتقال للحقل التالي
   input.addEventListener('keydown', e=>{
-    if(e.key === 'Enter'){ e.preventDefault(); if(select.value) commitSelection(); select.focus(); }
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      if(!_matches.length) return;
+      e.preventDefault();
+      _active = (e.key === 'ArrowDown')
+        ? Math.min(_active + 1, _matches.length - 1)
+        : Math.max(_active - 1, 0);
+      paintActive();
+      select.value = _matches[_active].value;
+      fireChangeKeepingFilter();
+      return;
+    }
+    if(e.key === 'Escape'){ closeBox(); return; }
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      if(_active >= 0 && _matches[_active]) pick(_active);
+      else if(select.value) commitSelection();
+      closeBox();
+    }
   });
+  input.addEventListener('focus', ()=>{ if(input.value.trim() && _matches.length) box.classList.add('show'); });
 
   // اختيار اسم من القائمة بنقرة واحدة: يُكتب في خانة البحث وتعود القائمة كاملة
   // (لا نُطلق change إضافياً هنا — المتصفح أطلقه بالفعل فتعبّأت الحقول المرتبطة)
@@ -2376,7 +2475,7 @@ function initSelectSearch(searchInputId, selectId){
   });
 
   // مغادرة خانة البحث دون اختيار: تعود القائمة كاملة مع بقاء الاختيار الحالي
-  input.addEventListener('blur', ()=>{ setTimeout(()=>{ if(document.activeElement !== select) showAllOptions(); }, 150); });
+  input.addEventListener('blur', ()=>{ setTimeout(()=>{ closeBox(); if(document.activeElement !== select) showAllOptions(); }, 150); });
 }
 // يُعاد استدعاؤها من renderAll() لتغطية أي قائمة جديدة تُنشأ لاحقاً (لا تكرر الربط لنفس القائمة)
 function wireAllSearchableSelects(){
@@ -4016,6 +4115,7 @@ function safeToUpdateNow(){
 // 2) بعد ذلك يظهر شريط "يتوفّر تحديث" كما كان، حتى لا يُقاطَع أثناء إدخال بيانات.
 // 3) في الحالتين لا يُطبَّق التحديث إطلاقاً وهناك بيانات لم تُرفع للسحابة (safeToUpdateNow).
 const AUTO_UPDATE_WINDOW_MS = 90 * 1000;
+let _buildCheckRetryBound = false;
 const _appOpenedAt = Date.now();
 function withinAutoUpdateWindow(){ return (Date.now() - _appOpenedAt) < AUTO_UPDATE_WINDOW_MS; }
 // فحص إضافي لا يعتمد على عامل الخدمة: يقارن وسم الإصدار بالملف الموجود فعلاً على الخادم.
@@ -4031,11 +4131,17 @@ async function checkServerBuildAndReload(){
     const serverTag = m ? m[1].trim() : '';
     const localTag = currentAppVersion();
     if(!serverTag || !localTag || serverTag === localTag) return;
-    if(!safeToUpdateNow()){ setTimeout(checkServerBuildAndReload, 5000); return; }
+    if(!safeToUpdateNow()){ setTimeout(checkServerBuildAndReload, 5000); return; }   // ننتظر اكتمال رفع البيانات
     console.info('تحديث البرنامج:', localTag, '→', serverTag);
     sessionStorage.setItem('build_reloaded', '1');
     location.reload();
-  }catch(_){ /* بلا إنترنت أو ملف غير متاح: يُكمل البرنامج بالنسخة الحالية */ }
+  }catch(_){
+    // بلا إنترنت: يُكمل البرنامج بالنسخة الحالية، ويُعاد الفحص عند عودة الشبكة
+    if(!_buildCheckRetryBound){
+      _buildCheckRetryBound = true;
+      window.addEventListener('online', ()=> setTimeout(checkServerBuildAndReload, 1500), { once:true });
+    }
+  }
 }
 function onUpdateReady(reg){
   if(_updateReady) return;
@@ -4372,14 +4478,49 @@ function deleteLicenseCategoryOption(index){
 // ------------------------------------------------------------------
 // بحث سريع موحّد داخل الجداول (فلترة فورية بدون تعديل البيانات)
 // ------------------------------------------------------------------
+// ------------------------------------------------------------------
+// بحث أذكى: يتجاهل اختلاف الهمزات والتاء المربوطة والتشكيل، ويقبل عدة كلمات بأي ترتيب
+// ------------------------------------------------------------------
+// كان البحث يقارن النص حرفياً، فلا يجد "احمد" عند كتابة "أحمد"، ولا "هند خالد" إن كُتبت
+// "خالد هند"، ولا رقم الهاتف إن كُتب بفواصل. الآن يُطبَّع النص من الطرفين قبل المقارنة.
+function normalizeSearchText(v){
+  return String(v == null ? '' : v)
+    .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+    .replace(/[\u064B-\u0652\u0640]/g, '')      // تشكيل وتطويل
+    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/[ؤئ]/g, 'ء').replace(/ة/g, 'ه')
+    .replace(/[-_()#.,،/\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim().toLowerCase();
+}
+// كل كلمة في البحث يجب أن توجد (بأي ترتيب)؛ والأرقام تُطابَق ولو كُتبت بفواصل
+function matchesSearch(haystack, query){
+  const hay = normalizeSearchText(haystack);
+  const hayDigits = hay.replace(/\D/g, '');
+  const haySquashed = hay.replace(/\s+/g, '');   // لمطابقة "عبدالله" مع "عبد الله"
+  const terms = normalizeSearchText(query).split(' ').filter(Boolean);
+  if(!terms.length) return true;
+  return terms.every(t => {
+    if(hay.includes(t)) return true;
+    if(t.length >= 4 && haySquashed.includes(t.replace(/\s+/g, ''))) return true;
+    const d = t.replace(/\D/g, '');
+    return d.length >= 3 && hayDigits.includes(d);
+  });
+}
+// نص البحث لخيار في قائمة: الاسم + رقم الهوية + الجوال (يُخزَّن في data-search)
+function optionSearchText(x){
+  return [x && x.name, x && x.nid, x && x.nationalId, x && x.phone, x && x.plate, x && x.model].filter(Boolean).join(' ');
+}
 function filterTable(inputId, tbodyId, emptyId){
-  const query = document.getElementById(inputId).value.trim().toLowerCase();
+  const input = document.getElementById(inputId);
+  if(!input) return;
+  const query = input.value.trim();
   const tbody = document.getElementById(tbodyId);
   if(!tbody) return;
   const rows = Array.from(tbody.querySelectorAll('tr'));
   let visibleCount = 0;
   rows.forEach(row=>{
-    const match = !query || row.textContent.toLowerCase().includes(query);
+    const match = !query || matchesSearch(row.textContent + ' ' + (row.dataset.search || ''), query);
     row.style.display = match ? '' : 'none';
     if(match) visibleCount++;
   });
@@ -4387,6 +4528,19 @@ function filterTable(inputId, tbodyId, emptyId){
   if(emptyEl){
     emptyEl.style.display = (query && rows.length>0 && visibleCount===0) ? 'block' : 'none';
   }
+  showSearchCount(input, query, visibleCount, rows.length);
+}
+// عدّاد النتائج بجانب خانة البحث — يظهر عند الكتابة فقط
+function showSearchCount(input, query, visible, total){
+  let el = input.parentElement && input.parentElement.querySelector('.search-count');
+  if(!el && input.parentElement){
+    el = document.createElement('span');
+    el.className = 'search-count';
+    el.style.cssText = 'font-size:12.5px;color:var(--muted);white-space:nowrap;margin-inline-start:6px;';
+    input.parentElement.appendChild(el);
+  }
+  if(!el) return;
+  el.textContent = query ? `${visible} من ${total}` : '';
 }
 
 // يُستخدَم داخل دوال renderX لاستبعاد السجلات التي لا تخص تاريخ اليوم عند تفعيل مفتاح "اليوم فقط"
@@ -4982,7 +5136,7 @@ function renderStudents(){
     .filter(s=>!stSchoolFilter || s.school===stSchoolFilter)
     .filter(s=>!todayOnly || String(s.enrolled || '').slice(0,10) === t)
     .map((s,i)=>`
-    <tr>
+    <tr data-search="${optionSearchText(s)} ${s.prevLicenseNo || ''}">
       <td><span class="avatar-sm" id="st_avatar_${s.id}" data-student-id="${s.id}">${avatarInitial(s.name)}</span></td>
       <td>${i+1}</td><td>${schoolBadge(s.school||'alaraj')}</td><td>${s.name}</td><td>${s.phone||'-'}</td><td>${s.license}</td>
       <td>${s.gearType||'-'}</td>
@@ -6638,9 +6792,9 @@ function vehicleOptionLabel(v){
 }
 function refreshLessonDropdowns(){
   const avail = activeStudentsForSelect();
-  document.getElementById('ls_student').innerHTML = avail.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('')
+  document.getElementById('ls_student').innerHTML = avail.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('')
     || (state.students.length ? '<option value="">كل الطلاب متوقفون حالياً</option>' : '<option value="">لا يوجد طلاب</option>');
-  document.getElementById('ls_instructor').innerHTML = state.staff.filter(s=>s.role==='مدرب').map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
+  document.getElementById('ls_instructor').innerHTML = state.staff.filter(s=>s.role==='مدرب').map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
   document.getElementById('ls_vehicle').innerHTML = state.vehicles.filter(v=>v.status==='متاحة').map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('') || '<option value="">لا توجد سيارات متاحة</option>';
 }
 // آثار إنجاز الحصة: زيادة ساعات الطالب، تثبيت العمولة، وإصدار الفاتورة التلقائية
@@ -7067,7 +7221,7 @@ function openEditLessonModal(id){
   document.getElementById('editLessonModal').dataset.editingId = id;
 
   const studentSel = document.getElementById('ed_ls_student');
-  studentSel.innerHTML = state.students.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
+  studentSel.innerHTML = state.students.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
   studentSel.value = l.studentId;
 
   const instructorSel = document.getElementById('ed_ls_instructor');
@@ -7076,7 +7230,7 @@ function openEditLessonModal(id){
     const current = state.staff.find(s=>s.id===l.instructorId);
     if(current) instructors = [current, ...instructors];
   }
-  instructorSel.innerHTML = instructors.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
+  instructorSel.innerHTML = instructors.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
   instructorSel.value = l.instructorId;
 
   const vehicleSel = document.getElementById('ed_ls_vehicle');
@@ -7166,10 +7320,10 @@ function saveEditLesson(){
 // ------------------------------------------------------------------
 function refreshExamDropdowns(){
   const avail = activeStudentsForSelect();
-  document.getElementById('ex_student').innerHTML = avail.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('')
+  document.getElementById('ex_student').innerHTML = avail.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('')
     || (state.students.length ? '<option value="">كل الطلاب متوقفون حالياً</option>' : '<option value="">لا يوجد طلاب</option>');
   const instructors = state.staff.filter(s=>s.role==='مدرب');
-  document.getElementById('ex_instructor').innerHTML = instructors.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
+  document.getElementById('ex_instructor').innerHTML = instructors.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
 }
 function onExamTypeChange(){
   const isPractical = document.getElementById('ex_type').value === 'عملي';
@@ -7451,10 +7605,10 @@ function renderExamCalendar(){
 // الفواتير والمدفوعات
 // ------------------------------------------------------------------
 function refreshInvoiceDropdowns(){
-  const allOpts = state.students.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
+  const allOpts = state.students.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
   const avail = activeStudentsForSelect();
   // فاتورة جديدة: للطلاب النشطين فقط
-  document.getElementById('inv_student').innerHTML = avail.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('')
+  document.getElementById('inv_student').innerHTML = avail.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('')
     || (state.students.length ? '<option value="">كل الطلاب متوقفون حالياً</option>' : '<option value="">لا يوجد طلاب</option>');
   // سندات القبض تبقى للجميع: الطالب المتوقف قد تبقى عليه ذمة تُحصَّل
   const rcptSel = document.getElementById('rcpt_student');
@@ -7577,7 +7731,7 @@ function openEditInvoiceModal(id){
   if(!inv) return;
   document.getElementById('editInvoiceModal').dataset.editingId = id;
   const studentSel = document.getElementById('ed_inv_student');
-  studentSel.innerHTML = state.students.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
+  studentSel.innerHTML = state.students.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
   studentSel.value = inv.studentId;
   populateDynamicSelect('invoiceTypes', inv.invoiceType, 'ed_inv_type');
   document.getElementById('ed_inv_amount').value = inv.amount;
@@ -8608,7 +8762,7 @@ function openEditPaymentModal(id){
   document.getElementById('ed_rcpt_student_field').style.display = unlinked ? 'none' : '';
   document.getElementById('ed_rcpt_payer_field').style.display = unlinked ? '' : 'none';
   const studentSel = document.getElementById('ed_rcpt_student');
-  studentSel.innerHTML = state.students.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
+  studentSel.innerHTML = state.students.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
   if(!unlinked) studentSel.value = p.studentId;
   document.getElementById('ed_rcpt_payer_name').value = p.payerName || '';
   document.getElementById('ed_rcpt_amount').value = p.amount;
@@ -8924,7 +9078,7 @@ function refreshChequeStudentDropdown(){
   const sel = document.getElementById('chq_student');
   if(!sel) return;
   sel.innerHTML = '<option value="">بدون ربط</option>' +
-    state.students.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('');
+    state.students.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('');
 }
 function addCheque(){
   if(!requireOnlineOrBlock()) return;
@@ -9056,7 +9210,7 @@ function refreshPaperStudentDropdown(){
   if(!sel) return;
   const current = sel.value;
   sel.innerHTML = '<option value="">بدون ربط بطالب</option>' +
-    state.students.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('');
+    state.students.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('');
   if([...sel.options].some(o=>o.value===current)) sel.value = current;
 }
 function addOfficialPaper(){
@@ -10737,16 +10891,16 @@ function onStatementTypeChange(){
   if(type==='student'){
     wrap.style.display = '';
     label.textContent = 'الطالب';
-    select.innerHTML = state.students.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
+    select.innerHTML = state.students.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
   } else if(type==='instructor'){
     wrap.style.display = '';
     label.textContent = 'المدرب';
     const instructors = state.staff.filter(s=>s.role==='مدرب');
-    select.innerHTML = instructors.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
+    select.innerHTML = instructors.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
   } else if(type==='receipts'){
     wrap.style.display = '';
     label.textContent = 'الطالب (اختياري)';
-    select.innerHTML = '<option value="">كل الطلاب</option>' + state.students.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('');
+    select.innerHTML = '<option value="">كل الطلاب</option>' + state.students.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('');
   } else {
     wrap.style.display = 'none';
   }
@@ -11776,8 +11930,16 @@ function hideSplash(){
   setTimeout(()=>{
     el.style.display = 'none';
     runLicenseCheck();
+    // فحص الإصدار يعمل حتى لو تعثّر الترخيص (جهاز بانتظار الموافقة، مفتاح خاطئ، أو انقطاع)
+    setTimeout(()=>{ if(typeof checkServerBuildAndReload === 'function') checkServerBuildAndReload(); }, 2000);
   }, 650);
 }
+// عند العودة للبرنامج بعد تركه في الخلفية: فحص إصدار جديد مرة أخرى
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && typeof checkServerBuildAndReload === 'function'){
+    setTimeout(checkServerBuildAndReload, 800);
+  }
+});
 document.getElementById('splashSkipBtn').addEventListener('click', hideSplash);
 
 // البرنامج صار موحَّداً بمدرسة واحدة (بيانات الاعرج/الأقصى/الإسراء مدموجة معاً، كل سجل بحقل "المدرسة" الخاص فيه) —
