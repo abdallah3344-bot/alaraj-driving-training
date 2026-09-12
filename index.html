@@ -592,7 +592,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-activity-all-2</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-today-filter</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -728,6 +728,29 @@ body.field-mode{ padding-bottom:76px; }
     </div>
   </div>
 </div>
+<!-- اختيار إدارة الترخيص قبل طباعة استمارة الطالب -->
+<div id="formDepartmentModal" class="modal-overlay">
+  <div class="modal-box card" style="max-width:420px;">
+    <h2>📄 طباعة استمارة طالب</h2>
+    <p id="fdepQuestion" style="margin:8px 0 14px;">إدارة الترخيص: <b>طولكرم</b>؟</p>
+    <div id="fdepAsk" style="display:flex; gap:8px;">
+      <button class="btn btn-accent" style="flex:1;" onclick="confirmFormDepartment(true)">✅ نعم، اطبع</button>
+      <button class="btn" style="flex:1;" onclick="confirmFormDepartment(false)">✏ لا، دائرة أخرى</button>
+    </div>
+    <div id="fdepPick" style="display:none;">
+      <div class="field"><label>اختر الدائرة</label>
+        <select id="fdep_select" onchange="onFormDepartmentSelect(this)"></select>
+      </div>
+      <div class="field" id="fdep_new_wrap" style="display:none;"><label>اسم الدائرة الجديدة</label>
+        <input id="fdep_new" placeholder="مثال: نابلس" onkeydown="if(event.key==='Enter') confirmFormDepartmentPicked();">
+      </div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn btn-accent" style="flex:1;" onclick="confirmFormDepartmentPicked()">🖨 طباعة</button>
+        <button class="btn" onclick="closeFormDepartmentModal()">إلغاء</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="editStudentModal" class="modal-overlay">
   <div class="modal-box card">
     <h2>✏ تعديل بيانات الطالب</h2>
@@ -747,6 +770,8 @@ body.field-mode{ padding-bottom:76px; }
       <div class="field"><label>الاسم</label><input id="ed_st_name"></div>
       <div class="field"><label>الهاتف</label><input id="ed_st_phone" oninput="mirrorPhoneToHouse('ed_st_')"></div>
       <div class="field"><label>رقم الهوية</label><input id="ed_st_nid"></div>
+      <div class="field"><label>رقم الرخصة السابقة (إن وُجدت)</label><input id="ed_st_prev_license_no"></div>
+      <div class="field"><label>نوع الرخصة السابقة</label><input id="ed_st_prev_license_type"></div>
       <div class="field"><label>نوع الرخصة</label><select id="ed_st_license" onchange="handleDynamicSelect(this,'licenseTypes')"></select></div>
       <div class="field"><label>فئة الرخصة الرسمية (للنماذج الحكومية)</label>
         <div style="display:flex; gap:6px; align-items:center;">
@@ -1073,6 +1098,8 @@ body.field-mode{ padding-bottom:76px; }
         <div class="field"><label>الاسم</label><input id="st_name"></div>
         <div class="field"><label>الهاتف</label><input id="st_phone" oninput="mirrorPhoneToHouse('st_')"></div>
         <div class="field"><label>رقم الهوية</label><input id="st_nid"></div>
+        <div class="field"><label>رقم الرخصة السابقة (إن وُجدت)</label><input id="st_prev_license_no" placeholder="تُعبَّأ في النموذج الرسمي"></div>
+        <div class="field"><label>نوع الرخصة السابقة</label><input id="st_prev_license_type" placeholder="مثال: خصوصي / شحن خفيف"></div>
         <div class="field"><label>نوع الرخصة</label>
           <select id="st_license" onchange="handleDynamicSelect(this,'licenseTypes')"></select>
         </div>
@@ -1105,8 +1132,12 @@ body.field-mode{ padding-bottom:76px; }
         <input id="st_search" type="text" placeholder="ابحث بالاسم، الهاتف، نوع الرخصة..." oninput="filterTable('st_search','studentsBody','studentsSearchEmpty')">
         <button class="clear-btn" onclick="clearTableSearch('st_search','studentsBody','studentsSearchEmpty')">✕</button>
         <div id="st_school_filter_wrap"></div>
+        <label id="st_today_wrap" style="display:flex; align-items:center; gap:6px; white-space:nowrap; cursor:pointer;">
+          <input type="checkbox" id="st_today_only" onchange="renderStudents()"> إدخالات اليوم <span id="st_today_count" style="color:var(--muted)"></span>
+        </label>
       </div>
       <div class="form-actions" style="margin-top:0; margin-bottom:12px;">
+        <button class="btn" id="st_show_all_btn" onclick="showAllStudents()">👥 إظهار كل الطلاب</button>
         <button class="btn" onclick="printTableAsList('قائمة الطلاب','studentsBody')">🖨 طباعة القائمة</button>
       </div>
       <div class="table-wrap"><table>
@@ -4604,6 +4635,8 @@ function addStudent(){
     id: newId('students'), name,
     phone: document.getElementById('st_phone').value.trim(),
     nid: document.getElementById('st_nid').value.trim(),
+    prevLicenseNo: document.getElementById('st_prev_license_no').value.trim(),
+    prevLicenseType: document.getElementById('st_prev_license_type').value.trim(),
     license: document.getElementById('st_license').value,
     licenseCategory: document.getElementById('st_license_category').value || '',
     gearType: document.getElementById('st_gear').value,
@@ -4620,7 +4653,7 @@ function addStudent(){
   setLastSelectedSchool(newStudent.school);
   // سجل الطالب أولاً — لا صورة شخصية دائمة ولا نقل لصورة الهوية قبل نجاح هذه الخطوة
   state.students.push(newStudent);
-  ['st_name','st_phone','st_nid','st_dob','st_city','st_street','st_house'].forEach(id=>document.getElementById(id).value='');
+  ['st_name','st_phone','st_nid','st_prev_license_no','st_prev_license_type','st_dob','st_city','st_street','st_house'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('st_license_category').value = '';
   renderStudents();
   finalizeScanArtifactsForNewStudent(newStudent);
@@ -4783,14 +4816,34 @@ function sendPortalLink(kind, id){
   if(school) lines.push('', school);
   window.open(`https://wa.me/${wa}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
 }
+// عرض الطلاب المسجَّلين اليوم فقط، وزر يعيد عرض الجميع (يُزيل الصح عن "إدخالات اليوم")
+function todayStudents(){
+  const t = todayStr();
+  return state.students.filter(s => String(s.enrolled || '').slice(0,10) === t);
+}
+function showAllStudents(){
+  const cb = document.getElementById('st_today_only');
+  if(cb) cb.checked = false;
+  renderStudents();
+}
 function renderStudents(){
   saveState();
   refreshStudentDropdowns();
   const wrap = document.getElementById('st_school_filter_wrap');
   if(wrap && !wrap.innerHTML) wrap.innerHTML = schoolFilterHtml('st_school_filter','renderStudents');
   const stSchoolFilter = schoolFilterValue('st_school_filter');
+  const todayOnly = !!(document.getElementById('st_today_only') || {}).checked;
+  const todayCount = todayStudents().length;
+  const countEl = document.getElementById('st_today_count');
+  if(countEl) countEl.textContent = todayCount ? `(${todayCount})` : '';
+  const allBtn = document.getElementById('st_show_all_btn');
+  if(allBtn) allBtn.style.display = todayOnly ? '' : 'none';
+  const t = todayStr();
   const body = document.getElementById('studentsBody');
-  body.innerHTML = state.students.filter(s=>!stSchoolFilter || s.school===stSchoolFilter).map((s,i)=>`
+  body.innerHTML = state.students
+    .filter(s=>!stSchoolFilter || s.school===stSchoolFilter)
+    .filter(s=>!todayOnly || String(s.enrolled || '').slice(0,10) === t)
+    .map((s,i)=>`
     <tr>
       <td><span class="avatar-sm" id="st_avatar_${s.id}" data-student-id="${s.id}">${avatarInitial(s.name)}</span></td>
       <td>${i+1}</td><td>${schoolBadge(s.school||'alaraj')}</td><td>${s.name}</td><td>${s.phone||'-'}</td><td>${s.license}</td>
@@ -4803,6 +4856,8 @@ function renderStudents(){
         <button class="btn" onclick="openEditStudentModal(${s.id})">✏ تعديل</button>
         <button class="btn" onclick="openStudentFile(${s.id})">📁 الملف</button>
         <button class="btn" onclick="printStudentCard(${s.id})">🪪 بطاقة الطالب</button>
+        <button class="btn" title="طباعة طلب استمارة طالب (النموذج الرسمي)" onclick="printStudentOfficialForm(${s.id})">📄 استمارة طالب</button>
+        <button class="btn" title="${s.status==='نشط' ? 'إيقاف الطالب مؤقتاً' : 'إعادة تنشيط الطالب'}" onclick="toggleStudentStatus(${s.id})">${s.status==='نشط' ? '⏸ إيقاف' : '▶ تنشيط'}</button>
         <button class="btn" title="إرسال رابط بوابة الطالب عبر واتساب" onclick="sendPortalLink('student', ${s.id})">📤 رابط البوابة</button>
         <button class="btn btn-danger" onclick="deleteStudent(${s.id})">حذف</button>
       </td>
@@ -4842,6 +4897,8 @@ function openEditStudentModal(id){
   document.getElementById('ed_st_name').value = s.name || '';
   document.getElementById('ed_st_phone').value = s.phone || '';
   document.getElementById('ed_st_nid').value = s.nid || '';
+  document.getElementById('ed_st_prev_license_no').value = s.prevLicenseNo || '';
+  document.getElementById('ed_st_prev_license_type').value = s.prevLicenseType || '';
   populateDynamicSelect('licenseTypes', s.license, 'ed_st_license');
   populateLicenseCategorySelects(s.licenseCategory || '', 'ed_st_license_category');
   document.getElementById('ed_st_gear').value = s.gearType || 'أوتوماتيك';
@@ -4882,6 +4939,8 @@ function saveEditStudent(){
   s.name = name;
   s.phone = document.getElementById('ed_st_phone').value.trim();
   s.nid = document.getElementById('ed_st_nid').value.trim();
+  s.prevLicenseNo = document.getElementById('ed_st_prev_license_no').value.trim();
+  s.prevLicenseType = document.getElementById('ed_st_prev_license_type').value.trim();
   s.license = document.getElementById('ed_st_license').value;
   s.licenseCategory = document.getElementById('ed_st_license_category').value || '';
   s.gearType = document.getElementById('ed_st_gear').value;
@@ -6260,8 +6319,14 @@ function suggestLessonPrice(){
 // ------------------------------------------------------------------
 // جدولة الدروس
 // ------------------------------------------------------------------
+// الطلاب المتاحون لتسجيل حصة جديدة: المتوقفون مستبعَدون (بياناتهم وحصصهم السابقة تبقى كما هي)
+function activeStudentsForSelect(){
+  return state.students.filter(s => s.status !== 'متوقف');
+}
 function refreshLessonDropdowns(){
-  document.getElementById('ls_student').innerHTML = state.students.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
+  const avail = activeStudentsForSelect();
+  document.getElementById('ls_student').innerHTML = avail.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('')
+    || (state.students.length ? '<option value="">كل الطلاب متوقفون حالياً</option>' : '<option value="">لا يوجد طلاب</option>');
   document.getElementById('ls_instructor').innerHTML = state.staff.filter(s=>s.role==='مدرب').map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
   document.getElementById('ls_vehicle').innerHTML = state.vehicles.filter(v=>v.status==='متاحة').map(v=>`<option value="${v.id}">${v.plate} (#${v.id})</option>`).join('') || '<option value="">لا توجد سيارات متاحة</option>';
 }
@@ -6787,7 +6852,9 @@ function saveEditLesson(){
 // الامتحانات (نظري / عملي) + التقويم الشهري + تذكير قبل يوم
 // ------------------------------------------------------------------
 function refreshExamDropdowns(){
-  document.getElementById('ex_student').innerHTML = state.students.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
+  const avail = activeStudentsForSelect();
+  document.getElementById('ex_student').innerHTML = avail.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('')
+    || (state.students.length ? '<option value="">كل الطلاب متوقفون حالياً</option>' : '<option value="">لا يوجد طلاب</option>');
   const instructors = state.staff.filter(s=>s.role==='مدرب');
   document.getElementById('ex_instructor').innerHTML = instructors.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
 }
@@ -7069,10 +7136,14 @@ function renderExamCalendar(){
 // الفواتير والمدفوعات
 // ------------------------------------------------------------------
 function refreshInvoiceDropdowns(){
-  const opts = state.students.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
-  document.getElementById('inv_student').innerHTML = opts;
+  const allOpts = state.students.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
+  const avail = activeStudentsForSelect();
+  // فاتورة جديدة: للطلاب النشطين فقط
+  document.getElementById('inv_student').innerHTML = avail.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('')
+    || (state.students.length ? '<option value="">كل الطلاب متوقفون حالياً</option>' : '<option value="">لا يوجد طلاب</option>');
+  // سندات القبض تبقى للجميع: الطالب المتوقف قد تبقى عليه ذمة تُحصَّل
   const rcptSel = document.getElementById('rcpt_student');
-  if(rcptSel) rcptSel.innerHTML = opts;
+  if(rcptSel) rcptSel.innerHTML = allOpts;
   populateDynamicSelect('invoiceTypes');
 }
 // تنظيف الفواتير التلقائية "اليتيمة" — التي أُصدرت عن حصة تم حذفها لاحقاً (خاصة الحصص المحذوفة قبل إصلاح دالة الحذف)
@@ -8829,8 +8900,82 @@ function splitArabicFullName(fullName){
 }
 // طباعة نموذج "طلب رخصة لسوق مركبة ميكانيكية" الرسمي (الإدارة العامة لسلطة الترخيص) مُعبَّأ مسبقاً ببيانات الطالب المرتبط
 // طباعة النموذج الرسمي الكامل بصفحتيه معاً (طلب الرخصة + استمارة فحص الترخيص) مع الشعار الرسمي الفعلي
+// إيقاف الطالب مؤقتاً وإعادة تنشيطه بنفس الزر — لا يُحذف شيء من بياناته
+function toggleStudentStatus(id){
+  if(!requireOnlineOrBlock()) return;
+  const s = state.students.find(s=>String(s.id)===String(id));
+  if(!s) return;
+  const stopping = (s.status === 'نشط');
+  if(stopping && !confirm(`إيقاف الطالب «${s.name}» مؤقتاً؟\n\nتبقى كل بياناته وحصصه وفواتيره كما هي، ولن يُحتسب ضمن «الطلاب النشطون»، ولن يظهر عند تسجيل حصة أو امتحان أو فاتورة جديدة.\nتبقى سندات القبض متاحة له لتحصيل ما عليه.`)) return;
+  s.status = stopping ? 'متوقف' : 'نشط';
+  renderStudents();
+  if(typeof refreshLessonDropdowns === 'function') refreshLessonDropdowns();
+  if(typeof refreshExamDropdowns === 'function') refreshExamDropdowns();
+  if(typeof refreshInvoiceDropdowns === 'function') refreshInvoiceDropdowns();
+  if(typeof renderHomeStats === 'function') renderHomeStats();
+  saveState();
+}
+// إدارة الترخيص المطبوعة على استمارة الطالب: تُقترح "طولكرم"، وإن رفضها المستخدم تُفتح شاشة اختيار/إضافة
+const DEFAULT_FORM_DEPARTMENT = 'طولكرم';
+let _formDeptStudentId = null;
+function defaultFormDepartment(){
+  return (state.lastFormDepartment || '').trim() || DEFAULT_FORM_DEPARTMENT;
+}
+function printStudentOfficialForm(studentId){
+  const s = state.students.find(s=>String(s.id)===String(studentId));
+  if(!s) return;
+  _formDeptStudentId = s.id;
+  document.getElementById('fdepQuestion').innerHTML = 'إدارة الترخيص: <b>' + defaultFormDepartment() + '</b>؟';
+  document.getElementById('fdepAsk').style.display = 'flex';
+  document.getElementById('fdepPick').style.display = 'none';
+  document.getElementById('fdep_new_wrap').style.display = 'none';
+  document.getElementById('formDepartmentModal').classList.add('show');
+}
+function closeFormDepartmentModal(){
+  document.getElementById('formDepartmentModal').classList.remove('show');
+  _formDeptStudentId = null;
+}
+function confirmFormDepartment(useDefault){
+  if(useDefault){ doPrintStudentOfficialForm(defaultFormDepartment()); return; }
+  const all = [...DYNAMIC_SELECTS.departments.base, ...(state.customDepartments || [])];
+  const sel = document.getElementById('fdep_select');
+  sel.innerHTML = all.map(v=>`<option value="${v}">${v}</option>`).join('') + '<option value="__add_new__">➕ إضافة دائرة جديدة...</option>';
+  sel.value = all.includes(defaultFormDepartment()) ? defaultFormDepartment() : all[0];
+  document.getElementById('fdepAsk').style.display = 'none';
+  document.getElementById('fdepPick').style.display = 'block';
+  onFormDepartmentSelect(sel);
+}
+function onFormDepartmentSelect(sel){
+  const isNew = sel.value === '__add_new__';
+  document.getElementById('fdep_new_wrap').style.display = isNew ? 'block' : 'none';
+  if(isNew) document.getElementById('fdep_new').focus();
+}
+function confirmFormDepartmentPicked(){
+  const sel = document.getElementById('fdep_select');
+  let dep = sel.value;
+  if(dep === '__add_new__'){
+    dep = (document.getElementById('fdep_new').value || '').trim();
+    if(!dep){ alert('أدخل اسم الدائرة أولاً'); return; }
+    const all = [...DYNAMIC_SELECTS.departments.base, ...(state.customDepartments || [])];
+    if(!all.includes(dep)){
+      if(!state.customDepartments) state.customDepartments = [];
+      state.customDepartments.push(dep);
+      if(typeof populateDynamicSelect === 'function') populateDynamicSelect('departments');
+    }
+  }
+  doPrintStudentOfficialForm(dep);
+}
+function doPrintStudentOfficialForm(department){
+  const s = state.students.find(x=>String(x.id)===String(_formDeptStudentId));
+  closeFormDepartmentModal();
+  if(!s) return;
+  state.lastFormDepartment = department;   // تُقترح تلقائياً في المرة القادمة
+  saveState();
+  printOfficialCombinedForm({ id:null, studentId: s.id, paperType:'طلب استمارة طالب',
+    department: department, submitDate: todayStr(), school: s.school });
+}
 function printOfficialCombinedForm(paperId){
-  const p = state.officialPapers.find(p=>p.id===paperId);
+  const p = (paperId && typeof paperId === 'object') ? paperId : state.officialPapers.find(p=>p.id===paperId);
   if(!p) return;
   const student = p.studentId ? state.students.find(s=>s.id===p.studentId) : null;
   const nameParts = splitArabicFullName(student ? student.name : '');
@@ -8842,6 +8987,8 @@ function printOfficialCombinedForm(paperId){
   const street = student ? (student.street || '') : '';
   const house = student ? (student.house || '') : '';
   const studentName = student ? student.name : '';
+  const prevLicenseNo = student ? (student.prevLicenseNo || '') : '';
+  const prevLicenseType = student ? (student.prevLicenseType || '') : '';
 
   const win = window.open('', '_blank', 'width=900,height=1100');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لطباعة النموذج'); return; }
@@ -8924,7 +9071,7 @@ function printOfficialCombinedForm(paperId){
           <div class="right-col">
             <div class="line">إلى إدارة الترخيص في: <span class="fill filled">${p.department || ''}</span></div>
             <div class="line">أنا الموقع أدناه أطلب بهذا رخصة سياقة لمركبة ميكانيكية من نوع: <span class="fill filled">${licenseType}</span></div>
-            <div class="line">وبحوزتي رخصة سياقة رقم: <span class="fill"></span> من نوع: <span class="fill"></span></div>
+            <div class="line">وبحوزتي رخصة سياقة رقم: <span class="fill${prevLicenseNo ? ' filled' : ''}">${prevLicenseNo}</span> من نوع: <span class="fill${prevLicenseType ? ' filled' : ''}">${prevLicenseType}</span></div>
 
             <div class="box" style="width:85%;">
               <div class="side-tab">تفاصيل مقدّم الطلب</div>
