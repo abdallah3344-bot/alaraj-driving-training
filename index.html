@@ -592,7 +592,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-today-filter</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-card-qr</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -4750,7 +4750,7 @@ function refreshStudentDropdowns(){
   instructorSel.innerHTML = '<option value="">بدون تفضيل</option>' +
     instructors.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   vehicleSel.innerHTML = '<option value="">بدون تفضيل</option>' +
-    state.vehicles.map(v=>`<option value="${v.id}">${v.plate}</option>`).join('');
+    state.vehicles.map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('');
 }
 // ------------------------------------------------------------------
 // إرسال رابط البوابة للطالب/المدرب عبر واتساب
@@ -4911,7 +4911,7 @@ function openEditStudentModal(id){
   const vehicleSel = document.getElementById('ed_st_vehicle');
   const instructors = state.staff.filter(x=>x.role==='مدرب');
   instructorSel.innerHTML = '<option value="">بدون تفضيل</option>' + instructors.map(x=>`<option value="${x.id}">${x.name}</option>`).join('');
-  vehicleSel.innerHTML = '<option value="">بدون تفضيل</option>' + state.vehicles.map(v=>`<option value="${v.id}">${v.plate}</option>`).join('');
+  vehicleSel.innerHTML = '<option value="">بدون تفضيل</option>' + state.vehicles.map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('');
   instructorSel.value = s.preferredInstructorId || '';
   vehicleSel.value = s.preferredVehicleId || '';
   document.getElementById('ed_st_status').value = s.status || 'نشط';
@@ -5349,10 +5349,176 @@ function updateStudentPhotoPreview(dataUrlOrUrl){
 }
 
 // -- ملف الطالب القابل للعرض والطباعة --
+// ------------------------------------------------------------------
+// مولّد رمز QR مصغَّر (نمط البايت، تصحيح أخطاء M) — يعمل بلا إنترنت
+// يُستخدَم لطباعة رابط بوابة الطالب على بطاقة الطالب.
+// ------------------------------------------------------------------
+function qrGenerate(text){
+  const data = [];
+  for(const ch of String(text)){
+    const c = ch.codePointAt(0);
+    if(c < 0x80) data.push(c);
+    else if(c < 0x800){ data.push(0xC0 | (c >> 6), 0x80 | (c & 63)); }
+    else if(c < 0x10000){ data.push(0xE0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63)); }
+    else { data.push(0xF0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63)); }
+  }
+  // سعة نمط البايت بمستوى تصحيح M لكل إصدار (1..10)
+  const CAP_M = [0,14,26,42,62,84,106];   // حتى الإصدار 6: لا يحتاج كتلة "معلومات الإصدار"
+  const EC_M  = [0,10,16,26,18,24,16];                   // بايتات التصحيح لكل كتلة
+  const BLOCKS_M = [0,1,1,1,2,2,4];                      // عدد الكتل
+  const TOTAL = [0,26,44,70,100,134,172];                // إجمالي بايتات الإصدار
+  let ver = 0;
+  for(let v = 1; v <= 6; v++){ if(data.length <= CAP_M[v]){ ver = v; break; } }
+  if(!ver) throw new Error('qr: النص أطول من المدعوم');
+
+  const size = 17 + 4 * ver;
+  const ecPerBlock = EC_M[ver], blocks = BLOCKS_M[ver];
+  const totalBytes = TOTAL[ver];
+  const dataBytesTotal = totalBytes - ecPerBlock * blocks;
+
+  // 1) بناء تيار البتات: مؤشر النمط + الطول + البيانات + الحشو
+  const bits = [];
+  const push = (val, len) => { for(let i = len - 1; i >= 0; i--) bits.push((val >> i) & 1); };
+  push(4, 4);                                   // نمط البايت
+  push(data.length, 8);   // الإصدارات 1..9 تستخدم 8 بت لطول نمط البايت
+  data.forEach(b => push(b, 8));
+  for(let i = 0; i < 4 && bits.length < dataBytesTotal * 8; i++) bits.push(0);
+  while(bits.length % 8) bits.push(0);
+  const dataBytes = [];
+  for(let i = 0; i < bits.length; i += 8){
+    let b = 0; for(let j = 0; j < 8; j++) b = (b << 1) | bits[i + j];
+    dataBytes.push(b);
+  }
+  const PAD = [0xEC, 0x11];
+  for(let i = 0; dataBytes.length < dataBytesTotal; i++) dataBytes.push(PAD[i % 2]);
+
+  // 2) حساب بايتات تصحيح الأخطاء (Reed-Solomon) لكل كتلة
+  const EXP = new Array(512), LOG = new Array(256);
+  for(let i = 0, x = 1; i < 255; i++){ EXP[i] = x; LOG[x] = i; x <<= 1; if(x & 0x100) x ^= 0x11D; }
+  for(let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+  const gfMul = (a, b) => (a === 0 || b === 0) ? 0 : EXP[LOG[a] + LOG[b]];
+  function rsPoly(n){
+    let poly = [1];
+    for(let i = 0; i < n; i++){
+      const next = new Array(poly.length + 1).fill(0);
+      for(let j = 0; j < poly.length; j++){
+        next[j] ^= gfMul(poly[j], EXP[i]);
+        next[j + 1] ^= poly[j];
+      }
+      poly = next;
+    }
+    // الترتيب المطلوب: المعامل الأعلى أولاً
+    return poly.reverse();
+  }
+  const gen = rsPoly(ecPerBlock);
+  function rsEncode(block){
+    const res = new Array(ecPerBlock).fill(0);
+    for(const byte of block){
+      const factor = byte ^ res[0];
+      res.shift(); res.push(0);
+      if(factor !== 0) for(let i = 0; i < gen.length - 1; i++) res[i] ^= gfMul(gen[i + 1], factor);
+    }
+    return res;
+  }
+  // تقسيم البيانات لكتل (المجموعة الثانية أطول ببايت واحد)
+  const shortLen = Math.floor(dataBytesTotal / blocks);
+  const longBlocks = dataBytesTotal % blocks;
+  const dataBlocks = [], ecBlocks = [];
+  let pos = 0;
+  for(let i = 0; i < blocks; i++){
+    const len = shortLen + (i >= blocks - longBlocks ? 1 : 0);
+    const blk = dataBytes.slice(pos, pos + len); pos += len;
+    dataBlocks.push(blk); ecBlocks.push(rsEncode(blk));
+  }
+  // تشذير البايتات
+  const finalBytes = [];
+  const maxData = Math.max(...dataBlocks.map(b => b.length));
+  for(let i = 0; i < maxData; i++) for(const b of dataBlocks) if(i < b.length) finalBytes.push(b[i]);
+  for(let i = 0; i < ecPerBlock; i++) for(const b of ecBlocks) finalBytes.push(b[i]);
+
+  // 3) رسم المصفوفة
+  const m = Array.from({length:size}, () => new Array(size).fill(null));   // null = وحدة حرة
+  const setF = (r, c, v) => { if(r >= 0 && r < size && c >= 0 && c < size) m[r][c] = v; };
+  function finder(r, c){
+    for(let i = -1; i <= 7; i++) for(let j = -1; j <= 7; j++){
+      const inBox = i >= 0 && i <= 6 && j >= 0 && j <= 6;
+      const dark = inBox && ((i === 0 || i === 6 || j === 0 || j === 6) || (i >= 2 && i <= 4 && j >= 2 && j <= 4));
+      setF(r + i, c + j, dark ? 1 : 0);
+    }
+  }
+  finder(0, 0); finder(0, size - 7); finder(size - 7, 0);
+  for(let i = 8; i < size - 8; i++){ m[6][i] = (i % 2 === 0) ? 1 : 0; m[i][6] = (i % 2 === 0) ? 1 : 0; }
+  // أنماط المحاذاة
+  const ALIGN = [[],[],[6,18],[6,22],[6,26],[6,30],[6,34]][ver];
+  for(const r of ALIGN) for(const c of ALIGN){
+    if((r <= 7 && c <= 7) || (r <= 7 && c >= size - 8) || (r >= size - 8 && c <= 7)) continue;
+    for(let i = -2; i <= 2; i++) for(let j = -2; j <= 2; j++)
+      setF(r + i, c + j, (Math.abs(i) === 2 || Math.abs(j) === 2 || (i === 0 && j === 0)) ? 1 : 0);
+  }
+  m[size - 8][8] = 1;   // وحدة داكنة ثابتة
+  // حجز مواضع معلومات التنسيق
+  for(let i = 0; i < 9; i++){ if(m[8][i] === null) m[8][i] = 0; if(m[i][8] === null) m[i][8] = 0; }
+  for(let i = 0; i < 8; i++){ if(m[8][size-1-i] === null) m[8][size-1-i] = 0; if(m[size-1-i][8] === null) m[size-1-i][8] = 0; }
+
+  // 4) وضع البيانات بمسار الثعبان + القناع 0
+  const reserved = m.map(row => row.map(v => v !== null));
+  let bitIdx = 0;
+  const nextBit = () => {
+    const byte = finalBytes[bitIdx >> 3];
+    const bit = byte === undefined ? 0 : (byte >> (7 - (bitIdx & 7))) & 1;
+    bitIdx++;
+    return bit;
+  };
+  let up = true;
+  for(let col = size - 1; col > 0; col -= 2){
+    if(col === 6) col--;
+    for(let n = 0; n < size; n++){
+      const row = up ? size - 1 - n : n;
+      for(let k = 0; k < 2; k++){
+        const c = col - k;
+        if(reserved[row][c]) continue;
+        let bit = nextBit();
+        if((row + c) % 2 === 0) bit ^= 1;            // القناع 0
+        m[row][c] = bit;
+      }
+    }
+    up = !up;
+  }
+
+  // 5) معلومات التنسيق (مستوى M = 00، القناع 0)
+  let fmt = 0b00 << 3 | 0;
+  let rem = fmt;
+  for(let i = 0; i < 10; i++) rem = (rem << 1) ^ (((rem >> 9) & 1) * 0x537);
+  const fmtBits = ((fmt << 10) | rem) ^ 0x5412;
+  const fmtBit = i => (fmtBits >> (14 - i)) & 1;   // البت 0 هو الأيسر (الأعلى) حسب المعيار
+  for(let i = 0; i <= 5; i++) m[8][i] = fmtBit(i);
+  m[8][7] = fmtBit(6); m[8][8] = fmtBit(7); m[7][8] = fmtBit(8);
+  for(let i = 9; i <= 14; i++) m[14 - i][8] = fmtBit(i);
+  for(let i = 0; i <= 6; i++) m[size - 1 - i][8] = fmtBit(i);
+  for(let i = 7; i <= 14; i++) m[8][size - 15 + i] = fmtBit(i);
+
+  return m.map(row => row.map(v => v ? 1 : 0));
+}
+// يحوّل مصفوفة QR إلى صورة SVG جاهزة للطباعة (هامش أبيض 4 وحدات كما يفرض المعيار)
+function qrSvg(text, px){
+  const m = qrGenerate(text), n = m.length, q = 4, total = n + q * 2;
+  let rects = '';
+  for(let r = 0; r < n; r++) for(let c = 0; c < n; c++)
+    if(m[r][c]) rects += `<rect x="${c + q}" y="${r + q}" width="1" height="1"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 ${total} ${total}" shape-rendering="crispEdges">`
+    + `<rect width="${total}" height="${total}" fill="#fff"/><g fill="#000">${rects}</g></svg>`;
+}
 // -- بطاقة الطالب المضغوطة (بحجم بطاقة هوية، قابلة للطباعة والقص) --
 async function printStudentCard(id){
   const s = state.students.find(s=>s.id===id);
   if(!s) return;
+  // رابط البوابة يُطبع كرمز QR على البطاقة — يُحمَّل عند الحاجة إن لم يكن جاهزاً
+  if(!(_portal && _portal.portal) && typeof loadPortalRequests === 'function'){
+    try{ await loadPortalRequests(true); }catch(_){ }
+  }
+  const portalLink = (typeof portalLinkForShare === 'function') ? portalLinkForShare() : '';
+  let portalQr = '';
+  if(portalLink){ try{ portalQr = qrSvg(portalLink, 78); }catch(_){ portalQr = ''; } }
   const win = window.open('', '_blank', 'width=480,height=420');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لطباعة البطاقة'); return; }
   const photoUrl = await getStudentPhotoUrl(id, 'full');
@@ -5383,6 +5549,9 @@ async function printStudentCard(id){
       .card-body .name{ font-size:16px; font-weight:800; margin-bottom:6px; }
       .card-body .row{ font-size:11.5px; color:#333; margin-bottom:3px; }
       .card-body .row b{ color:#555; font-weight:600; }
+      .card-body .portal-qr{ flex-shrink:0; text-align:center; }
+      .card-body .portal-qr svg{ display:block; border:1px solid #ddd; border-radius:4px; }
+      .card-body .qr-cap{ font-size:8.5px; color:#777; margin-top:2px; }
       .card-footer{
         background:#f7f7f7; border-top:1px dashed #ccc; padding:8px 16px;
         font-size:9.5px; color:#888; text-align:center;
@@ -5410,8 +5579,9 @@ async function printStudentCard(id){
               <div class="row"><b>الهاتف:</b> ${s.phone||'-'}</div>
               <div class="row"><b>الحالة:</b> ${s.status}</div>
             </div>
+            ${portalQr ? `<div class="portal-qr">${portalQr}<div class="qr-cap">بوابة الطالب</div></div>` : ''}
           </div>
-          <div class="card-footer">${schoolContactLine(s.school)}<br>صالحة طوال فترة التسجيل في المكتب — تاريخ الإصدار: ${todayStr()}</div>
+          <div class="card-footer">${schoolContactLine(s.school)}<br>${portalQr ? 'امسح الرمز لمتابعة حصصك ورصيدك من جوالك — ' : ''}تاريخ الإصدار: ${todayStr()}</div>
         </div>
         <div class="no-print"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة البطاقة</button></div>
       </div>
@@ -6097,7 +6267,7 @@ function saveEditVehicle(){
 function refreshExpenseDropdown(){
   const sel = document.getElementById('ve_vehicle');
   const sel2 = document.getElementById('vd_vehicle');
-  const optionsHtml = state.vehicles.map(v=>`<option value="${v.id}">${v.plate} (#${v.id})</option>`).join('') || '<option value="">لا توجد سيارات</option>';
+  const optionsHtml = state.vehicles.map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('') || '<option value="">لا توجد سيارات</option>';
   if(sel) sel.innerHTML = optionsHtml;
   if(sel2) sel2.innerHTML = optionsHtml;
 }
@@ -6323,12 +6493,17 @@ function suggestLessonPrice(){
 function activeStudentsForSelect(){
   return state.students.filter(s => s.status !== 'متوقف');
 }
+// وصف السيارة في القوائم: اللوحة + الموديل/النوع، ليسهل تمييزها والبحث عنها
+function vehicleOptionLabel(v){
+  const desc = [v.model, v.type].filter(Boolean).join(' ');
+  return v.plate + (desc ? ' — ' + desc : '');
+}
 function refreshLessonDropdowns(){
   const avail = activeStudentsForSelect();
   document.getElementById('ls_student').innerHTML = avail.map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('')
     || (state.students.length ? '<option value="">كل الطلاب متوقفون حالياً</option>' : '<option value="">لا يوجد طلاب</option>');
   document.getElementById('ls_instructor').innerHTML = state.staff.filter(s=>s.role==='مدرب').map(s=>`<option value="${s.id}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
-  document.getElementById('ls_vehicle').innerHTML = state.vehicles.filter(v=>v.status==='متاحة').map(v=>`<option value="${v.id}">${v.plate} (#${v.id})</option>`).join('') || '<option value="">لا توجد سيارات متاحة</option>';
+  document.getElementById('ls_vehicle').innerHTML = state.vehicles.filter(v=>v.status==='متاحة').map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('') || '<option value="">لا توجد سيارات متاحة</option>';
 }
 // آثار إنجاز الحصة: زيادة ساعات الطالب، تثبيت العمولة، وإصدار الفاتورة التلقائية
 function applyLessonCompletionEffects(l){
@@ -6772,7 +6947,7 @@ function openEditLessonModal(id){
     const current = state.vehicles.find(v=>v.id===l.vehicleId);
     if(current) vehicles = [current, ...vehicles];
   }
-  vehicleSel.innerHTML = vehicles.map(v=>`<option value="${v.id}">${v.plate} (#${v.id})</option>`).join('') || '<option value="">لا توجد سيارات</option>';
+  vehicleSel.innerHTML = vehicles.map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('') || '<option value="">لا توجد سيارات</option>';
   vehicleSel.value = l.vehicleId;
 
   document.getElementById('ed_ls_type').value = l.type;
@@ -10768,7 +10943,7 @@ function onReportTypeChange(){
   } else if(type==='vehicleExpenses' || type==='vehicleMovement'){
     wrap.style.display = '';
     label.textContent = 'تصفية حسب السيارة';
-    select.innerHTML = '<option value="">— كل السيارات —</option>' + state.vehicles.map(v=>`<option value="${v.id}">${v.plate}</option>`).join('');
+    select.innerHTML = '<option value="">— كل السيارات —</option>' + state.vehicles.map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('');
   } else if(type==='topInstructors' || type==='commissions' || type==='exams'){
     wrap.style.display = '';
     label.textContent = 'تصفية حسب المدرب';
