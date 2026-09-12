@@ -592,7 +592,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-portal-share</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-nid-unique</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -1358,6 +1358,17 @@ body.field-mode{ padding-bottom:76px; }
     <div class="card">
       <h2>📱 طلبات بوابة الطلاب والمدربين</h2>
       <div id="portalInfo" class="note">جارٍ التحميل…</div>
+      <div class="note" style="margin-top:10px">
+        <label>مقدمة رقم الجوال عند الإرسال عبر واتساب:
+          <select id="portalWaPrefix" onchange="setPortalWaPrefix(this.value)" style="margin-inline-start:6px">
+            <option value="ask">اسأل في كل مرة</option>
+            <option value="970">‎+970 (فلسطين)</option>
+            <option value="972">‎+972</option>
+            <option value="auto">تلقائي حسب بداية الرقم (059/056 ← 970)</option>
+          </select>
+        </label>
+        <span style="color:#7a7a7a"> — تُستخدَم لزر «📤 رابط البوابة» في شاشتي الطلاب والموظفين.</span>
+      </div>
     </div>
     <div class="card">
       <h2>طلبات الحجز من الطلاب <span id="portalBookingsCount" class="badge badge-amber" style="display:none"></span></h2>
@@ -4529,10 +4540,30 @@ function clearTableSearch(inputId, tbodyId, emptyId){
 // ------------------------------------------------------------------
 // الطلاب
 // ------------------------------------------------------------------
+// منع تكرار رقم الهوية بين الطلاب: يُقارَن بالأرقام فقط (يتجاهل الفواصل والمسافات
+// والأرقام العربية والأصفار البادئة) حتى لا يمرّ نفس الرقم بصيغة مختلفة.
+function normalizedNid(v){
+  return String(v || '').replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\D/g, '').replace(/^0+/, '');
+}
+function findStudentByNid(nid, exceptId){
+  const n = normalizedNid(nid);
+  if(!n) return null;
+  return state.students.find(s => String(s.id) !== String(exceptId) && normalizedNid(s.nid) === n) || null;
+}
+function blockDuplicateNid(nid, exceptId){
+  const dup = findStudentByNid(nid, exceptId);
+  if(!dup) return false;
+  const sc = (typeof SCHOOLS === 'object' && SCHOOLS && dup.school && SCHOOLS[dup.school]) ? SCHOOLS[dup.school] : null;
+  const where = sc ? ` (${sc.name || sc.short})` : '';
+  alert(`رقم الهوية «${String(nid).trim()}» مسجَّل بالفعل للطالب: ${dup.name}${where}.\n\nلم يُحفظ الطالب. راجع ملف الطالب الموجود، أو صحّح رقم الهوية.`);
+  return true;
+}
 function addStudent(){
   if(!requireOnlineOrBlock()) return;
   const name = document.getElementById('st_name').value.trim();
   if(!name){ alert('الرجاء إدخال اسم الطالب'); return; }
+  const nidVal = document.getElementById('st_nid').value.trim();
+  if(blockDuplicateNid(nidVal, null)) return;
   const instructorVal = document.getElementById('st_instructor').value;
   const vehicleVal = document.getElementById('st_vehicle').value;
   const newStudent = {
@@ -4662,11 +4693,30 @@ function portalLinkForShare(){
   if(!p || !p.url) return '';
   return p.url + (p.url.includes('?') ? '' : (p.url.endsWith('/' + p.slug) ? '' : '?s=' + p.slug));
 }
-function waPhoneIntl(phone){
+function portalWaPrefixSetting(){
+  const v = state && state.portalWaPrefix;
+  return (v === '970' || v === '972' || v === 'auto') ? v : 'ask';
+}
+function setPortalWaPrefix(v){
+  state.portalWaPrefix = (v === '970' || v === '972' || v === 'auto') ? v : 'ask';
+  saveState();
+}
+function waLocalNumber(phone){
   const d = String(phone || '').replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\D/g, '');
   if(d.length < 9) return '';
-  const n = d.slice(-9);
-  return (/^5[69]/.test(n) ? '970' : '972') + n;   // جوال/أوريدو ← 970، غيرها ← 972
+  return d.slice(-9);
+}
+// مقدمة الرقم الدولية: حسب إعداد المكتب، ومع خيار السؤال في كل مرة
+function waPhoneIntl(phone, personName){
+  const n = waLocalNumber(phone);
+  if(!n) return '';
+  const mode = portalWaPrefixSetting();
+  const guess = /^5[69]/.test(n) ? '970' : '972';
+  if(mode === '970' || mode === '972') return mode + n;
+  if(mode === 'auto') return guess + n;
+  const other = guess === '970' ? '972' : '970';
+  const ok = confirm(`إرسال الرسالة إلى${personName ? ' «' + personName + '»' : ''} على الرقم:\n\n+${guess}${n}\n\nاضغط «موافق» للمتابعة، أو «إلغاء» لاستخدام +${other}${n} بدلاً منه.\n(يمكنك تثبيت المقدمة من تبويب «📱 طلبات البوابة»)`);
+  return (ok ? guess : other) + n;
 }
 function schoolDisplayName(schoolId){
   const info = (typeof getSchoolInfo === 'function') ? getSchoolInfo(schoolId) : (state.schoolInfo || {});
@@ -4682,7 +4732,7 @@ function sendPortalLink(kind, id){
   if(!nid || !person.phone){
     if(!confirm(`تنبيه: ${!nid ? 'رقم الهوية' : 'رقم الجوال'} غير مسجَّل لـ«${person.name}»، ولن يتمكن من الدخول حتى تُكمل بياناته.\nهل تريد إرسال الرابط رغم ذلك؟`)) return;
   }
-  const wa = waPhoneIntl(person.phone);
+  const wa = waPhoneIntl(person.phone, person.name);
   if(!wa){ alert('رقم جوال هذا الشخص غير صالح للإرسال عبر واتساب. صحّحه أولاً من شاشة التعديل.'); return; }
   const school = schoolDisplayName(person.school);
   const lines = kind === 'student'
@@ -4794,6 +4844,7 @@ function saveEditStudent(){
   if(!s) return;
   const name = document.getElementById('ed_st_name').value.trim();
   if(!name){ alert('الرجاء إدخال اسم الطالب'); return; }
+  if(blockDuplicateNid(document.getElementById('ed_st_nid').value.trim(), id)) return;
   s.name = name;
   s.phone = document.getElementById('ed_st_phone').value.trim();
   s.nid = document.getElementById('ed_st_nid').value.trim();
@@ -6376,6 +6427,7 @@ function portalAgo(ts){
 }
 function renderPortalTab(){
   const info = document.getElementById('portalInfo'); if(!info) return;
+  const pfx = document.getElementById('portalWaPrefix'); if(pfx) pfx.value = portalWaPrefixSetting();
   const p = _portal.portal;
   if(!p){ info.innerHTML = 'بوابة الطلاب والمدربين غير مفعّلة لهذا الترخيص. تواصل مع مزوّد البرنامج لتفعيلها.'; }
   else {
