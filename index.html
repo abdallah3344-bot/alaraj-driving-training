@@ -592,7 +592,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-nid-unique</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-activity-all-2</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -2353,7 +2353,9 @@ function fmtNum(value, decimals){
   if(!isFinite(n)) return (0).toFixed(d);
   return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
+let _saveTick = 0;   // يُستخدَم لأرشيف الحركات: تغيّره يعني أن البيانات حُفظت فعلاً
 function saveState(){
+  _saveTick++;
   // مهم: رفع البيانات للخادم يجب أن يحدث دائماً، حتى لو تعطّل التخزين المحلي (ممتلئ/معطّل) —
   // وإلا تبقى كل التعديلات حبيسة هذا التبويب وتُفقد عند إغلاقه.
   if(storageAvailable){
@@ -3458,12 +3460,14 @@ function attemptUnlock(){
   const user = state.users.find(u => u.username.toLowerCase() === username && u.active);
   if(user && simpleHash(password) === user.passwordHash){
     currentUser = user;
+    logAuthEvent('أخرى', 'تسجيل دخول');
     hideLockScreen();
     updateUserBadge();
     buildNav();
     renderAll(); // لضمان ظهور/إخفاء أزرار الصلاحيات (تعديل/حذف) فوراً حسب دور المستخدم الجديد
     if(!canAccessTab(getActiveTabId())){ showTab('home'); }
   } else {
+    logActivity('أخرى', `محاولة دخول فاشلة باسم المستخدم «${username || '—'}»`);
     document.getElementById('lockError').style.display = 'block';
     document.getElementById('lock_password').value = '';
     document.getElementById('lock_password').focus();
@@ -3475,6 +3479,7 @@ function getActiveTabId(){
 }
 function logout(){
   if(!isSecurityEnabled()){ alert('لا توجد حسابات مستخدمين مُعدّة حالياً، فلا يوجد ما يتطلب تسجيل خروج.'); return; }
+  logAuthEvent('أخرى', 'تسجيل خروج');
   currentUser = null;
   updateUserBadge();
   buildNav();
@@ -3593,21 +3598,42 @@ const ACTIVITY_LABELS = {
   lesson:'حصة', lessons:'حصص', exam:'امتحان', exams:'امتحانات', invoice:'فاتورة',
   payment:'سند قبض', receipt:'سند قبض', cheque:'شيك', disbursement:'سند صرف',
   expense:'مصروف', paper:'معاملة رسمية', officialpaper:'معاملة رسمية', user:'مستخدم',
-  price:'تسعيرة', attachment:'مرفق', backup:'نسخة احتياطية', report:'تقرير'
+  price:'تسعيرة', attachment:'مرفق', backup:'نسخة احتياطية', report:'تقرير',
+  booking:'طلب حجز من البوابة', portalbooking:'طلب حجز من البوابة', portalmark:'تسجيل حضور من المدرب',
+  schoolinfo:'بيانات المدرسة', school:'مدرسة', license:'ترخيص', log:'سجل', logs:'سجلات',
+  expenses:'مصاريف', disbursements:'سندات صرف', cheques:'شيكات', instructor:'مدرب',
+  data:'بيانات البرنامج', state:'بيانات البرنامج', portallink:'رابط البوابة',
+  portal:'البوابة', prefix:'مقدمة رقم الجوال', photo:'صورة', card:'بطاقة', form:'نموذج',
+  category:'فئة رخصة', type:'نوع', types:'أنواع', department:'دائرة', departments:'دوائر',
+  status:'الحالة', password:'كلمة المرور', info:'بيانات', settings:'إعدادات', option:'خيار',
+  options:'خيارات', discount:'خصم', commission:'عمولة', pos:'دفع إلكتروني', scan:'مسح هوية',
+  mark:'تسجيل حضور', booking:'طلب حجز', log:'سجل', logs:'سجلات', snapshot:'نسخة احتياطية'
 };
 function activityKindOf(fnName){
-  if(/^(add|create|register|record|new)/i.test(fnName)) return 'إضافة';
-  if(/^(edit|update|save|change|toggle|apply|set|replace|resolve|mark)/i.test(fnName)) return 'تعديل';
-  if(/^(delete|remove|clear|reset)/i.test(fnName)) return 'حذف';
-  if(/^print/i.test(fnName)) return 'طباعة';
+  if(/^(add|create|register|record|new|import|generate|backup)/i.test(fnName)) return 'إضافة';
+  if(/^(edit|update|save|change|toggle|apply|set|replace|resolve|mark|approve|reject|confirm|assign|renew|pay|restore|migrate|merge|finalize|activate|deactivate|suspend|unbind|send)/i.test(fnName)) return 'تعديل';
+  if(/^(delete|remove|clear|reset|cancel|archive)/i.test(fnName)) return 'حذف';
+  if(/^(print|export)/i.test(fnName)) return 'طباعة';
   return 'أخرى';
 }
+// يبني وصفاً عربياً من اسم الدالة: يأخذ آخر كلمة معروفة في الاسم (saveEditStudent → طالب)
 function activityDescribe(fnName){
   const rest = fnName.replace(/^[a-z]+/, '');
-  const key = rest.charAt(0).toLowerCase() + rest.slice(1);
-  const known = ACTIVITY_LABELS[key.toLowerCase()] || ACTIVITY_LABELS[key.toLowerCase().replace(/s$/, '')];
+  const tokens = rest.split(/(?=[A-Z])/).filter(Boolean);
   const kind = activityKindOf(fnName);
-  return known ? `${kind} ${known}` : `${kind} — ${rest || fnName}`;
+  for(let i = tokens.length - 1; i >= 0; i--){
+    const k = tokens[i].toLowerCase();
+    const known = ACTIVITY_LABELS[k] || ACTIVITY_LABELS[k.replace(/s$/, '')];
+    if(known){
+      const extra = tokens.slice(0, i).map(t => ACTIVITY_LABELS[t.toLowerCase()] || '').filter(Boolean).join(' ');
+      return `${kind} ${known}${extra ? ' (' + extra + ')' : ''}`;
+    }
+  }
+  return `${kind} — ${tokens.join(' ') || fnName}`;
+}
+// أحداث لا تمرّ عبر دوال البيانات (دخول/خروج) تُسجَّل صراحة
+function logAuthEvent(kind, description){
+  try{ logActivity(kind, description); saveState(); }catch(_){ }
 }
 function logActivity(kind, description, extra){
   try{
@@ -3629,26 +3655,34 @@ function logActivity(kind, description, extra){
   }catch(_){ }
 }
 // تغليف تلقائي لدوال العمليات: أي دالة عامة اسمها يبدأ بـ add/edit/delete… تُسجَّل عند نجاحها
-const ACTIVITY_SKIP = /^(addEventListener|addActivity|logActivity|renderActivity|setActivityRange|printActivityLog|saveState|scheduleSync|applyPrintTypography|updateSyncBadge|setTimeout|setInterval|removeChannel|removeEventListener|resetBranch)/;
+const ACTIVITY_SKIP = /^(addEventListener|addActivity|logActivity|renderActivity|setActivityRange|printActivityLog|saveState|scheduleSync|applyPrintTypography|updateSyncBadge|setTimeout|setInterval|setAttribute|removeChannel|removeEventListener|removeAttribute|resetBranch|markRaw|updateLicenseStatusBadge|updatePortalBadge|setLastSelectedSchool|createElement|createObjectURL|newId|createClient)/;
+// كل فعل يغيّر البيانات — وليس فقط add/edit/delete
+let _activityDepth = 0;   // عمق تداخل الدوال أثناء تسجيل الحركات
+const ACTIVITY_VERBS = /^(add|create|register|record|new|edit|update|change|toggle|delete|remove|resolve|mark|replace|save|apply|approve|reject|confirm|cancel|assign|renew|pay|import|restore|archive|finalize|generate|send|migrate|merge|set|unbind|activate|deactivate|suspend|print|export|backup)[A-Z]/;
 function installActivityLogging(){
   const names = Object.getOwnPropertyNames(window).filter(n=>
-    /^(add|create|register|record|new|edit|update|change|toggle|delete|remove|resolve|mark|replace)[A-Z]/.test(n)
-    && typeof window[n] === 'function' && !ACTIVITY_SKIP.test(n));
+    ACTIVITY_VERBS.test(n) && typeof window[n] === 'function' && !ACTIVITY_SKIP.test(n));
   names.forEach(n=>{
     const orig = window[n];
     if(orig.__activityWrapped) return;
+    const isPrint = /^(print|export)/i.test(n);
     const wrapped = function(...args){
-      const before = (state.activityLog||[]).length;
-      const countBefore = JSON.stringify(state).length;
-      const out = orig.apply(this, args);
+      // تُسجَّل الحركة الخارجية فقط (addLesson مثلاً)، لا الدوال الداخلية التي تستدعيها،
+      // فلا تختفي الحركة الأصلية خلف عملية فرعية ولا تتكرر السطور لعملية واحدة.
+      const outermost = (_activityDepth === 0);
+      _activityDepth++;
+      const tickBefore = _saveTick;
+      let out;
+      try{ out = orig.apply(this, args); }
+      finally{ if(!(out && typeof out.then === 'function')) _activityDepth--; }
       const finish = ()=>{
-        // نسجّل فقط إن تغيّرت البيانات فعلاً (تفادي تسجيل عمليات أُلغيت أو فشل تحققها)
-        if(JSON.stringify(state).length !== countBefore && (state.activityLog||[]).length === before){
+        if(outermost && (isPrint || _saveTick !== tickBefore)){
           logActivity(activityKindOf(n), activityDescribe(n));
         }
       };
-      if(out && typeof out.then === 'function'){ out.then(finish).catch(()=>{}); }
-      else finish();
+      if(out && typeof out.then === 'function'){
+        out.then(()=>{ _activityDepth--; finish(); }).catch(()=>{ _activityDepth--; });
+      } else finish();
       return out;
     };
     wrapped.__activityWrapped = true;
