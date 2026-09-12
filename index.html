@@ -417,7 +417,8 @@ body.field-mode{ padding-bottom:76px; }
     <div id="lg_trial_request" style="display:none;">
       <div style="font-size:19px; font-weight:800; margin-top:14px;">📱 أدخل رقم جوالك</div>
       <div class="note" style="margin-bottom:16px;">إذا كان رقمك مسجّلاً على ترخيص سنطلب منك مفتاح الترخيص، وإلا يُرسَل طلب نسخة تجريبية للمراجعة. في الحالتين يحتاج الجهاز موافقة الإدارة قبل الدخول.</div>
-      <input id="lg_trial_phone_input" class="lock-input" type="tel" placeholder="رقم الجوال" autocomplete="off" style="text-align:center;" onkeydown="if(event.key==='Enter') requestTrial();">
+      <input id="lg_trial_phone_input" class="lock-input" type="tel" placeholder="رقم الجوال" autocomplete="off" style="text-align:center;" onkeydown="if(event.key==='Enter') document.getElementById('lg_trial_school_input').focus();">
+      <input id="lg_trial_school_input" class="lock-input" type="text" placeholder="اسم المدرسة" autocomplete="off" maxlength="120" style="text-align:center; margin-top:10px; display:none;" onkeydown="if(event.key==='Enter') requestTrial();">
       <div id="lg_trial_request_error" style="color:var(--danger); font-size:12.5px; margin-top:8px; display:none;"></div>
       <button class="btn btn-accent" style="width:100%; margin-top:14px;" onclick="requestTrial()">متابعة ←</button>
       <span style="color:var(--muted); font-size:12px; margin-top:14px; display:inline-block; cursor:pointer; text-decoration:underline;" onclick="showActivateForm()">لديك مفتاح ترخيص؟ فعّله مباشرة</span>
@@ -591,7 +592,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-key-migration</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-trial-school-name-2</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -2378,6 +2379,7 @@ const FACEBOOK_QR_DATA_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAXIA
 const TRIAL_DAYS = 7;                         // مدة الفترة التجريبية بدون مفتاح تفعيل
 let DEVICE_ID_STORAGE = 'alaraj_device_id';
 let LICENSE_KEY_STORAGE = 'alaraj_license_key';
+let LICENSE_CLIENT_NAME_STORAGE = 'license_client_name';
 let LICENSE_PHONE_STORAGE = 'alaraj_license_phone';
 
 function getDeviceId(){
@@ -3059,7 +3061,8 @@ async function verifyLicenseWithServer(){
       p_device_id: deviceId,
       p_license_key: storedKey || null,
       p_app_version: currentAppVersion(),
-      p_phone: storedPhone || null
+      p_phone: storedPhone || null,
+      p_client_name: (localStorage.getItem(LICENSE_CLIENT_NAME_STORAGE) || '').trim() || null
     })
   });
   if(!res.ok) await throwSupabaseError(res, 'التحقق من الترخيص');
@@ -3169,9 +3172,13 @@ async function runLicenseCheck(){
 }
 async function requestTrial(){
   const phone = document.getElementById('lg_trial_phone_input').value.trim();
+  const schoolName = document.getElementById('lg_trial_school_input').value.trim();
   const errEl = document.getElementById('lg_trial_request_error');
   if(!phone){ errEl.textContent = 'الرجاء إدخال رقم الجوال'; errEl.style.display='block'; return; }
+  const schoolEl = document.getElementById('lg_trial_school_input');
+  if(schoolEl.style.display !== 'none' && !schoolName){ errEl.textContent = 'الرجاء إدخال اسم المدرسة'; errEl.style.display='block'; return; }
   localStorage.setItem(LICENSE_PHONE_STORAGE, phone);
+  if(schoolName) localStorage.setItem(LICENSE_CLIENT_NAME_STORAGE, schoolName);
   errEl.style.display = 'none';
   showLicenseGateState('lg_checking');
   try{
@@ -3189,6 +3196,12 @@ async function requestTrial(){
       showLicenseGateState('lg_trial_pending');
     } else if(result.state==='key_required'){
       showKeyRequiredForm(result.message);
+    } else if(result.state==='name_required'){
+      showLicenseGateState('lg_trial_request');
+      const el = document.getElementById('lg_trial_school_input');
+      el.style.display = ''; el.focus();
+      errEl.textContent = result.message || 'أدخل اسم مدرستك لإكمال الطلب.';
+      errEl.style.display = 'block';
     } else {
       errEl.textContent = result.message || 'تعذّر إرسال طلب التجربة';
       errEl.style.display = 'block';
