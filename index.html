@@ -415,11 +415,11 @@ body.field-mode{ padding-bottom:76px; }
 
     <!-- حالة: طلب رقم جوال لأول مرة لبدء نسخة تجريبية (لا يوجد مفتاح مخزَّن) -->
     <div id="lg_trial_request" style="display:none;">
-      <div style="font-size:19px; font-weight:800; margin-top:14px;">📱 طلب نسخة تجريبية</div>
-      <div class="note" style="margin-bottom:16px;">أدخل رقم جوالك لطلب نسخة تجريبية — يحتاج الطلب موافقة قبل التفعيل.</div>
+      <div style="font-size:19px; font-weight:800; margin-top:14px;">📱 أدخل رقم جوالك</div>
+      <div class="note" style="margin-bottom:16px;">إذا كان رقمك مسجّلاً على ترخيص سنطلب منك مفتاح الترخيص، وإلا يُرسَل طلب نسخة تجريبية للمراجعة. في الحالتين يحتاج الجهاز موافقة الإدارة قبل الدخول.</div>
       <input id="lg_trial_phone_input" class="lock-input" type="tel" placeholder="رقم الجوال" autocomplete="off" style="text-align:center;" onkeydown="if(event.key==='Enter') requestTrial();">
       <div id="lg_trial_request_error" style="color:var(--danger); font-size:12.5px; margin-top:8px; display:none;"></div>
-      <button class="btn btn-accent" style="width:100%; margin-top:14px;" onclick="requestTrial()">إرسال طلب التجربة ←</button>
+      <button class="btn btn-accent" style="width:100%; margin-top:14px;" onclick="requestTrial()">متابعة ←</button>
       <span style="color:var(--muted); font-size:12px; margin-top:14px; display:inline-block; cursor:pointer; text-decoration:underline;" onclick="showActivateForm()">لديك مفتاح ترخيص؟ فعّله مباشرة</span>
     </div>
 
@@ -429,6 +429,15 @@ body.field-mode{ padding-bottom:76px; }
       <div class="note" id="lg_trial_pending_msg" style="margin-bottom:18px;">تم إرسال طلب النسخة التجريبية، وسيتم تفعيلها بعد المراجعة والموافقة.</div>
       <button class="btn btn-accent" style="width:100%;" onclick="runLicenseCheck()">🔄 تحقّق الآن</button>
       <button class="btn" style="width:100%; margin-top:10px; background:#25D366; border-color:#25D366; color:#fff;" onclick="openWhatsAppSupport('طلب تسريع الموافقة على النسخة التجريبية')">📱 تواصل عبر واتساب لتسريع الموافقة</button>
+    </div>
+
+    <!-- حالة: جهاز جديد على ترخيص قائم بانتظار موافقة الإدارة -->
+    <div id="lg_device_pending" style="display:none;">
+      <div style="font-size:19px; font-weight:800; margin-top:14px; color:var(--accent-2);">⏳ الجهاز بانتظار الموافقة</div>
+      <div class="note" id="lg_device_pending_msg" style="margin-bottom:18px;">طلب تفعيل هذا الجهاز بانتظار موافقة الإدارة.</div>
+      <button class="btn btn-accent" style="width:100%;" onclick="runLicenseCheck()">🔄 تحقّق الآن</button>
+      <button class="btn" style="width:100%; margin-top:10px; background:#25D366; border-color:#25D366; color:#fff;" onclick="openWhatsAppSupport('طلب الموافقة على تفعيل جهاز جديد')">📱 تواصل عبر واتساب لتسريع الموافقة</button>
+      <span style="color:var(--muted); font-size:12px; margin-top:14px; display:inline-block; cursor:pointer; text-decoration:underline;" onclick="showActivateForm()">استخدام مفتاح ترخيص آخر</span>
     </div>
 
     <!-- حالة: يتطلب إدخال / تفعيل مفتاح -->
@@ -582,7 +591,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-11-school-name</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-key-migration</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -849,6 +858,27 @@ body.field-mode{ padding-bottom:76px; }
 </div>
 
 <!-- نافذة تعديل حصة مجدولة -->
+<!-- نافذة الموافقة على طلب حجز من البوابة وجدولته -->
+<div id="portalApproveModal" class="modal-overlay">
+  <div class="modal-box card">
+    <h2>✅ تأكيد موعد الحصة</h2>
+    <div id="pa_summary" class="note" style="margin-bottom:10px;"></div>
+    <div class="form-grid">
+      <div class="field"><label>المدرب</label><select id="pa_instructor"></select></div>
+      <div class="field"><label>السيارة</label><select id="pa_vehicle" onchange="portalSuggestPrice()"></select></div>
+      <div class="field"><label>التاريخ</label><input id="pa_date" type="date"></div>
+      <div class="field"><label>الوقت</label><input id="pa_time" type="time"></div>
+      <div class="field"><label>المدة (دقيقة)</label><input id="pa_duration" type="number" step="5" oninput="portalSuggestPrice()"></div>
+      <div class="field"><label>سعر الحصة</label><input id="pa_price" type="number" step="0.01"></div>
+    </div>
+    <div class="note" style="margin-top:8px;">تُنشأ الحصة بحالة "مجدول" وتظهر فوراً للطالب والمدرب في البوابة. لا فاتورة ولا عمولة حتى تُنجَز.</div>
+    <div class="form-actions">
+      <button class="btn btn-accent" id="pa_save" onclick="confirmPortalBooking()">✅ تأكيد الموعد</button>
+      <button class="btn" onclick="closePortalApproveModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <div id="editLessonModal" class="modal-overlay">
   <div class="modal-box card">
     <h2>✏ تعديل الحصة</h2>
@@ -1322,6 +1352,43 @@ body.field-mode{ padding-bottom:76px; }
   </section>
 
   <!-- تبويب جدولة الدروس -->
+  <!-- تبويب طلبات بوابة الطلاب والمدربين -->
+  <section class="tab" id="tab-portal">
+    <div class="card">
+      <h2>📱 طلبات بوابة الطلاب والمدربين</h2>
+      <div id="portalInfo" class="note">جارٍ التحميل…</div>
+    </div>
+    <div class="card">
+      <h2>طلبات الحجز من الطلاب <span id="portalBookingsCount" class="badge badge-amber" style="display:none"></span></h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>الطالب</th><th>اليوم المطلوب</th><th>الفترة</th><th>ملاحظة الطالب</th><th>أُرسل</th><th></th></tr></thead>
+        <tbody id="portalBookingsBody"></tbody>
+      </table></div>
+      <div id="portalBookingsEmpty" class="empty" style="display:none">لا توجد طلبات حجز بانتظار الرد</div>
+    </div>
+    <div class="card">
+      <h2>تسجيلات المدربين للحصص المجدولة <span id="portalMarksCount" class="badge badge-amber" style="display:none"></span></h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>الطالب</th><th>المدرب</th><th>الموعد</th><th>سجّل المدرب</th><th>ملاحظة</th><th></th></tr></thead>
+        <tbody id="portalMarksBody"></tbody>
+      </table></div>
+      <div id="portalMarksEmpty" class="empty" style="display:none">لا توجد تسجيلات بانتظار الاعتماد</div>
+      <div class="note" style="margin-top:10px;">"اعتماد" لحصة تمّت يعمل تماماً كزر "✅ إنجاز": تُحتسَب ساعات الطالب وعمولة المدرب وتُصدَر الفاتورة. واعتماد "لم يحضر" يلغي الحصة بلا فاتورة.</div>
+    </div>
+    <div class="card">
+      <h2>الحصص المجدولة القادمة</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>الطالب</th><th>المدرب</th><th>السيارة</th><th>الموعد</th><th>المدة</th><th>السعر</th><th></th></tr></thead>
+        <tbody id="portalScheduledBody"></tbody>
+      </table></div>
+      <div id="portalScheduledEmpty" class="empty" style="display:none">لا توجد حصص مجدولة</div>
+    </div>
+    <div class="card">
+      <h2>آخر الردود (7 أيام)</h2>
+      <div id="portalRecent" class="note">—</div>
+    </div>
+  </section>
+
   <section class="tab" id="tab-lessons">
     <div class="card">
       <h2>تسجيل حصة جديدة</h2>
@@ -2481,6 +2548,8 @@ function initRealtimeSync(){
       lastLocalEditAt = 0;
       await pollForRemoteUpdates(true, true);
     });
+    // بوابة الطلاب والمدربين: طلب حجز أو تسجيل حضور جديد ← نحدّث القائمة والعدّاد فوراً
+    _syncChannel.on('broadcast', { event: 'portal_request' }, ()=>{ if(typeof loadPortalRequests==='function') loadPortalRequests(true); });
     // Presence: عدد الأجهزة المفتوحة على نفس الترخيص
     _syncChannel.on('presence', { event: 'sync' }, ()=>{
       try{
@@ -2998,9 +3067,15 @@ async function verifyLicenseWithServer(){
 }
 
 function showLicenseGateState(id){
-  ['lg_checking','lg_network_error','lg_activate','lg_trial_active','lg_trial_request','lg_trial_pending'].forEach(s=>{
+  ['lg_checking','lg_network_error','lg_activate','lg_trial_active','lg_trial_request','lg_trial_pending','lg_device_pending'].forEach(s=>{
     document.getElementById(s).style.display = (s===id) ? '' : 'none';
   });
+}
+function showKeyRequiredForm(message){
+  document.getElementById('lg_activate_title').textContent = '🔑 أدخل مفتاح الترخيص';
+  document.getElementById('lg_activate_sub').textContent = message || 'رقم الجوال هذا مرتبط بترخيص قائم. أدخل مفتاح الترخيص لطلب تفعيل هذا الجهاز.';
+  showActivateForm();
+  document.getElementById('lg_phone_input').value = (localStorage.getItem(LICENSE_PHONE_STORAGE) || '').trim();
 }
 function showActivateForm(mode){
   showLicenseGateState('lg_activate');
@@ -3035,6 +3110,8 @@ async function runLicenseCheck(){
     if(result.ok && result.state==='licensed_valid'){
       currentLicenseInfo = result;
       updateLicenseStatusBadge();
+      // لو تغيّر مفتاح الترخيص من لوحة التحكم، يُحدَّث تلقائياً على الجهاز المعروف
+      if(result.licenseKey) localStorage.setItem(LICENSE_KEY_STORAGE, result.licenseKey);
       showLicenseGateState('lg_checking');
       document.getElementById('lg_checking_title').textContent = '🔄 جارٍ مزامنة بياناتك...';
       await initDataSync();
@@ -3054,6 +3131,15 @@ async function runLicenseCheck(){
     } else if(result.state==='trial_pending'){
       document.getElementById('lg_trial_pending_msg').textContent = result.message || 'طلبك لا يزال قيد المراجعة.';
       showLicenseGateState('lg_trial_pending');
+    } else if(result.state==='device_pending'){
+      document.getElementById('lg_device_pending_msg').textContent = result.message || 'طلب تفعيل هذا الجهاز بانتظار موافقة الإدارة.';
+      showLicenseGateState('lg_device_pending');
+    } else if(result.state==='device_rejected'){
+      document.getElementById('lg_activate_title').textContent = '🚫 تم رفض تفعيل هذا الجهاز';
+      document.getElementById('lg_activate_sub').textContent = result.message;
+      showActivateForm();
+    } else if(result.state==='key_required'){
+      showKeyRequiredForm(result.message);
     } else if(result.state==='phone_required' && !(localStorage.getItem(LICENSE_KEY_STORAGE)||'').trim()){
       // لا يوجد مفتاح مخزَّن إطلاقاً — هذا أول تشغيل، فالمطلوب طلب تجربة جديدة بالهاتف فقط
       document.getElementById('lg_trial_request_error').style.display = 'none';
@@ -3101,6 +3187,8 @@ async function requestTrial(){
     } else if(result.state==='trial_pending'){
       document.getElementById('lg_trial_pending_msg').textContent = result.message || 'تم إرسال طلبك، بانتظار الموافقة.';
       showLicenseGateState('lg_trial_pending');
+    } else if(result.state==='key_required'){
+      showKeyRequiredForm(result.message);
     } else {
       errEl.textContent = result.message || 'تعذّر إرسال طلب التجربة';
       errEl.style.display = 'block';
@@ -3126,11 +3214,16 @@ async function activateLicense(){
     if(result.ok && result.state==='licensed_valid'){
       currentLicenseInfo = result;
       updateLicenseStatusBadge();
+      if(result.licenseKey) localStorage.setItem(LICENSE_KEY_STORAGE, result.licenseKey);
       document.getElementById('lg_checking_title').textContent = '🔄 جارٍ مزامنة بياناتك...';
       showLicenseGateState('lg_checking');
       await initDataSync();
       document.getElementById('lg_checking_title').textContent = '🔄 جارٍ التحقق من الترخيص...';
       proceedAfterLicense();
+    } else if(result.state==='device_pending'){
+      // المفتاح صحيح والجهاز سُجّل بانتظار الموافقة: نُبقي المفتاح والجوال ليُعاد التحقق تلقائياً عند الفتح
+      document.getElementById('lg_device_pending_msg').textContent = result.message || 'طلب تفعيل هذا الجهاز بانتظار موافقة الإدارة.';
+      showLicenseGateState('lg_device_pending');
     } else {
       localStorage.removeItem(LICENSE_KEY_STORAGE); // لا نبقي مفتاحاً غير صالح مخزَّناً
       if(previousPhone) localStorage.setItem(LICENSE_PHONE_STORAGE, previousPhone);
@@ -3253,6 +3346,7 @@ function proceedAfterLicense(){
   document.getElementById('licenseGateScreen').classList.remove('show');
   if(isSecurityEnabled()){ showLockScreen(); }
   initScanPipeline();
+  setTimeout(()=>{ if(typeof loadPortalRequests==='function') loadPortalRequests(true); }, 2500);
 }
 
 // ------------------------------------------------------------------
@@ -3624,6 +3718,7 @@ const TABS = [
   {id:'expenses', label:'🏢 مصاريف المكتب'},
   {id:'pricing', label:'💲 تسعير الدروس'},
   {id:'lessons', label:'📅 جدولة الدروس'},
+  {id:'portal', label:'📱 طلبات البوابة'},
   {id:'exams', label:'📝 الامتحانات'},
   {id:'invoices', label:'💵 الفواتير والمدفوعات'},
   {id:'cheques', label:'🏦 متابعة الشيكات'},
@@ -3644,7 +3739,7 @@ const ROLES = {
 };
 // صلاحيات المحاسب وموظف الاستقبال مدموجة في مجموعة واحدة (بطلب المستخدم):
 // كلا الدورين يصل إلى الشاشات المالية والتشغيلية معاً.
-const STAFF_TABS = ['home','students','staff','vehicles','expenses','pricing','lessons','exams',
+const STAFF_TABS = ['home','students','staff','vehicles','expenses','pricing','lessons','portal','exams',
                     'invoices','cheques','officialpapers','statement','receivables','reports'];
 const ROLE_TABS = {
   accountant: STAFF_TABS,
@@ -3851,6 +3946,7 @@ function buildNav(){
   const nav = document.getElementById('tabNav');
   const visibleTabs = TABS.filter(t => !isSecurityEnabled() || !currentUser || canAccessTab(t.id));
   nav.innerHTML = visibleTabs.map((t,i)=>`<button class="${i===0?'active':''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`).join('');
+  if(typeof updatePortalBadge === 'function') updatePortalBadge();
 }
 function showTab(id){
   if(isSecurityEnabled() && currentUser && !canAccessTab(id)){
@@ -3866,6 +3962,7 @@ function showTab(id){
   if(id==='vehicles'){ refreshExpenseDropdown(); }
   if(id==='pricing'){ onPricingLessonTypeChange(); }
   if(id==='lessons'){ refreshLessonDropdowns(); }
+  if(id==='portal'){ loadPortalRequests(); }
   if(id==='exams'){ refreshExamDropdowns(); renderExamCalendar(); onExamTypeChange(); }
   if(id==='receivables'){ renderReceivables(); }
   if(typeof markFieldQuickBar === 'function') markFieldQuickBar('tab-' + id);
@@ -6100,6 +6197,210 @@ function renderCommissionRates(){
     </tr>`).join('');
   document.getElementById('commissionRatesEmpty').style.display = state.commissionRates.length? 'none':'block';
 }
+// ==================================================================
+// بوابة الطلاب والمدربين — المكتب وحده يكتب في بيانات البرنامج.
+// البوابة ترسل طلبات حجز وتسجيلات حضور إلى جداول منفصلة، والمكتب يعتمدها هنا
+// عبر نفس دوال البرنامج (حصة "مجدول" ← "✅ إنجاز" / "إلغاء").
+// ==================================================================
+let _portal = { portal:null, bookings:[], marks:[] };
+let _portalApproveId = null;
+const PORTAL_PERIOD_TIME = { 'صباحاً':'09:00', 'ظهراً':'12:00', 'مساءً':'16:00', 'أي وقت':'10:00' };
+function portalEsc(v){ return String(v==null?'':v).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function portalCall(action, extra){
+  const license_key = (localStorage.getItem(LICENSE_KEY_STORAGE) || '').trim();
+  if(!license_key) throw new Error('no_license');
+  const r = await fetch(SUPABASE_URL + '/functions/v1/portal', { method:'POST',
+    headers:{ 'Content-Type':'application/json', Authorization:'Bearer ' + SUPABASE_ANON_KEY, apikey: SUPABASE_ANON_KEY },
+    body: JSON.stringify(Object.assign({ action, program: LICENSE_PROGRAM, license_key }, extra || {})) });
+  let j = {}; try{ j = await r.json(); }catch(_){ }
+  if(!r.ok){ const e = new Error(j.error || ('http_' + r.status)); e.code = j.error; throw e; }
+  return j;
+}
+function portalPendingCount(){
+  return _portal.bookings.filter(b=>b.status==='pending').length + _portal.marks.filter(m=>m.status==='pending').length;
+}
+function updatePortalBadge(){
+  const btn = document.querySelector('#tabNav button[data-tab="portal"]');
+  if(!btn) return;
+  const n = portalPendingCount();
+  let b = btn.querySelector('.portal-badge');
+  if(!n){ if(b) b.remove(); return; }
+  if(!b){ b = document.createElement('span'); b.className = 'portal-badge';
+    b.style.cssText = 'display:inline-block;min-width:20px;padding:0 6px;margin-inline-start:6px;border-radius:10px;background:#c0392b;color:#fff;font-size:12px;font-weight:700;text-align:center;line-height:20px;';
+    btn.appendChild(b); }
+  b.textContent = n;
+}
+let _portalLoading = false;
+async function loadPortalRequests(silent){
+  if(_portalLoading) return; _portalLoading = true;
+  try{
+    _portal = await portalCall('office_list');
+    await autoResolveStalePortalMarks();
+    updatePortalBadge();
+    renderPortalTab();
+  }catch(err){
+    if(!silent){ const el = document.getElementById('portalInfo'); if(el) el.textContent = '⚠️ تعذّر تحميل طلبات البوابة: ' + (navigator.onLine ? (err.code || err.message) : 'لا يوجد اتصال بالإنترنت'); }
+  }finally{ _portalLoading = false; }
+}
+// تسجيل مدرب لحصة لم تعد "مجدول" (أنجزها أو ألغاها المكتب من شاشة الحصص) يُغلَق تلقائياً
+async function autoResolveStalePortalMarks(){
+  for(const m of _portal.marks.filter(m=>m.status==='pending')){
+    const l = state.lessons.find(x=>String(x.id)===String(m.lesson_id));
+    if(!l || l.status !== 'مجدول'){
+      try{ await portalCall('office_mark', { id: m.id, status: 'applied' }); m.status = 'applied'; m.resolved_at = new Date().toISOString(); }catch(_){ }
+    }
+  }
+}
+function portalDate(d){ return d ? String(d).slice(0,10) : ''; }
+function portalAgo(ts){
+  if(!ts) return '';
+  const m = Math.round((Date.now() - new Date(ts).getTime())/60000);
+  if(m < 1) return 'الآن'; if(m < 60) return 'قبل ' + m + ' د'; const h = Math.round(m/60); if(h < 24) return 'قبل ' + h + ' س';
+  return new Date(ts).toISOString().slice(0,10);
+}
+function renderPortalTab(){
+  const info = document.getElementById('portalInfo'); if(!info) return;
+  const p = _portal.portal;
+  if(!p){ info.innerHTML = 'بوابة الطلاب والمدربين غير مفعّلة لهذا الترخيص. تواصل مع مزوّد البرنامج لتفعيلها.'; }
+  else {
+    const link = p.url ? (p.url + (p.url.includes('?') ? '' : '?s=' + p.slug)) : '';
+    info.innerHTML = (p.enabled ? '✅ البوابة مفعّلة.' : '⏸ البوابة موقوفة حالياً (لا يستطيع الطلاب الدخول).')
+      + (link ? ` رابط البوابة للطلاب والمدربين: <a href="${portalEsc(link)}" target="_blank" rel="noopener">${portalEsc(link)}</a>
+          <button class="btn" style="padding:2px 10px" onclick="navigator.clipboard && navigator.clipboard.writeText('${portalEsc(link)}').then(()=>alert('تم نسخ الرابط'))">📋 نسخ</button>` : ` رمز المدرسة في البوابة: <b>${portalEsc(p.slug)}</b>`)
+      + '<br>يدخل الطالب برقم هويته وجواله المسجّلين هنا، والمدرب برقم هويته وجواله في شاشة الموظفين.';
+  }
+  // طلبات الحجز
+  const pend = _portal.bookings.filter(b=>b.status==='pending');
+  document.getElementById('portalBookingsBody').innerHTML = pend.map(b=>{
+    const st = state.students.find(s=>String(s.id)===String(b.student_id));
+    return `<tr>
+      <td>${portalEsc(st ? st.name : (b.student_name || ('#' + b.student_id)))}${st && st.phone ? `<br><small>${portalEsc(st.phone)}</small>` : ''}${st ? '' : '<br><small style="color:#c0392b">الطالب غير موجود في البرنامج</small>'}</td>
+      <td>${portalEsc(portalDate(b.preferred_date))}</td><td>${portalEsc(b.period)}</td><td>${portalEsc(b.note || '—')}</td><td>${portalEsc(portalAgo(b.created_at))}</td>
+      <td class="row-actions">${st ? `<button class="btn btn-accent" onclick="openPortalApproveModal(${b.id})">✅ تأكيد وجدولة</button>` : ''}
+        <button class="btn btn-danger" onclick="rejectPortalBooking(${b.id})">رفض</button></td></tr>`;
+  }).join('');
+  document.getElementById('portalBookingsEmpty').style.display = pend.length ? 'none' : 'block';
+  const bc = document.getElementById('portalBookingsCount'); bc.style.display = pend.length ? '' : 'none'; bc.textContent = pend.length;
+  // تسجيلات المدربين
+  const pm = _portal.marks.filter(m=>m.status==='pending');
+  document.getElementById('portalMarksBody').innerHTML = pm.map(m=>{
+    const l = state.lessons.find(x=>String(x.id)===String(m.lesson_id));
+    return `<tr>
+      <td>${l ? portalEsc(nameOf(state.students, l.studentId)) : '—'}</td><td>${l ? portalEsc(nameOf(state.staff, l.instructorId)) : '—'}</td>
+      <td>${l ? portalEsc(String(l.datetime).replace('T',' ')) : '—'}</td>
+      <td>${m.mark==='done' ? '<span class="badge badge-green">تمّت</span>' : '<span class="badge badge-red">لم يحضر الطالب</span>'}</td>
+      <td>${portalEsc(m.note || '—')}</td>
+      <td class="row-actions"><button class="btn btn-accent" onclick="applyPortalMark(${m.id})">اعتماد</button>
+        <button class="btn" onclick="dismissPortalMark(${m.id})">تجاهل</button></td></tr>`;
+  }).join('');
+  document.getElementById('portalMarksEmpty').style.display = pm.length ? 'none' : 'block';
+  const mc = document.getElementById('portalMarksCount'); mc.style.display = pm.length ? '' : 'none'; mc.textContent = pm.length;
+  // الحصص المجدولة (من البوابة أو غيرها)
+  const sched = state.lessons.filter(l=>l.status==='مجدول').sort((a,b)=>String(a.datetime).localeCompare(String(b.datetime)));
+  document.getElementById('portalScheduledBody').innerHTML = sched.map(l=>`<tr>
+      <td>${portalEsc(nameOf(state.students,l.studentId))}${l.portalRequestId ? ' <span class="badge badge-amber">من البوابة</span>' : ''}</td>
+      <td>${portalEsc(nameOf(state.staff,l.instructorId))}</td><td>${portalEsc(nameOf(state.vehicles,l.vehicleId))}</td>
+      <td>${portalEsc(String(l.datetime).replace('T',' '))}</td><td>${portalEsc(l.duration)}</td><td>${fmtNum(l.price||0, 2)}</td>
+      <td class="row-actions"><button class="btn" onclick="openEditLessonModal(${l.id})">✏ تعديل</button>
+        <button class="btn" onclick="if(requireOnlineOrBlock()){ changeLessonStatus(${l.id},'منجز'); renderPortalTab(); }">✅ إنجاز</button>
+        <button class="btn btn-danger" onclick="if(requireOnlineOrBlock() && confirm('إلغاء هذه الحصة المجدولة؟')){ changeLessonStatus(${l.id},'ملغى'); renderPortalTab(); }">إلغاء</button></td></tr>`).join('');
+  document.getElementById('portalScheduledEmpty').style.display = sched.length ? 'none' : 'block';
+  // آخر الردود
+  const LBL = { approved:'✅ أُكِّد', rejected:'❌ رُفض', cancelled:'↩ ألغاه الطالب', applied:'✅ اعتُمد', dismissed:'تُجوهل' };
+  const recent = [
+    ..._portal.bookings.filter(b=>b.status!=='pending').map(b=>({ at:b.resolved_at, t:`طلب حجز ${b.student_name || ''} ليوم ${portalDate(b.preferred_date)}: ${LBL[b.status] || b.status}${b.office_note ? ' — ' + b.office_note : ''}` })),
+    ..._portal.marks.filter(m=>m.status!=='pending').map(m=>{ const l = state.lessons.find(x=>String(x.id)===String(m.lesson_id));
+      return { at:m.resolved_at, t:`تسجيل مدرب لحصة ${l ? nameOf(state.students,l.studentId) : '#' + m.lesson_id} (${m.mark==='done'?'تمّت':'لم يحضر'}): ${LBL[m.status] || m.status}` }; }),
+  ].sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+  document.getElementById('portalRecent').innerHTML = recent.length ? recent.map(r=>`<div>${portalEsc(r.t)} <small style="color:var(--muted)">${portalEsc(portalAgo(r.at))}</small></div>`).join('') : 'لا توجد ردود خلال آخر 7 أيام.';
+}
+function openPortalApproveModal(id){
+  const b = _portal.bookings.find(x=>x.id===id); if(!b) return;
+  const st = state.students.find(s=>String(s.id)===String(b.student_id)); if(!st){ alert('الطالب غير موجود في البرنامج'); return; }
+  _portalApproveId = id;
+  document.getElementById('pa_summary').innerHTML = `الطالب: <b>${portalEsc(st.name)}</b> — طلب يوم ${portalEsc(portalDate(b.preferred_date))} (${portalEsc(b.period)})${b.note ? '<br>ملاحظته: ' + portalEsc(b.note) : ''}`;
+  const trainers = state.staff.filter(s=>s.role==='مدرب');
+  document.getElementById('pa_instructor').innerHTML = trainers.map(s=>`<option value="${s.id}">${portalEsc(s.name)}</option>`).join('');
+  const vehicles = state.vehicles.filter(v=>v.status==='متاحة' || v.id===st.preferredVehicleId);
+  document.getElementById('pa_vehicle').innerHTML = vehicles.map(v=>`<option value="${v.id}">${portalEsc(v.plate)}${v.model ? ' — ' + portalEsc(v.model) : ''}</option>`).join('');
+  if(st.preferredInstructorId && trainers.some(t=>t.id===st.preferredInstructorId)) document.getElementById('pa_instructor').value = st.preferredInstructorId;
+  if(st.preferredVehicleId && vehicles.some(v=>v.id===st.preferredVehicleId)) document.getElementById('pa_vehicle').value = st.preferredVehicleId;
+  document.getElementById('pa_date').value = portalDate(b.preferred_date);
+  document.getElementById('pa_time').value = PORTAL_PERIOD_TIME[b.period] || '10:00';
+  document.getElementById('pa_duration').value = (typeof SHORT_LESSON_DURATION_LICENSES !== 'undefined' && SHORT_LESSON_DURATION_LICENSES.includes(st.license)) ? 30 : 40;
+  document.getElementById('pa_price').value = '';
+  portalSuggestPrice();
+  document.getElementById('portalApproveModal').classList.add('show');
+}
+function closePortalApproveModal(){ document.getElementById('portalApproveModal').classList.remove('show'); _portalApproveId = null; }
+function portalSuggestPrice(){
+  const b = _portal.bookings.find(x=>x.id===_portalApproveId); if(!b) return;
+  const st = state.students.find(s=>String(s.id)===String(b.student_id)); if(!st) return;
+  const vehicle = state.vehicles.find(v=>v.id===parseInt(document.getElementById('pa_vehicle').value));
+  const match = (typeof findLessonPrice === 'function') ? findLessonPrice(st.license, 'عملي', st.gearType || (vehicle ? vehicle.type : null)) : null;
+  if(match){ const dur = parseFloat(document.getElementById('pa_duration').value) || 40;
+    document.getElementById('pa_price').value = Math.round((match.price / 40) * dur * 100) / 100; }
+}
+async function confirmPortalBooking(){
+  if(!requireOnlineOrBlock()) return;
+  const b = _portal.bookings.find(x=>x.id===_portalApproveId); if(!b) return;
+  const st = state.students.find(s=>String(s.id)===String(b.student_id)); if(!st) return;
+  const instructorId = parseInt(document.getElementById('pa_instructor').value);
+  const vehicleId = parseInt(document.getElementById('pa_vehicle').value);
+  const date = document.getElementById('pa_date').value, time = document.getElementById('pa_time').value;
+  const duration = parseFloat(document.getElementById('pa_duration').value) || 40;
+  const price = parseFloat(document.getElementById('pa_price').value) || 0;
+  if(!instructorId || !vehicleId || !date || !time){ alert('الرجاء تحديد المدرب والسيارة والتاريخ والوقت'); return; }
+  const btn = document.getElementById('pa_save'); btn.disabled = true;
+  try{
+    // منع التكرار: لو أُنشئت الحصة سابقاً لهذا الطلب (مثلاً انقطع الاتصال بعد الإنشاء) نكمل الربط فقط
+    let lesson = state.lessons.find(l=>l.portalRequestId===b.id);
+    const lessonId = lesson ? lesson.id : newId('lessons');
+    // نسجّل الموافقة على الخادم أولاً؛ لو فشلت لا تُنشأ حصة
+    await portalCall('office_booking', { id: b.id, status: 'approved', lesson_id: lessonId });
+    if(!lesson){
+      lesson = { id: lessonId, studentId: st.id, instructorId, vehicleId, datetime: date + 'T' + time, duration, price,
+        type: 'عملي', status: 'مجدول', portalRequestId: b.id };
+      if(typeof schoolOfStudent === 'function') lesson.school = schoolOfStudent(st.id);
+      state.lessons.push(lesson);
+    }
+    renderLessons();   // يحفظ ويزامن
+    closePortalApproveModal();
+    await loadPortalRequests();
+  }catch(err){
+    alert(err.code === 'not_pending' ? 'هذا الطلب لم يعد معلّقاً (ربما ألغاه الطالب أو ردّ عليه جهاز آخر).' : '⚠️ تعذّر تأكيد الطلب: ' + (err.code || err.message));
+    await loadPortalRequests(true);
+  }finally{ btn.disabled = false; }
+}
+async function rejectPortalBooking(id){
+  if(!requireOnlineOrBlock()) return;
+  const reason = prompt('سبب الرفض (يظهر للطالب، اختياري):', '');
+  if(reason === null) return;
+  try{ await portalCall('office_booking', { id, status: 'rejected', office_note: reason }); }
+  catch(err){ alert(err.code === 'not_pending' ? 'هذا الطلب لم يعد معلّقاً.' : '⚠️ تعذّر الرفض: ' + (err.code || err.message)); }
+  await loadPortalRequests(true);
+}
+async function applyPortalMark(id){
+  if(!requireOnlineOrBlock()) return;
+  const m = _portal.marks.find(x=>x.id===id); if(!m) return;
+  const l = state.lessons.find(x=>String(x.id)===String(m.lesson_id));
+  if(!l || l.status !== 'مجدول'){ await loadPortalRequests(); return; }
+  const who = nameOf(state.students, l.studentId);
+  const msg = m.mark === 'done'
+    ? `اعتماد حصة ${who} كمنجزة؟\nسيُطبَّق نفس أثر زر "✅ إنجاز": ساعات الطالب، عمولة المدرب، والفاتورة التلقائية.`
+    : `اعتماد عدم حضور ${who}؟\nستُلغى الحصة المجدولة بلا فاتورة.`;
+  if(!confirm(msg)) return;
+  changeLessonStatus(l.id, m.mark === 'done' ? 'منجز' : 'ملغى');
+  try{ await portalCall('office_mark', { id, status: 'applied' }); }catch(_){ /* يُغلَق تلقائياً عند التحميل التالي لأن الحصة لم تعد مجدولة */ }
+  await loadPortalRequests(true);
+}
+async function dismissPortalMark(id){
+  if(!requireOnlineOrBlock()) return;
+  if(!confirm('تجاهل تسجيل المدرب؟ تبقى الحصة مجدولة كما هي.')) return;
+  try{ await portalCall('office_mark', { id, status: 'dismissed' }); }catch(err){ alert('⚠️ ' + (err.code || err.message)); }
+  await loadPortalRequests(true);
+}
+
 function changeLessonStatus(id, newStatus){
   const l = state.lessons.find(l=>l.id===id);
   if(newStatus==='منجز'){
@@ -6260,7 +6561,8 @@ function saveEditLesson(){
   l.instructorId = instructorId;
   l.vehicleId = vehicleId;
   l.type = newType;
-  l.datetime = dateVal;
+  // الحفاظ على وقت الموعد (الحصص المجدولة من البوابة تحمل وقتاً) — حقل التعديل يعرض التاريخ فقط
+  l.datetime = dateVal + ((l.datetime || '').length > 10 ? l.datetime.slice(10) : '');
   l.duration = newDuration;
   l.price = newPrice;
 
