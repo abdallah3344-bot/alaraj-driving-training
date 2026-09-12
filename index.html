@@ -592,7 +592,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-activity-keep</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-practical-form</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -748,6 +748,23 @@ body.field-mode{ padding-bottom:76px; }
         <button class="btn btn-accent" style="flex:1;" onclick="confirmFormDepartmentPicked()">🖨 طباعة</button>
         <button class="btn" onclick="closeFormDepartmentModal()">إلغاء</button>
       </div>
+    </div>
+  </div>
+</div>
+<!-- معلومات نموذج الفحص العملي — تُفتح تلقائياً بعد تسجيل امتحان عملي -->
+<div id="practicalExamModal" class="modal-overlay">
+  <div class="modal-box card" style="max-width:460px;">
+    <h2>🚗 نموذج الفحص العملي</h2>
+    <p class="note" id="pexStudent" style="margin:6px 0 12px;"></p>
+    <div class="field"><label>رقم الفحص</label><input id="pex_number" placeholder="كما ورد من سلطة الترخيص"></div>
+    <div class="field"><label>ساعة الفحص</label><input id="pex_time" type="time"></div>
+    <div class="field"><label>تاريخ الفحص</label><input id="pex_date" type="date"></div>
+    <div class="field"><label>نوع المركبة</label><input id="pex_vehicle_type"></div>
+    <div class="field"><label>رقم المركبة</label><input id="pex_vehicle_no"></div>
+    <div class="field"><label>ملاحظات</label><input id="pex_notes"></div>
+    <div class="form-actions" style="margin-top:8px;">
+      <button class="btn btn-accent" onclick="confirmPracticalExamForm()">🖨 طباعة النموذج وحفظ المعاملة</button>
+      <button class="btn" onclick="closePracticalExamModal()">لاحقاً</button>
     </div>
   </div>
 </div>
@@ -3799,7 +3816,7 @@ function printActivityLog(){
   const to   = document.getElementById('act_to').value || '—';
   const head = '<tr><th>#</th><th>التاريخ</th><th>الوقت</th><th>المستخدم</th><th>الدور</th><th>نوع الحركة</th><th>الوصف</th></tr>';
   const bodyHtml = rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.date}</td><td>${r.time}</td><td>${r.user}</td><td>${r.role}</td><td>${r.kind}</td><td>${r.description}</td></tr>`).join('');
-  const win = window.open('', '_blank', 'width=950,height=950');
+  const win = openPrintTarget('width=950,height=950');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>أرشيف الحركات</title>
@@ -4176,6 +4193,7 @@ function showTab(id){
   document.getElementById('tab-'+id).classList.add('active');
   document.querySelectorAll('#tabNav button').forEach(b=>b.classList.toggle('active', b.dataset.tab===id));
   toggleSidebar(false);
+  if(_dirtyTabs.has(id)) renderTabNow(id);   // تُرسم فقط إن تغيّرت بياناتها منذ آخر عرض
   if(id==='home'){ renderHome(); }
   if(id==='schoolinfo'){ loadSchoolInfoForm(); }
   if(id==='vehicles'){ refreshExpenseDropdown(); }
@@ -4474,6 +4492,52 @@ const PRINT_PRACTICAL_CSS = PRINT_HEAVY_FONT_CSS + `
   td, th{ padding-top:1px !important; padding-bottom:1px !important; }
   p, .line{ margin-top:2px !important; margin-bottom:2px !important; }
 `;
+// ------------------------------------------------------------------
+// هدف الطباعة: نافذة عادية على الحاسوب، وطبقة داخل التطبيق على الجوال
+// ------------------------------------------------------------------
+// في وضع التطبيق المثبَّت (standalone) تفتح النوافذ المنبثقة بلا شريط عنوان ولا زر رجوع،
+// فيعلق المستخدم داخل النموذج المطبوع. الحل: عرضه داخل إطار في نفس الشاشة
+// مع زرّي "طباعة" و"إغلاق"، ويبقى سلوك الحاسوب كما هو بلا تغيير.
+function isStandaloneApp(){
+  try{
+    return window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true
+      || window.matchMedia('(display-mode: fullscreen)').matches;
+  }catch(_){ return false; }
+}
+function isSmallScreen(){ return Math.min(window.innerWidth, window.innerHeight) <= 820; }
+function openPrintTarget(){
+  if(!(isStandaloneApp() || isSmallScreen())){
+    return window.open('', '_blank', arguments[0] || 'width=900,height=1000');
+  }
+  // طبقة داخل التطبيق
+  const overlay = document.createElement('div');
+  overlay.className = 'print-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:100050;background:#fff;display:flex;flex-direction:column;';
+  const bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;gap:8px;padding:10px;background:#0f766e;color:#fff;flex:0 0 auto;';
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'flex:1 1 auto;width:100%;border:0;background:#fff;';
+  const close = document.createElement('button');
+  close.textContent = '✕ إغلاق';
+  close.style.cssText = 'padding:10px 16px;border:0;border-radius:8px;background:#ffffff33;color:#fff;font-weight:800;font-size:15px;';
+  const print = document.createElement('button');
+  print.textContent = '🖨 طباعة';
+  print.style.cssText = 'padding:10px 16px;border:0;border-radius:8px;background:#fff;color:#0f766e;font-weight:800;font-size:15px;flex:1;';
+  const closeOverlay = ()=>{ overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = (e)=>{ if(e.key === 'Escape') closeOverlay(); };
+  close.onclick = closeOverlay;
+  print.onclick = ()=>{ try{ frame.contentWindow.focus(); frame.contentWindow.print(); }catch(_){ } };
+  document.addEventListener('keydown', onKey);
+  bar.appendChild(print); bar.appendChild(close);
+  overlay.appendChild(bar); overlay.appendChild(frame);
+  document.body.appendChild(overlay);
+  const win = frame.contentWindow;
+  try{ win.document.open(); }catch(_){ }
+  // نُخفي زر الطباعة الداخلي (.no-print) لأن الشريط أعلاه يغني عنه
+  win.__printOverlay = overlay;
+  return win;
+}
 function applyPrintTypography(win, mode){
   try{
     const doc = win.document;
@@ -4628,7 +4692,7 @@ function printTableAsList(title, tableBodyId){
     return '<tr>' + cells.map(td=>`<td>${td.textContent.trim()}</td>`).join('') + '</tr>';
   }).join('');
 
-  const win = window.open('', '_blank', 'width=950,height=720');
+  const win = openPrintTarget('width=950,height=720');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
@@ -5129,7 +5193,7 @@ async function deleteAttachmentFromStorage(path){
 }
 // يفتح ملفاً محفوظاً في التخزين السحابي في نافذة جديدة — النافذة تُفتح قبل أي await لتفادي حظر المنبثقات
 async function openStoredAttachment(path){
-  const win = window.open('', '_blank');
+  const win = openPrintTarget();
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لعرض المرفق'); return; }
   win.document.write('<p style="font-family:sans-serif;direction:rtl;padding:20px">جارٍ تحميل المرفق…</p>');
   try{
@@ -5593,7 +5657,7 @@ async function printStudentCard(id){
   const portalLink = (typeof portalLinkForShare === 'function') ? portalLinkForShare() : '';
   let portalQr = '';
   if(portalLink){ try{ portalQr = qrSvg(portalLink, 78); }catch(_){ portalQr = ''; } }
-  const win = window.open('', '_blank', 'width=480,height=420');
+  const win = openPrintTarget('width=480,height=420');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لطباعة البطاقة'); return; }
   const photoUrl = await getStudentPhotoUrl(id, 'full');
   win.document.write(`
@@ -5672,7 +5736,7 @@ async function openStudentFile(id){
   const totalInvoiced = state.invoices.filter(i=>i.studentId===id).reduce((sum,i)=>sum+i.amount,0);
   const attachments = s.attachments || [];
 
-  const win = window.open('', '_blank', 'width=650,height=800');
+  const win = openPrintTarget('width=650,height=800');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لعرض ملف الطالب'); return; }
   const photoUrl = await getStudentPhotoUrl(id, 'full');
   win.document.write(`
@@ -7143,7 +7207,7 @@ function printTheoreticalExamCandidatesList(selectedDate){
   const totalsRow = list.length
     ? `<tr class="totals-row"><td colspan="4"><b>الإجمالي (${list.length} متقدماً)</b></td><td><b>${fmtNum(totalFees, 2)}</b></td><td></td><td></td><td></td></tr>`
     : '';
-  const win = window.open('', '_blank', 'width=900,height=1100');
+  const win = openPrintTarget('width=900,height=1100');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
   win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
   <title>قائمة المتقدمين للفحص النظري - ${selectedDate}</title>
@@ -7247,6 +7311,8 @@ function addExam(){
   document.getElementById('ex_fee').value = '';
   document.getElementById('ex_paid').value = '';
   renderExams();
+  // امتحان عملي: تُفتح شاشة نموذج الفحص العملي مباشرة (طباعة + حفظ المعاملة تلقائياً)
+  if(examType === 'عملي') openPracticalExamFormModal(exam.id);
 }
 function deleteExam(id){
   if(!confirm('هل تريد حذف هذا الامتحان؟')) return;
@@ -8602,7 +8668,7 @@ function printReceipt(paymentId){
     : `<tr><td class="label">نوع السند</td><td class="value">سند قبض مستقل (غير مرتبط بفاتورة)</td></tr>
        ${p.notes ? `<tr><td class="label">ملاحظات</td><td class="value">${p.notes}</td></tr>` : ''}`;
 
-  const win = window.open('', '_blank', 'width=480,height=680');
+  const win = openPrintTarget('width=480,height=680');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لطباعة السند'); return; }
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
@@ -8800,7 +8866,7 @@ function deleteDisbursement(id){
 function printDisbursement(id){
   const d = state.disbursements.find(d=>d.id===id);
   if(!d) return;
-  const win = window.open('', '_blank', 'width=480,height=680');
+  const win = openPrintTarget('width=480,height=680');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لطباعة السند'); return; }
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
@@ -9239,7 +9305,7 @@ function printOfficialCombinedForm(paperId){
   const prevLicenseNo = student ? (student.prevLicenseNo || '') : '';
   const prevLicenseType = student ? (student.prevLicenseType || '') : '';
 
-  const win = window.open('', '_blank', 'width=900,height=1100');
+  const win = openPrintTarget('width=900,height=1100');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لطباعة النموذج'); return; }
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
@@ -9570,7 +9636,7 @@ function printSchoolLicenseRenewalForm(paperId){
   const nonInstructors = state.staff.filter(s=> s.role !== 'مدرب');
   const vehicles = state.vehicles;
 
-  const win = window.open('', '_blank', 'width=900,height=1100');
+  const win = openPrintTarget('width=900,height=1100');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لطباعة النموذج'); return; }
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
@@ -9881,7 +9947,7 @@ function printSchoolBlankRenewalForm(){
   const nonInstructors = [];
   const vehicles = [];
 
-  const win = window.open('', '_blank', 'width=900,height=1100');
+  const win = openPrintTarget('width=900,height=1100');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لطباعة النموذج'); return; }
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
@@ -10162,6 +10228,63 @@ function licenseLabel(cat){
 // نفس تنسيق النموذج الورقي الأصلي. تُعبَّأ تلقائياً بيانات الطالب (إن كان مرتبطاً بالمعاملة)
 // واسم/رقم المدرسة من "بيانات المدرسة"؛ باقي الحقول (نوع المركبة، النتيجة، الفاحص، الدرجات...)
 // تبقى فارغة عمداً لأنها تُقرَّر وتُملأ يدوياً أثناء الفحص الفعلي من قبل فاحص سلطة الترخيص.
+// ------------------------------------------------------------------
+// نموذج الفحص العملي: يُفتح تلقائياً بعد تسجيل امتحان عملي، ثم يطبع النموذج
+// ويحفظ معاملة "استمارة فحص عملي" في الأوراق الرسمية بلا خطوات يدوية.
+// ------------------------------------------------------------------
+let _pexExamId = null;
+function openPracticalExamFormModal(examId){
+  const ex = state.exams.find(e=>String(e.id)===String(examId));
+  if(!ex) return;
+  const s = state.students.find(x=>x.id===ex.studentId);
+  const instructor = ex.instructorId ? state.staff.find(x=>x.id===ex.instructorId) : null;
+  const prefVehicle = s && s.preferredVehicleId ? state.vehicles.find(v=>v.id===s.preferredVehicleId) : null;
+  _pexExamId = ex.id;
+  document.getElementById('pexStudent').textContent = (s ? s.name : '') + (ex.datetime ? ' — امتحان عملي بتاريخ ' + ex.datetime.slice(0,10) : '');
+  document.getElementById('pex_number').value = ex.examNumber || '';
+  document.getElementById('pex_time').value = ex.examTime || '';
+  document.getElementById('pex_date').value = (ex.datetime || '').slice(0,10) || todayStr();
+  document.getElementById('pex_vehicle_type').value = ex.formVehicleType || (s ? (s.license || '') : '');
+  document.getElementById('pex_vehicle_no').value = ex.formVehicleNumber
+    || (instructor && instructor.vehiclePlate ? instructor.vehiclePlate : (prefVehicle ? prefVehicle.plate : ''));
+  document.getElementById('pex_notes').value = ex.notes || '';
+  document.getElementById('practicalExamModal').classList.add('show');
+  setTimeout(()=>{ const el = document.getElementById('pex_number'); if(el) el.focus(); }, 80);
+}
+function closePracticalExamModal(){
+  document.getElementById('practicalExamModal').classList.remove('show');
+  _pexExamId = null;
+}
+function confirmPracticalExamForm(){
+  const ex = state.exams.find(e=>String(e.id)===String(_pexExamId));
+  if(!ex){ closePracticalExamModal(); return; }
+  const s = state.students.find(x=>x.id===ex.studentId);
+  const date = document.getElementById('pex_date').value || (ex.datetime||'').slice(0,10) || todayStr();
+  ex.examNumber = document.getElementById('pex_number').value.trim();
+  ex.examTime = document.getElementById('pex_time').value;
+  ex.datetime = date;
+  ex.formVehicleType = document.getElementById('pex_vehicle_type').value.trim();
+  ex.formVehicleNumber = document.getElementById('pex_vehicle_no').value.trim();
+  ex.notes = document.getElementById('pex_notes').value.trim();
+  // معاملة الأوراق الرسمية: تُنشأ مرة واحدة لكل امتحان، وتُحدَّث إن أُعيدت الطباعة
+  let paper = state.officialPapers.find(p => p.paperType === 'استمارة فحص عملي' && String(p.examId) === String(ex.id));
+  if(!paper){
+    paper = { id: newId('officialPapers'), paperType: 'استمارة فحص عملي', studentId: ex.studentId,
+      examId: ex.id, department: (typeof defaultFormDepartment === 'function' ? defaultFormDepartment() : 'طولكرم'),
+      submitDate: date, notes: ex.notes || '', created: todayStr() };
+    if(s && s.school) paper.school = s.school;
+    state.officialPapers.push(paper);
+  } else {
+    paper.submitDate = date; paper.notes = ex.notes || '';
+  }
+  paper.vehicleType = ex.formVehicleType;
+  paper.vehicleNumber = ex.formVehicleNumber;
+  closePracticalExamModal();
+  renderExams();
+  renderOfficialPapers();
+  saveState();
+  printPracticalExamForm(paper.id);
+}
 function printPracticalExamForm(paperId){
   const p = state.officialPapers.find(p=>p.id===paperId);
   if(!p) return;
@@ -10188,15 +10311,18 @@ function printPracticalExamForm(paperId){
 
   // أحدث امتحان عملي مسجَّل لهذا الطالب (من شاشة "تسجيل امتحان جديد") — منه نجيب رقم الفحص
   // وساعته وملاحظاته والمدرب المسؤول عنه، بدل ترك هذه الحقول فارغة
-  const linkedExam = student
-    ? state.exams.filter(e=>e.studentId===student.id && e.examType==='عملي')
-        .sort((a,b)=> (b.datetime||'').localeCompare(a.datetime||''))[0]
-    : null;
+  const linkedExam = (p.examId ? state.exams.find(e=>String(e.id)===String(p.examId)) : null)
+    || (student
+      ? state.exams.filter(e=>e.studentId===student.id && e.examType==='عملي')
+          .sort((a,b)=> (b.datetime||'').localeCompare(a.datetime||''))[0]
+      : null);
   const instructor = (linkedExam && linkedExam.instructorId)
     ? state.staff.find(s=>s.id===linkedExam.instructorId) : null;
 
-  const vehicleType = student ? (student.license || '') : '';   // نوع المركبة = نوع رخصة الطالب
-  const vehicleNumber = instructor ? (instructor.vehiclePlate || '') : ''; // رقمها = رقم سيارة المدرب/التدريب
+  // ما أُدخل في شاشة "نموذج الفحص العملي" له الأولوية، وإلا نرجع للقيم الافتراضية
+  const vehicleType = p.vehicleType || (linkedExam && linkedExam.formVehicleType) || (student ? (student.license || '') : '');
+  const vehicleNumber = p.vehicleNumber || (linkedExam && linkedExam.formVehicleNumber)
+    || (instructor ? (instructor.vehiclePlate || '') : '');
   const examDate = (linkedExam && linkedExam.datetime) ? linkedExam.datetime.slice(0,10) : (p.submitDate || '');
   const examNumberVal = linkedExam ? (linkedExam.examNumber || '') : '';
   const examTimeVal = linkedExam ? (linkedExam.examTime || '') : '';
@@ -10205,7 +10331,7 @@ function printPracticalExamForm(paperId){
   const schoolShortName = 'الاعرج'; // TODO: يُستبدَل لاحقاً باسم مدرسة السجل تحديداً بدل قيمة ثابتة
   const fld = (val)=> `<span class="fill ${val?'filled':''}">${val||''}</span>`;
 
-  const win = window.open('', '_blank', 'width=900,height=1100');
+  const win = openPrintTarget('width=900,height=1100');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة لطباعة النموذج'); return; }
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
@@ -10383,7 +10509,7 @@ function printExamCandidatesList(preselectedDate){
   const opts = practicalDates.map(d => `<option value="${d}">${d}</option>`).join('');
 
   // نستخدم نافذة حوار مؤقتة لاختيار التاريخ
-  const dlgWin = window.open('', '_blank', 'width=400,height=220');
+  const dlgWin = openPrintTarget('width=400,height=220');
   if(!dlgWin){ alert('يرجى السماح بفتح النوافذ المنبثقة'); return; }
 
   dlgWin.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
@@ -10471,7 +10597,7 @@ function _doPrintCandidatesList(selectedDate){
   const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
   const dayName = days[dateObj.getDay()] || '';
 
-  const win = window.open('', '_blank', 'width=900,height=1200');
+  const win = openPrintTarget('width=900,height=1200');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
   win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
   <title>قائمة المتقدمين للامتحان العملي - ${selectedDate}</title>
@@ -10871,7 +10997,7 @@ function printReceivables(){
   const rows = _lastReceivablesRows.length ? _lastReceivablesRows : computeReceivables();
   if(!rows.length){ alert('لا توجد ذمم مترصدة للطباعة'); return; }
   const total = rows.reduce((s,r)=>s+r.balance,0);
-  const win = window.open('', '_blank', 'width=850,height=900');
+  const win = openPrintTarget('width=850,height=900');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
   const bodyHtml = rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.student.name}</td><td>${r.student.phone||'-'}</td><td>${fmtNum(r.invoiced, 2)}</td><td>${fmtNum(r.paid, 2)}</td><td><b>${fmtNum(r.balance, 2)}</b></td><td>${r.oldestDue||'-'}</td><td>${r.hasOverdue?'متأخرة':'ضمن الموعد'}</td></tr>`).join('');
   win.document.write(`
@@ -10916,7 +11042,7 @@ function printStatement(){
     .replace(/<div class="label">/g, '<div style="color:#666;font-size:11px;">')
     .replace(/<div class="value accent">/g, '<div style="font-size:16px;font-weight:800;">');
 
-  const win = window.open('', '_blank', 'width=850,height=900');
+  const win = openPrintTarget('width=850,height=900');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
@@ -11085,7 +11211,7 @@ function printDetailReport(){
   const from = document.getElementById('rpt_from').value;
   const to = document.getElementById('rpt_to').value;
   const rangeLine = (from || to) ? `الفترة: من ${from || '—'} إلى ${to || '—'}` : 'كل الفترات';
-  const win = window.open('', '_blank', 'width=900,height=950');
+  const win = openPrintTarget('width=900,height=950');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${reportTitle}</title>
@@ -11543,6 +11669,38 @@ function refreshSchoolSelects(){
     wrap.innerHTML = schoolSelectHtml(fieldId, current);
   });
 }
+// ------------------------------------------------------------------
+// رسم الشاشات عند الحاجة فقط (بدل رسم كل الشاشات مع كل مزامنة)
+// ------------------------------------------------------------------
+// renderAll() كانت تعيد بناء 39 جدولاً في كل مرة، وتُستدعى مع كل تحديث وارد من جهاز آخر،
+// فتُجمّد الواجهة لثوانٍ كلما كبرت البيانات. الآن: تُرسم الشاشة المعروضة فقط،
+// وتُعلَّم البقية "تحتاج تحديثاً" فتُرسم لحظة فتحها.
+const TAB_RENDERERS = {
+  students: ['renderStudents'],
+  staff: ['renderStaff'],
+  vehicles: ['renderVehicles', 'renderVehicleExpenses', 'renderVehicleDailyLogs'],
+  lessons: ['renderLessons'],
+  invoices: ['renderInvoices', 'renderReceipts'],
+  expenses: ['renderGeneralExpenses', 'renderDisbursements'],
+  pricing: ['renderPricing', 'renderCommissionRates'],
+  exams: ['renderExams'],
+  cheques: ['renderCheques'],
+  officialpapers: ['renderOfficialPapers'],
+  users: ['renderUsers'],
+  reports: ['renderReports'],
+  receivables: ['renderReceivables']
+};
+let _dirtyTabs = new Set();
+function markAllTabsDirty(){ _dirtyTabs = new Set(Object.keys(TAB_RENDERERS)); }
+function renderTabNow(id){
+  if(!TAB_RENDERERS[id]) return;
+  _dirtyTabs.delete(id);
+  TAB_RENDERERS[id].forEach(fn => { try{ if(typeof window[fn] === 'function') window[fn](); }catch(e){ console.warn('فشل رسم ' + fn, e); } });
+}
+function renderActiveTabIfDirty(){
+  const id = (typeof getActiveTabId === 'function') ? getActiveTabId() : 'home';
+  if(_dirtyTabs.has(id)) renderTabNow(id);
+}
 function renderAll(){
   wireAllSearchableSelects();
   refreshSchoolSelects();
@@ -11552,12 +11710,10 @@ function renderAll(){
   populateDynamicSelect('paperTypes');
   populateDynamicSelect('departments');
   populateLicenseCategorySelects();
-  renderStudents(); renderStaff(); renderVehicles(); renderLessons(); renderInvoices();
-  renderVehicleExpenses(); renderGeneralExpenses(); renderReceipts(); renderPricing(); renderExams();
-  renderVehicleDailyLogs();
-  renderDisbursements(); renderCheques(); renderOfficialPapers();
-  refreshLessonDropdowns(); refreshInvoiceDropdowns(); refreshExpenseDropdown(); refreshExamDropdowns(); renderReports(); onExamTypeChange();
-  renderUsers();
+  // القوائم المنسدلة تبقى محدَّثة دائماً (سريعة، وتُستخدَم عبر الشاشات)
+  refreshLessonDropdowns(); refreshInvoiceDropdowns(); refreshExpenseDropdown(); refreshExamDropdowns(); onExamTypeChange();
+  markAllTabsDirty();
+  renderActiveTabIfDirty();   // الشاشة المعروضة فقط؛ البقية تُرسَم عند فتحها
   renderHome();
   updateUserBadge();
 }
