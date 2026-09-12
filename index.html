@@ -592,7 +592,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-card-qr</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-activity-keep</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -2932,6 +2932,7 @@ async function pollForRemoteUpdates(force, fromPeer){
         // أقل من المحلي — هذا مؤشر تعارض حقيقي بين جهازين (بيانات محلية لم تُرفع بعد)،
         // ويُترك للمستخدم حسمه يدوياً عبر "مزامنة الآن" بدل فقدان بيانات بصمت.
         mergeUsersInto(sanitized.clean, state);   // لا نفقد حساباً أنشئ على جهاز آخر
+        mergeActivityLogInto(sanitized.clean, state);   // ولا نفقد حركة سجّلها جهاز آخر
         const incomingCount = countStateRecords(sanitized.clean);
         const localCount = countStateRecords(state);
         // تحديث وارد من جهاز آخر عبر الإشعار اللحظي، وليس لدينا أي تغيير محلي غير مرفوع:
@@ -2995,7 +2996,7 @@ async function initDataSync(){
         alert('⚠️ تعذّر قراءة بيانات المزامنة من الخادم (شكل غير متوقَّع). سيستمر البرنامج ببياناتك المحلية، وستحاول المزامنة تلقائياً لاحقاً.');
         return;
       }
-      serverData = mergeUsersInto(sanitized.clean, state);
+      serverData = mergeActivityLogInto(mergeUsersInto(sanitized.clean, state), state);
     }
     const serverHasData = hasSubstantialData(serverData);
     const localHasData = hasSubstantialData(state);
@@ -3039,6 +3040,31 @@ const STATE_ARRAY_FIELDS = ['students','staff','vehicles','lessons','invoices','
 // المستخدمون والصلاحيات لا تُستبدَل أبداً باستبدال كامل: تُدمج مع المحلي.
 // من حُذف فعلاً (له شاهدة حذف على أي طرف) يُحذف، ومن لم يصل للطرف الآخر بعد يبقى.
 // هذا يمنع أن يمحو جهازٌ نسخته أقدم حسابات أُنشئت على جهاز آخر.
+// أرشيف الحركات يُدمج ولا يُستبدَل: أي حركة سجّلها جهاز آخر تبقى، ولا تتكرر السطور.
+// المفتاح: الوقت + المستخدم + النوع + الوصف. تُرتَّب زمنياً ويُحتفظ بالأحدث ضمن السقف.
+function activityKey(a){
+  return [a && a.at, a && a.user, a && a.kind, a && a.description].map(v => String(v == null ? '' : v)).join('|');
+}
+function mergeActivityLogInto(incoming, local){
+  if(!incoming || typeof incoming !== 'object') return incoming;
+  const inLog = Array.isArray(incoming.activityLog) ? incoming.activityLog : [];
+  const loLog = (local && Array.isArray(local.activityLog)) ? local.activityLog : [];
+  if(!loLog.length){ incoming.activityLog = inLog; return incoming; }
+  const seen = new Set(), merged = [];
+  [...inLog, ...loLog].forEach(a => {
+    const k = activityKey(a);
+    if(seen.has(k)) return;
+    seen.add(k); merged.push(a);
+  });
+  merged.sort((x, y) => String((x && x.at) || '').localeCompare(String((y && y.at) || '')));
+  const capped = merged.slice(-ACTIVITY_LOG_MAX);
+  capped.forEach((a, i) => { a.id = i + 1; });   // ترقيم موحَّد بعد الدمج
+  if(capped.length !== inLog.length){
+    console.warn(`دمج أرشيف الحركات: وارد ${inLog.length}، محلي ${loLog.length}، بعد الدمج ${capped.length}`);
+  }
+  incoming.activityLog = capped;
+  return incoming;
+}
 function mergeUsersInto(incoming, local){
   if(!incoming || typeof incoming !== 'object') return incoming;
   const inUsers = Array.isArray(incoming.users) ? incoming.users : [];
@@ -3447,6 +3473,8 @@ function proceedAfterLicense(){
   if(isSecurityEnabled()){ showLockScreen(); }
   initScanPipeline();
   setTimeout(()=>{ if(typeof loadPortalRequests==='function') loadPortalRequests(true); }, 2500);
+  // تأكّد أن الجهاز يعمل بأحدث نسخة منشورة (يعمل حتى لو لم يُرفع sw.js)
+  setTimeout(()=>{ if(typeof checkServerBuildAndReload==='function') checkServerBuildAndReload(); }, 1500);
 }
 
 // ------------------------------------------------------------------
@@ -3941,6 +3969,7 @@ function installServiceWorker(){
       setInterval(check, UPDATE_CHECK_INTERVAL_MS);
       document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible') check(); });
       window.addEventListener('online', check);
+      check();                 // فحص فوري لحظة الفتح
       setTimeout(check, 5000);
     })
     .catch(err=> console.warn('وضع العمل بلا إنترنت غير مفعَّل (تأكد من رفع ملف sw.js بجانب البرنامج):', err && err.message));
@@ -3963,10 +3992,55 @@ function safeToUpdateNow(){
   return true;
 }
 
+// ------------------------------------------------------------------
+// التحديث التلقائي عند فتح البرنامج
+// ------------------------------------------------------------------
+// 1) خلال أول دقيقة ونصف من الفتح يُطبَّق التحديث تلقائياً بلا سؤال (المستخدم لم يبدأ العمل بعد).
+// 2) بعد ذلك يظهر شريط "يتوفّر تحديث" كما كان، حتى لا يُقاطَع أثناء إدخال بيانات.
+// 3) في الحالتين لا يُطبَّق التحديث إطلاقاً وهناك بيانات لم تُرفع للسحابة (safeToUpdateNow).
+const AUTO_UPDATE_WINDOW_MS = 90 * 1000;
+const _appOpenedAt = Date.now();
+function withinAutoUpdateWindow(){ return (Date.now() - _appOpenedAt) < AUTO_UPDATE_WINDOW_MS; }
+// فحص إضافي لا يعتمد على عامل الخدمة: يقارن وسم الإصدار بالملف الموجود فعلاً على الخادم.
+// يفيد الأجهزة التي لم يُرفع بجانبها sw.js أو التي علق متصفحها على نسخة قديمة مخبَّأة.
+async function checkServerBuildAndReload(){
+  try{
+    if(location.protocol === 'file:') return;
+    if(sessionStorage.getItem('build_reloaded') === '1') return;   // مرة واحدة لكل جلسة، تفادياً لأي دوران
+    const res = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'reload' });
+    if(!res.ok) return;
+    const html = await res.text();
+    const m = html.match(/id="idScan_ocrBuildTag"[^>]*>([^<]+)</);
+    const serverTag = m ? m[1].trim() : '';
+    const localTag = currentAppVersion();
+    if(!serverTag || !localTag || serverTag === localTag) return;
+    if(!safeToUpdateNow()){ setTimeout(checkServerBuildAndReload, 5000); return; }
+    console.info('تحديث البرنامج:', localTag, '→', serverTag);
+    sessionStorage.setItem('build_reloaded', '1');
+    location.reload();
+  }catch(_){ /* بلا إنترنت أو ملف غير متاح: يُكمل البرنامج بالنسخة الحالية */ }
+}
 function onUpdateReady(reg){
   if(_updateReady) return;
   _updateReady = true;
+  window._pendingUpdateReg = reg;
+  if(withinAutoUpdateWindow() && safeToUpdateNow()){
+    showUpdatingNotice();
+    applyUpdateNow();
+    return;
+  }
   showUpdateBanner(reg);
+}
+// إشعار بسيط أثناء التحديث التلقائي (بلا أزرار) — الصفحة ستُعاد تحميلها خلال ثوانٍ
+function showUpdatingNotice(){
+  let el = document.getElementById('updateBanner');
+  if(!el){
+    el = document.createElement('div'); el.id = 'updateBanner';
+    el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:100002;background:#0f766e;color:#fff;'
+      + 'padding:12px 16px;font-size:14px;direction:rtl;text-align:center;box-shadow:0 -3px 12px rgba(0,0,0,.3)';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = '⬆️ <b>جارٍ تحديث البرنامج لأحدث نسخة…</b>';
 }
 
 function showUpdateBanner(reg){
