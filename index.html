@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-13-update-first</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-13-autofill</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -1535,7 +1535,7 @@ body.field-mode{ padding-bottom:76px; }
           <select id="ex_type" onchange="onExamTypeChange()"><option>نظري</option><option>عملي</option></select>
         </div>
         <div class="field"><label>الطالب</label><input id="ex_student_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
-        <select id="ex_student"></select></div>
+        <select id="ex_student" onchange="applyExamStudentPreferences()"></select></div>
         <div class="field"><label>المدرب المسؤول</label><input id="ex_instructor_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
         <select id="ex_instructor"></select></div>
         <div class="field"><label>تاريخ الامتحان</label><input id="ex_date" type="date"></div>
@@ -1634,7 +1634,7 @@ body.field-mode{ padding-bottom:76px; }
       <h2>إصدار فاتورة</h2>
       <div class="form-grid">
         <div class="field"><label>الطالب</label><input id="inv_student_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
-        <select id="inv_student"></select></div>
+        <select id="inv_student" onchange="applyInvoiceStudentPreferences()"></select></div>
         <div class="field"><label>نوع الفاتورة</label>
           <select id="inv_type" onchange="handleDynamicSelect(this,'invoiceTypes')"></select>
         </div>
@@ -6855,6 +6855,33 @@ function findLessonPrice(license, lessonType, gear){
 }
 // أنواع الرخص التي تكون مدة الحصة القياسية لها 30 دقيقة بدل 40 (تبقى قابلة للتعديل يدوياً دائماً)
 const SHORT_LESSON_DURATION_LICENSES = ['باص', 'دراجة نارية', 'شحن ثقيل', 'تريلا', 'تراكتور'];
+// تعبئة الحقول المرتبطة بالطالب في شاشتي الامتحانات والفواتير بمجرد اختياره
+// (كانت مقتصرة على شاشة الحصص، فيختار الموظف الطالب ولا يُعبَّأ مدربه)
+function applyExamStudentPreferences(){
+  const sel = document.getElementById('ex_student');
+  if(!sel) return;
+  const student = state.students.find(s=>String(s.id)===String(sel.value));
+  if(!student) return;
+  const instructorSel = document.getElementById('ex_instructor');
+  if(instructorSel && student.preferredInstructorId
+     && instructorSel.querySelector(`option[value="${student.preferredInstructorId}"]`)){
+    instructorSel.value = student.preferredInstructorId;
+  }
+}
+function applyInvoiceStudentPreferences(){
+  const sel = document.getElementById('inv_student');
+  if(!sel) return;
+  const student = state.students.find(s=>String(s.id)===String(sel.value));
+  if(!student) return;
+  // سعر رسوم الدرس المعتاد لهذا الطالب يُقترَح تلقائياً (يبقى قابلاً للتعديل)
+  const typeEl = document.getElementById('inv_type'), amountEl = document.getElementById('inv_amount');
+  if(typeEl && amountEl && !amountEl.value && /درس/.test(typeEl.value || '')){
+    const exact = (typeof findLessonPrice === 'function') ? findLessonPrice(student.license, 'عملي', student.gearType) : null;
+    // إن لم يوجد سعر مطابق لنوع الغيار، نأخذ سعر نفس الرخصة والنوع
+    const p = exact || (state.lessonPrices || []).find(x => x.license === student.license && x.lessonType === 'عملي');
+    if(p && p.price) amountEl.value = p.price;
+  }
+}
 function applyStudentPreferences(){
   const studentId = parseInt(document.getElementById('ls_student').value);
   const student = state.students.find(s=>s.id===studentId);
