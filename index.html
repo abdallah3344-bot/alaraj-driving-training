@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-13-trial-sync</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-13-update-first</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -4207,28 +4207,50 @@ const _appOpenedAt = Date.now();
 function withinAutoUpdateWindow(){ return (Date.now() - _appOpenedAt) < AUTO_UPDATE_WINDOW_MS; }
 // فحص إضافي لا يعتمد على عامل الخدمة: يقارن وسم الإصدار بالملف الموجود فعلاً على الخادم.
 // يفيد الأجهزة التي لم يُرفع بجانبها sw.js أو التي علق متصفحها على نسخة قديمة مخبَّأة.
+// يُرجع true إن بدأت إعادة التحميل لنسخة أحدث (فلا يُكمل المستدعي أي شيء آخر)
 async function checkServerBuildAndReload(){
   try{
-    if(location.protocol === 'file:') return;
-    if(sessionStorage.getItem('build_reloaded') === '1') return;   // مرة واحدة لكل جلسة، تفادياً لأي دوران
+    if(location.protocol === 'file:') return false;
+    if(sessionStorage.getItem('build_reloaded') === '1') return false;   // مرة واحدة لكل جلسة، تفادياً لأي دوران
     const res = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'reload' });
-    if(!res.ok) return;
+    if(!res.ok) return false;
     const html = await res.text();
     const m = html.match(/id="idScan_ocrBuildTag"[^>]*>([^<]+)</);
     const serverTag = m ? m[1].trim() : '';
     const localTag = currentAppVersion();
-    if(!serverTag || !localTag || serverTag === localTag) return;
-    if(!safeToUpdateNow()){ setTimeout(checkServerBuildAndReload, 5000); return; }   // ننتظر اكتمال رفع البيانات
+    if(!serverTag || !localTag) return false;
+    if(serverTag === localTag){ purgeStaleCaches(); return false; }
+    if(!safeToUpdateNow()){ setTimeout(checkServerBuildAndReload, 5000); return false; }   // ننتظر اكتمال رفع البيانات
     console.info('تحديث البرنامج:', localTag, '→', serverTag);
     sessionStorage.setItem('build_reloaded', '1');
+    await purgeStaleCaches(true);   // تنظيف نسخ الملف القديمة المخبَّأة قبل إعادة التحميل
     location.reload();
+    return true;
   }catch(_){
     // بلا إنترنت: يُكمل البرنامج بالنسخة الحالية، ويُعاد الفحص عند عودة الشبكة
     if(!_buildCheckRetryBound){
       _buildCheckRetryBound = true;
       window.addEventListener('online', ()=> setTimeout(checkServerBuildAndReload, 1500), { once:true });
     }
+    return false;
   }
+}
+// مسح النسخ القديمة من ذاكرة المتصفح: كل نسخة مخبَّأة من صفحة البرنامج (بما فيها نسخ فحص الإصدار ?v=)
+// حتى لا يعلق التطبيق المثبَّت على الشاشة الرئيسية على نسخة قديمة
+async function purgeStaleCaches(all){
+  try{
+    if(!('caches' in window)) return;
+    const keys = await caches.keys();
+    for(const k of keys){
+      const c = await caches.open(k);
+      const reqs = await c.keys();
+      for(const r of reqs){
+        const u = new URL(r.url);
+        const isPage = u.origin === location.origin && (u.pathname === location.pathname || /\/(index\.html)?$/.test(u.pathname) || /\.html$/.test(u.pathname));
+        if(u.search.includes('v=') || (all && isPage)) await c.delete(r);
+      }
+    }
+  }catch(_){ }
 }
 function onUpdateReady(reg){
   if(_updateReady) return;
@@ -12203,11 +12225,19 @@ function hideSplash(){
   const el = document.getElementById('splashScreen');
   if(!el || el.classList.contains('hide')) return;
   el.classList.add('hide');
-  setTimeout(()=>{
+  setTimeout(async ()=>{
     el.style.display = 'none';
+    // فحص الإصدار أولاً (بحد أقصى 3 ثوانٍ): لو وُجدت نسخة أحدث يُعاد التحميل قبل أن تُبلّغ
+    // النسخة القديمة عن نفسها للوحة التحكم أو تبدأ أي عمل
+    let reloading = false;
+    try{
+      reloading = await Promise.race([
+        (typeof checkServerBuildAndReload === 'function') ? checkServerBuildAndReload() : Promise.resolve(false),
+        new Promise(r => setTimeout(()=> r(false), 3000))
+      ]);
+    }catch(_){ }
+    if(reloading) return;
     runLicenseCheck();
-    // فحص الإصدار يعمل حتى لو تعثّر الترخيص (جهاز بانتظار الموافقة، مفتاح خاطئ، أو انقطاع)
-    setTimeout(()=>{ if(typeof checkServerBuildAndReload === 'function') checkServerBuildAndReload(); }, 2000);
   }, 650);
 }
 // عند العودة للبرنامج بعد تركه في الخلفية: فحص إصدار جديد مرة أخرى
