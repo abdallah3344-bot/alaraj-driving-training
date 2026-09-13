@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-statement-quick</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-13-trial-sync</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -2073,7 +2073,8 @@ body.field-mode{ padding-bottom:76px; }
         <button class="btn btn-accent" onclick="printActivityLog()">🖨 طباعة الأرشيف</button>
       </div>
       <div class="stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px;">
-        <div class="stat-card"><div class="label">عدد الحركات</div><div class="value" id="act_count">0</div></div>
+        <div class="stat-card"><div class="label">عدد الحركات (ضمن الفترة)</div><div class="value" id="act_count">0</div></div>
+        <div class="stat-card"><div class="label">إجمالي الأرشيف</div><div class="value" id="act_total">0</div></div>
         <div class="stat-card"><div class="label">إضافة</div><div class="value accent" id="act_add">0</div></div>
         <div class="stat-card"><div class="label">تعديل</div><div class="value amber" id="act_edit">0</div></div>
         <div class="stat-card"><div class="label">حذف</div><div class="value" id="act_del">0</div></div>
@@ -2676,6 +2677,15 @@ function updateSyncBadge(ok, detail){
 }
 // تتبّع "تغييرات لم تُرفع بعد": يمنع إغلاق البرنامج قبل اكتمال الرفع، ويعيد المحاولة تلقائياً عند الفشل
 let _syncDirty = false, _syncDirtySeq = 0, _syncRetryTimer = null;
+// تُحفظ في المتصفح لتبقى بعد إغلاق البرنامج: تعني أن تعديلات محلية لم تصل الخادم بعد،
+// فلا تُستبدَل بيانات الجهاز بنسخة الخادم عند التشغيل التالي (وإلا ضاع عمل الموظف).
+const PENDING_SYNC_KEY = (typeof LICENSE_KEY_STORAGE === 'string' ? LICENSE_KEY_STORAGE : 'app') + '_pending_sync';
+function markPendingSync(on){
+  try{ on ? localStorage.setItem(PENDING_SYNC_KEY, String(Date.now())) : localStorage.removeItem(PENDING_SYNC_KEY); }catch(_){ }
+}
+function hasPendingSync(){
+  try{ return !!localStorage.getItem(PENDING_SYNC_KEY); }catch(_){ return false; }
+}
 // أُلغيت الشارة البرتقالية الدائمة بطلب المستخدم — الحماية صارت عند الإغلاق فقط:
 // البرنامج يمنع الإغلاق حتى يتأكد من ترحيل البيانات للسحابة (انظر حارس beforeunload أدناه).
 function updateUnsyncedPill(){
@@ -2971,7 +2981,7 @@ async function pushStateToServer(){
     if(!result.ok) throw new Error(result.message || 'رفض الخادم الحفظ');
     recordSyncResult(true);
     updateSyncBadge(true, result.message);
-    if(seqAtStart === _syncDirtySeq){ _syncDirty = false; clearTimeout(_syncRetryTimer); hideSyncingOnExitNotice(); }
+    if(seqAtStart === _syncDirtySeq){ _syncDirty = false; markPendingSync(false); clearTimeout(_syncRetryTimer); hideSyncingOnExitNotice(); }
     fetchServerVersion().then(v=>{ if(v) _knownServerVersion = v; });
     broadcastDataChanged();
   }catch(err){
@@ -2997,7 +3007,7 @@ function scheduleSync(){
   if(_applyingRemoteState) return;
   lastLocalEditAt = Date.now();
   if(!syncEnabled) return;
-  _syncDirty = true; _syncDirtySeq++;
+  _syncDirty = true; _syncDirtySeq++; markPendingSync(true);
   updateUnsyncedPill();
   if(_suppressServerPush) return;
   clearTimeout(syncDebounceTimer);
@@ -3160,9 +3170,16 @@ async function initDataSync(){
       // التخزين المحلي سابقاً) — نحتفظ بالمحلية ونرفعها بدل استبدالها بصمت وفقدان سجلات.
       console.warn(`نسخة الخادم (${countStateRecords(serverData)} سجل) أقل من المحلية (${countStateRecords(state)}) — تم الإبقاء على المحلية ورفعها`);
       await pushStateToServer();
+    } else if(serverHasData && localHasData && hasPendingSync()){
+      // الجهاز يحمل تعديلات لم تصل الخادم (انقطاع، أو إغلاق سريع بعد الإدخال):
+      // نُبقي عليها ونرفعها بدل استبدالها بنسخة الخادم الأقدم وفقدان العمل.
+      console.warn('تعديلات محلية لم تُرفع بعد — تم الإبقاء عليها ورفعها بدل اعتماد نسخة الخادم');
+      updateSyncBadge(true, 'جارٍ رفع تعديلات لم تُرفع سابقاً…');
+      await pushStateToServer();
+      renderAll();
     } else if(serverHasData && localHasData){
       // الاعتماد على نسخة الخادم عند وجود بيانات بالطرفين، بدون سؤال المستخدم —
-      // بناءً على طلب صريح (باستثناء حالة النقص أعلاه).
+      // بناءً على طلب صريح (باستثناء الحالتين أعلاه).
       state = serverData;
       migrateLegacyLessonDurations(); migrateOfficialPaperDepartment();
       saveState();
@@ -3187,7 +3204,7 @@ async function initDataSync(){
   }
 }
 const STATE_ARRAY_FIELDS = ['students','staff','vehicles','lessons','invoices','payments',
-  'vehicleExpenses','generalExpenses','lessonPrices','exams','customLicenseTypes','customExpenseTypes','customInvoiceTypes','users','commissionRates','disbursements','cheques','customPaperTypes','customDepartments','officialPapers','licenseCategoryOptions','vehicleDailyLogs','deletedUsers'];
+  'vehicleExpenses','generalExpenses','lessonPrices','exams','customLicenseTypes','customExpenseTypes','customInvoiceTypes','users','commissionRates','disbursements','cheques','customPaperTypes','customDepartments','officialPapers','licenseCategoryOptions','vehicleDailyLogs','deletedUsers','activityLog'];
 
 // يحسب إجمالي عدد السجلات عبر كل مصفوفات البيانات الرئيسية — يُستخدم لاكتشاف
 // التعارض بين نسخة محلية ونسخة واردة من الخادم قبل أي استبدال تلقائي بالمزامنة الدورية.
@@ -3622,7 +3639,12 @@ async function activateLicenseFromModal(){
     msgEl.style.display = 'block';
   }
 }
-function proceedAfterLicense(){
+async function proceedAfterLicense(){
+  // حارس أخير: إن دخل المستخدم بمسار لم يُشغّل المزامنة، تُشغَّل قبل أي إدخال
+  if(!syncEnabled && (localStorage.getItem(LICENSE_KEY_STORAGE) || '').trim()){
+    console.warn('المزامنة لم تكن مفعّلة عند الدخول — يجري تشغيلها الآن');
+    try{ await initDataSync(); }catch(_){ }
+  }
   document.getElementById('licenseGateScreen').classList.remove('show');
   if(isSecurityEnabled()){ showLockScreen(); }
   initScanPipeline();
@@ -3872,6 +3894,10 @@ function logActivity(kind, description, extra){
     if(state.activityLog.length > ACTIVITY_LOG_MAX){
       state.activityLog = state.activityLog.slice(-ACTIVITY_LOG_MAX);
     }
+    // مهم: يُحفظ السطر فوراً. كان يُضاف بعد حفظ العملية نفسها فيبقى في الذاكرة فقط،
+    // فتضيع حركات آخر عملية عند إغلاق البرنامج قبل أي حفظ لاحق.
+    if(typeof saveState === 'function') saveState();
+    if(typeof renderActivityLog === 'function' && document.getElementById('activityBody')) renderActivityLog();
   }catch(_){ }
 }
 // تغليف تلقائي لدوال العمليات: أي دالة عامة اسمها يبدأ بـ add/edit/delete… تُسجَّل عند نجاحها
@@ -3962,6 +3988,8 @@ function renderActivityLog(){
       <td>${r.description}</td>
     </tr>`).join('');
   document.getElementById('act_count').textContent = rows.length;
+  const totalEl = document.getElementById('act_total');
+  if(totalEl) totalEl.textContent = (state.activityLog || []).length;   // يُطمئن أن الأرشيف يسجّل فعلاً
   document.getElementById('act_add').textContent  = rows.filter(r=>r.kind==='إضافة').length;
   document.getElementById('act_edit').textContent = rows.filter(r=>r.kind==='تعديل').length;
   document.getElementById('act_del').textContent  = rows.filter(r=>r.kind==='حذف').length;
@@ -4368,7 +4396,7 @@ function showTab(id){
   if(id==='exams'){ refreshExamDropdowns(); renderExamCalendar(); onExamTypeChange(); }
   if(id==='receivables'){ renderReceivables(); }
   if(typeof markFieldQuickBar === 'function') markFieldQuickBar('tab-' + id);
-  if(id==='users'){ if(!document.getElementById('act_from').value) setActivityRange('today'); else renderActivityLog(); }
+  if(id==='users'){ if(!document.getElementById('act_from').value) setActivityRange('week'); else renderActivityLog(); }
   if(id==='invoices'){ refreshInvoiceDropdowns(); onInvoiceEntryTypeChange(); populatePosStudentSelect(); populateDiscountStudentSelect(); }
   if(id==='cheques'){ renderCheques(); }
   if(id==='officialpapers'){ renderOfficialPapers(); }
