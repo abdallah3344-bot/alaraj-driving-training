@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-autoupdate-2</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-12-statement-quick</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -763,6 +763,31 @@ body.field-mode{ padding-bottom:76px; }
   </div>
 </div>
 <!-- معلومات نموذج الفحص العملي — تُفتح تلقائياً بعد تسجيل امتحان عملي -->
+<!-- سند قبض / خصم سريع من داخل كشف الحساب -->
+<div id="stmtQuickModal" class="modal-overlay">
+  <div class="modal-box card" style="max-width:420px;">
+    <h2 id="sq_title">🧾 سند قبض</h2>
+    <p class="note" id="sq_student" style="margin:6px 0 12px;"></p>
+    <div class="field" id="sq_type_wrap" style="display:none;">
+      <label>نوع الخصم</label>
+      <select id="sq_disc_type" onchange="updateQuickPreview()">
+        <option value="fixed">مبلغ ثابت</option>
+        <option value="percent">نسبة من الرصيد %</option>
+      </select>
+    </div>
+    <div class="field"><label id="sq_amount_label">المبلغ</label>
+      <input id="sq_amount" type="number" step="0.01" oninput="updateQuickPreview()"></div>
+    <div class="field" id="sq_method_wrap"><label>طريقة الدفع</label>
+      <select id="sq_method"><option>نقدي</option><option>تحويل بنكي</option><option>شبكة / بطاقة</option></select></div>
+    <div class="field"><label>التاريخ</label><input id="sq_date" type="date"></div>
+    <div class="field"><label id="sq_notes_label">ملاحظات (اختياري)</label><input id="sq_notes"></div>
+    <div class="note" id="sq_preview" style="margin-bottom:10px;"></div>
+    <div class="form-actions">
+      <button class="btn btn-accent" id="sq_save" onclick="saveStatementQuick()">💾 حفظ وطباعة</button>
+      <button class="btn" onclick="closeStatementQuick()">إلغاء</button>
+    </div>
+  </div>
+</div>
 <div id="practicalExamModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:460px;">
     <h2>🚗 نموذج الفحص العملي</h2>
@@ -1832,6 +1857,13 @@ body.field-mode{ padding-bottom:76px; }
   <!-- تبويب كشف الحساب -->
   <section class="tab" id="tab-statement">
     <div class="card">
+      <div class="form-actions" id="stmt_quick_actions" style="display:none; margin:0;">
+        <button class="btn btn-accent" onclick="openStatementQuick('receipt')">🧾 سند قبض لهذا الطالب</button>
+        <button class="btn" onclick="openStatementQuick('discount')">🏷️ خصم لهذا الطالب</button>
+        <span id="stmt_quick_hint" class="note" style="margin-inline-start:8px;"></span>
+      </div>
+    </div>
+    <div class="card">
       <h2>فلترة كشف الحساب</h2>
       <div class="form-grid">
         <div class="field"><label>نوع الكشف</label>
@@ -1920,6 +1952,7 @@ body.field-mode{ padding-bottom:76px; }
             <option value="commissions">💰 تقرير عمولات المدربين</option>
             <option value="staffDues">👔 تقرير ذمم الموظفين (المستحق مقابل المصروف)</option>
             <option value="lessonsExams">📚 تقرير الدروس والامتحانات</option>
+            <option value="studentsByInstructor">👥 تقرير أسماء الطلاب (حسب المدرب / المدرسة)</option>
             <option value="exams">📝 تقرير الامتحانات حسب المدرب</option>
           </select>
         </div>
@@ -1928,6 +1961,10 @@ body.field-mode{ padding-bottom:76px; }
         <div class="field" id="rpt_filter_wrap" style="display:none;">
           <label id="rpt_filter_label">تصفية إضافية</label>
           <select id="rpt_filter"><option value="">— الكل —</option></select>
+        </div>
+        <div class="field" id="rpt_school_wrap" style="display:none;">
+          <label>تصفية حسب المدرسة</label>
+          <select id="rpt_school"><option value="">— كل المدارس —</option></select>
         </div>
       </div>
       <div class="form-actions"><button class="btn btn-accent" onclick="generateDetailReport()">📊 عرض التقرير</button></div>
@@ -2045,7 +2082,8 @@ body.field-mode{ padding-bottom:76px; }
         <thead><tr><th>#</th><th>التاريخ</th><th>الوقت</th><th>المستخدم</th><th>الدور</th><th>نوع الحركة</th><th>الوصف</th></tr></thead>
         <tbody id="activityBody"></tbody>
       </table></div>
-      <div id="activityEmpty" class="empty" style="display:none">لا توجد حركات ضمن الفترة المحددة</div>
+      <div id="act_auto_note" class="note" style="display:none; margin-bottom:8px; color:#8a6a00;">لا توجد حركات اليوم — يُعرض آخر 30 يوماً.</div>
+        <div id="activityEmpty" class="empty" style="display:none">لا توجد حركات ضمن الفترة المحددة</div>
     </div>
 
     <div class="card">
@@ -3810,6 +3848,13 @@ function activityDescribe(fnName){
 function logAuthEvent(kind, description){
   try{ logActivity(kind, description); saveState(); }catch(_){ }
 }
+// تاريخ اليوم بتوقيت الجهاز — todayStr() يعطي تاريخ UTC، فتُسجَّل حركات ما بعد منتصف
+// الليل محلياً بتاريخ اليوم السابق فلا تظهر في فلتر "حركات اليوم".
+function localDateStr(d){
+  const x = d || new Date();
+  const p = n => String(n).padStart(2, '0');
+  return x.getFullYear() + '-' + p(x.getMonth() + 1) + '-' + p(x.getDate());
+}
 function logActivity(kind, description, extra){
   try{
     if(!state.activityLog) state.activityLog = [];
@@ -3817,7 +3862,7 @@ function logActivity(kind, description, extra){
     state.activityLog.push({
       id: (state.activityLog.length ? state.activityLog[state.activityLog.length-1].id + 1 : 1),
       at: now.toISOString(),
-      date: todayStr(),
+      date: localDateStr(now),
       time: now.toTimeString().slice(0,5),
       user: currentUser ? currentUser.name : 'بدون تسجيل دخول',
       role: currentUser ? (ROLES[currentUser.role] ? ROLES[currentUser.role].label : currentUser.role) : '—',
@@ -3866,13 +3911,15 @@ function installActivityLogging(){
 }
 function setActivityRange(kind){
   const from = document.getElementById('act_from'), to = document.getElementById('act_to');
-  const t = todayStr();
+  const t = localDateStr();
   if(kind === 'today'){ from.value = t; to.value = t; }
-  else if(kind === 'week'){ from.value = new Date(Date.now()-6*864e5).toISOString().slice(0,10); to.value = t; }
+  else if(kind === 'week'){ from.value = localDateStr(new Date(Date.now()-6*864e5)); to.value = t; }
   else if(kind === 'month'){ from.value = t.slice(0,8) + '01'; to.value = t; }
   else { from.value = ''; to.value = ''; }
+  _actAutoWidened = (kind !== 'today');
   renderActivityLog();
 }
+let _actAutoWidened = false;
 function activityRows(){
   const from = document.getElementById('act_from').value;
   const to   = document.getElementById('act_to').value;
@@ -3891,6 +3938,18 @@ function activityRows(){
 function renderActivityLog(){
   const body = document.getElementById('activityBody');
   if(!body) return;
+  // لو لم تُسجَّل حركات اليوم بينما الأرشيف يحوي حركات سابقة، نوسّع النطاق تلقائياً
+  // بدل إظهار شاشة فارغة توحي بأن التسجيل لا يعمل
+  if(!_actAutoWidened && (state.activityLog || []).length){
+    const fromEl = document.getElementById('act_from'), toEl = document.getElementById('act_to');
+    const todayOnly = fromEl && toEl && fromEl.value === toEl.value && fromEl.value === localDateStr();
+    if(todayOnly && !activityRows().length){
+      _actAutoWidened = true;
+      fromEl.value = localDateStr(new Date(Date.now() - 29*864e5));
+      const note = document.getElementById('act_auto_note');
+      if(note){ note.style.display = 'block'; }
+    }
+  }
   const sel = document.getElementById('act_user');
   const users = [...new Set((state.activityLog||[]).map(r=> r.user))];
   const cur = sel.value;
@@ -10880,6 +10939,7 @@ function statSummary(items){
   return items.map(i=>`<div class="stat-card"><div class="label">${i.label}</div><div class="value accent">${i.value}</div></div>`).join('');
 }
 function onStatementTypeChange(){
+  setTimeout(updateStatementQuickActions, 0);
   const type = document.getElementById('stmt_type').value;
   const wrap = document.getElementById('stmt_subject_wrap');
   const label = document.getElementById('stmt_subject_label');
@@ -10912,6 +10972,8 @@ function onStatementTypeChange(){
     delete select.dataset.searching;
     Array.from(select.options).forEach(o=>{ o.hidden = false; });
     initSelectSearch('stmt_subject_search', 'stmt_subject');
+  const stmtSel = document.getElementById('stmt_subject');
+  if(stmtSel) stmtSel.addEventListener('change', updateStatementQuickActions);
   }
   document.getElementById('stmt_results_card').style.display = 'none';
   document.getElementById('stmt_print_btn').style.display = 'none';
@@ -10945,7 +11007,135 @@ function deleteFromStatement(kind, id){
     generateStatement();   // تحديث الكشف والرصيد فوراً بعد الحذف
   }
 }
+// أزرار سريعة أعلى كشف الحساب: تنقل الطالب المعروض إلى شاشة سند القبض أو الخصم جاهزاً
+// سند قبض/خصم سريع من داخل كشف الحساب — بلا مغادرة الشاشة
+let _sqMode = null, _sqStudentId = null;
+function openStatementQuick(mode){
+  const id = currentStatementStudentId();
+  if(!id){ alert('اختر الطالب أولاً من كشف الحساب'); return; }
+  if(!requireOnlineOrBlock()) return;
+  _sqMode = mode; _sqStudentId = id;
+  const bal = (typeof getStudentBalance === 'function') ? getStudentBalance(id) : 0;
+  document.getElementById('sq_title').textContent = mode === 'receipt' ? '🧾 سند قبض' : '🏷️ خصم للطالب';
+  document.getElementById('sq_student').textContent = `${nameOf(state.students, id)} — الرصيد الحالي: ${fmtNum(bal, 2)} ₪`;
+  document.getElementById('sq_type_wrap').style.display = mode === 'discount' ? '' : 'none';
+  document.getElementById('sq_method_wrap').style.display = mode === 'receipt' ? '' : 'none';
+  document.getElementById('sq_amount_label').textContent = mode === 'receipt' ? 'المبلغ المقبوض' : 'قيمة الخصم';
+  document.getElementById('sq_notes_label').textContent = mode === 'receipt' ? 'ملاحظات (اختياري)' : 'سبب الخصم (اختياري)';
+  document.getElementById('sq_amount').value = (mode === 'receipt' && bal > 0) ? bal : '';
+  document.getElementById('sq_disc_type').value = 'fixed';
+  document.getElementById('sq_notes').value = '';
+  document.getElementById('sq_date').value = todayStr();
+  document.getElementById('sq_save').textContent = mode === 'receipt' ? '💾 حفظ وطباعة السند' : '💾 حفظ الخصم';
+  document.getElementById('stmtQuickModal').classList.add('show');
+  updateQuickPreview();
+  setTimeout(()=>{ const el = document.getElementById('sq_amount'); if(el){ el.focus(); el.select(); } }, 80);
+}
+function closeStatementQuick(){
+  document.getElementById('stmtQuickModal').classList.remove('show');
+  _sqMode = null; _sqStudentId = null;
+}
+function quickAmountValue(){
+  const raw = parseFloat(document.getElementById('sq_amount').value);
+  if(!raw || raw <= 0) return 0;
+  if(_sqMode === 'discount' && document.getElementById('sq_disc_type').value === 'percent'){
+    const bal = getStudentBalance(_sqStudentId);
+    return Math.round(bal * raw) / 100;
+  }
+  return Math.round(raw * 100) / 100;
+}
+function updateQuickPreview(){
+  const box = document.getElementById('sq_preview');
+  if(!box || !_sqStudentId) return;
+  const bal = getStudentBalance(_sqStudentId);
+  const amt = quickAmountValue();
+  if(!amt){ box.textContent = ''; return; }
+  box.textContent = `الرصيد بعد العملية: ${fmtNum(bal - amt, 2)} ₪`
+    + (_sqMode === 'discount' && document.getElementById('sq_disc_type').value === 'percent' ? ` (قيمة الخصم ${fmtNum(amt, 2)} ₪)` : '');
+}
+function saveStatementQuick(){
+  if(!requireOnlineOrBlock()) return;
+  const id = _sqStudentId, mode = _sqMode;
+  const amount = quickAmountValue();
+  if(!id) return;
+  if(!amount){ alert(mode === 'receipt' ? 'الرجاء إدخال مبلغ صحيح' : 'الرجاء إدخال قيمة خصم صحيحة'); return; }
+  const date = document.getElementById('sq_date').value || todayStr();
+  const notes = document.getElementById('sq_notes').value.trim();
+  if(mode === 'receipt'){
+    const paymentId = newId('payments');
+    state.payments.push({ id: paymentId, invoiceId: null, studentId: id, payerName: '', amount,
+      date, method: document.getElementById('sq_method').value, notes,
+      school: (typeof schoolOfStudent === 'function') ? schoolOfStudent(id) : undefined });
+    closeStatementQuick();
+    renderReceipts();
+    generateStatement();                 // الكشف يتحدّث فوراً بالعملية الجديدة
+    printReceipt(paymentId);             // الطباعة داخل الشاشة نفسها
+  } else {
+    const bal = getStudentBalance(id);
+    if(!confirm(`تأكيد خصم ${fmtNum(amount, 2)} ₪ من رصيد «${nameOf(state.students, id)}»؟\nالرصيد: ${fmtNum(bal, 2)} ₪ → بعد الخصم: ${fmtNum(bal - amount, 2)} ₪`)) return;
+    state.invoices.push({ id: newId('invoices'), studentId: id, amount: -amount,
+      invoiceType: notes ? `خصم — ${notes}` : 'خصم', notes, due: '', status: 'مدفوعة',
+      created: date, school: (typeof schoolOfStudent === 'function') ? schoolOfStudent(id) : undefined });
+    closeStatementQuick();
+    renderInvoices();
+    generateStatement();
+  }
+  saveState();
+  updateStatementQuickActions();
+}
+function currentStatementStudentId(){
+  const type = (document.getElementById('stmt_type') || {}).value;
+  if(type !== 'student') return null;
+  const v = (document.getElementById('stmt_subject') || {}).value;
+  return v ? parseInt(v) : null;
+}
+function updateStatementQuickActions(){
+  const box = document.getElementById('stmt_quick_actions');
+  if(!box) return;
+  const id = currentStatementStudentId();
+  box.style.display = id ? 'flex' : 'none';
+  const hint = document.getElementById('stmt_quick_hint');
+  if(hint && id){
+    const bal = (typeof getStudentBalance === 'function') ? getStudentBalance(id) : 0;
+    hint.textContent = `${nameOf(state.students, id)} — الرصيد الحالي: ${fmtNum(bal, 2)} ₪`;
+  }
+}
+function quickReceiptForStatement(){
+  const id = currentStatementStudentId();
+  if(!id){ alert('اختر الطالب أولاً من كشف الحساب'); return; }
+  showTab('invoices');
+  setTimeout(()=>{
+    const unlinked = document.getElementById('rcpt_unlinked');
+    if(unlinked && unlinked.checked){ unlinked.checked = false; if(typeof onReceiptLinkModeChange === 'function') onReceiptLinkModeChange(); }
+    const sel = document.getElementById('rcpt_student');
+    if(sel){ sel.value = String(id); sel.dispatchEvent(new Event('change')); }
+    const search = document.getElementById('rcpt_student_search');
+    if(search) search.value = nameOf(state.students, id);
+    const bal = (typeof getStudentBalance === 'function') ? getStudentBalance(id) : 0;
+    const amount = document.getElementById('rcpt_amount');
+    if(amount && bal > 0) amount.value = bal;      // يُقترَح تسديد كامل الرصيد، وقابل للتعديل
+    const date = document.getElementById('rcpt_date');
+    if(date && !date.value) date.value = todayStr();
+    const card = document.getElementById('rcpt_amount');
+    if(card && card.scrollIntoView) card.scrollIntoView({ block:'center' });
+    if(amount) amount.focus();
+  }, 120);
+}
+function quickDiscountForStatement(){
+  const id = currentStatementStudentId();
+  if(!id){ alert('اختر الطالب أولاً من كشف الحساب'); return; }
+  showTab('invoices');
+  setTimeout(()=>{
+    const sel = document.getElementById('disc_student');
+    if(sel){ sel.value = String(id); sel.dispatchEvent(new Event('change')); }
+    const search = document.getElementById('disc_student_search');
+    if(search) search.value = nameOf(state.students, id);
+    const val = document.getElementById('disc_value');
+    if(val){ val.value = ''; val.focus(); if(val.scrollIntoView) val.scrollIntoView({ block:'center' }); }
+  }, 120);
+}
 function generateStatement(){
+  setTimeout(updateStatementQuickActions, 0);
   const type = document.getElementById('stmt_type').value;
   const from = document.getElementById('stmt_from').value;
   const to = document.getElementById('stmt_to').value;
@@ -11285,6 +11475,8 @@ function renderReports(){
 // -- التقرير التفصيلي المنسدل (يظهر فقط عند اختياره صراحة) --
 function onReportTypeChange(){
   const type = document.getElementById('rpt_type').value;
+  const schoolWrap = document.getElementById('rpt_school_wrap');
+  if(schoolWrap && type !== 'studentsByInstructor') schoolWrap.style.display = 'none';
   const wrap = document.getElementById('rpt_filter_wrap');
   const label = document.getElementById('rpt_filter_label');
   const select = document.getElementById('rpt_filter');
@@ -11298,6 +11490,22 @@ function onReportTypeChange(){
     wrap.style.display = '';
     label.textContent = 'تصفية حسب السيارة';
     select.innerHTML = '<option value="">— كل السيارات —</option>' + state.vehicles.map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('');
+  } else if(type==='studentsByInstructor'){
+    wrap.style.display = '';
+    label.textContent = 'تصفية حسب المدرب';
+    const sw = document.getElementById('rpt_school_wrap');
+    const ss = document.getElementById('rpt_school');
+    if(sw && ss && typeof SCHOOLS !== 'undefined'){
+      sw.style.display = '';
+      const cur = ss.value;
+      ss.innerHTML = '<option value="">— كل المدارس —</option>'
+        + Object.keys(SCHOOLS).map(id=>`<option value="${id}">${SCHOOLS[id].name}</option>`).join('');
+      ss.value = cur;
+    }
+    const instructors = state.staff.filter(s=>s.role==='مدرب');
+    select.innerHTML = '<option value="">— كل المدربين —</option>'
+      + '<option value="none">— بلا مدرب محدَّد —</option>'
+      + instructors.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   } else if(type==='topInstructors' || type==='commissions' || type==='exams'){
     wrap.style.display = '';
     label.textContent = 'تصفية حسب المدرب';
@@ -11587,6 +11795,46 @@ function generateDetailReport(){
         <td><b>${fmtNum(r.balance, 2)}</b></td><td><span class="badge ${cls}">${label}</span></td></tr>`;
     }).join('');
     rowCount = rows.length;
+
+  } else if(type==='studentsByInstructor'){
+    // أسماء الطلاب مجمَّعة حسب المدرب المعتاد، مع تصفية اختيارية بالمدرسة
+    // (التاريخ هنا يخص تاريخ تسجيل الطالب، ويمكن تركه فارغاً لعرض الجميع)
+    const schoolFilter = (document.getElementById('rpt_school') || {}).value || '';
+    title = '👥 تقرير أسماء الطلاب حسب المدرب'
+      + (schoolFilter && typeof SCHOOLS !== 'undefined' && SCHOOLS[schoolFilter] ? ' — ' + SCHOOLS[schoolFilter].name : '');
+    const students = state.students
+      .filter(s=> !from && !to ? true : inRange((s.enrolled||'').slice(0,10), from, to))
+      .filter(s=> !schoolFilter || s.school === schoolFilter)
+      .filter(s=>{
+        if(!filterVal) return true;
+        if(filterVal === 'none') return !s.preferredInstructorId;
+        return String(s.preferredInstructorId) === String(filterVal);
+      });
+    const groups = {};
+    students.forEach(s=>{
+      const key = s.preferredInstructorId ? String(s.preferredInstructorId) : 'none';
+      (groups[key] = groups[key] || []).push(s);
+    });
+    const doneHours = (s)=> state.lessons.filter(l=> l.studentId===s.id && l.status==='منجز')
+      .reduce((t,l)=> t + (Number(l.duration)||0), 0) / 60;
+    head.innerHTML = '<tr><th>#</th><th>الطالب</th><th>رقم الهوية</th><th>الجوال</th>'
+      + (typeof SCHOOLS !== 'undefined' ? '<th>المدرسة</th>' : '')
+      + '<th>نوع الرخصة</th><th>الحالة</th><th>ساعات منجزة</th><th>تاريخ التسجيل</th></tr>';
+    let html = '', n = 0;
+    const entries = Object.entries(groups).sort((a,b)=> b[1].length - a[1].length);
+    entries.forEach(([id, list])=>{
+      const instName = id === 'none' ? 'بلا مدرب محدَّد' : nameOf(state.staff, parseInt(id));
+      const colSpan = typeof SCHOOLS !== 'undefined' ? 9 : 8;
+      html += `<tr style="background:#eef4f3; font-weight:800;"><td colspan="${colSpan}">👨‍🏫 ${instName} — ${list.length} طالب</td></tr>`;
+      list.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'ar')).forEach(s=>{
+        n++;
+        html += `<tr><td>${n}</td><td>${s.name||'-'}</td><td>${s.nid||'-'}</td><td>${s.phone||'-'}</td>`
+          + (typeof SCHOOLS !== 'undefined' ? `<td>${(SCHOOLS[s.school]||{}).name || '-'}</td>` : '')
+          + `<td>${s.license||'-'}</td><td>${s.status||'-'}</td><td>${fmtNum(doneHours(s), 1)}</td><td>${(s.enrolled||'').slice(0,10)||'-'}</td></tr>`;
+      });
+    });
+    body.innerHTML = html;
+    rowCount = students.length;
 
   } else if(type==='exams'){
     title = '📝 تقرير الامتحانات حسب المدرب';
