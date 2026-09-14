@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-13-autofill</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-14-pex-fonts</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -840,6 +840,8 @@ body.field-mode{ padding-bottom:76px; }
       <div class="field"><label>رقم البيت</label><input id="ed_st_house"></div>
       <div class="field"><label>المدرب المعتاد (اختياري)</label><select id="ed_st_instructor"></select></div>
       <div class="field"><label>السيارة المعتادة (اختياري)</label><select id="ed_st_vehicle"></select></div>
+      <div class="field"><label>ملاحظات</label>
+        <textarea id="ed_st_notes" rows="2" style="width:100%; box-sizing:border-box; resize:vertical;"></textarea></div>
       <div class="field"><label>الحالة</label><select id="ed_st_status"><option>نشط</option><option>متوقف</option></select></div>
       <div class="field"><label>🏫 المدرسة</label><select id="ed_st_school"></select></div>
     </div>
@@ -1151,6 +1153,20 @@ body.field-mode{ padding-bottom:76px; }
         <div class="field"><label>الاسم</label><input id="st_name"></div>
         <div class="field"><label>الهاتف</label><input id="st_phone" oninput="mirrorPhoneToHouse('st_')"></div>
         <div class="field"><label>رقم الهوية</label><input id="st_nid"></div>
+        <div class="field" id="st_scan_photos_wrap" style="display:none;">
+          <label>الصور الممسوحة (تُحفظ عند إضافة الطالب)</label>
+          <div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;">
+            <div style="text-align:center;">
+              <img id="st_photo_preview" style="display:none; width:92px; height:112px; object-fit:cover; border-radius:8px; border:1px solid var(--line,#ddd);">
+              <div id="st_photo_caption" style="display:none; font-size:11.5px; color:var(--muted,#777); margin-top:3px;">الصورة الشخصية</div>
+            </div>
+            <div style="text-align:center;">
+              <img id="st_idphoto_preview" style="display:none; max-width:190px; max-height:112px; object-fit:contain; border-radius:8px; border:1px solid var(--line,#ddd);">
+              <div id="st_idphoto_caption" style="display:none; font-size:11.5px; color:var(--muted,#777); margin-top:3px;">صورة الهوية</div>
+            </div>
+            <button type="button" class="btn" style="align-self:center;" onclick="clearPendingScanPhotos()">✕ إزالة الصور</button>
+          </div>
+        </div>
         <div class="field"><label>رقم الرخصة السابقة (إن وُجدت)</label><input id="st_prev_license_no" placeholder="تُعبَّأ في النموذج الرسمي"></div>
         <div class="field"><label>نوع الرخصة السابقة</label><input id="st_prev_license_type" placeholder="مثال: خصوصي / شحن خفيف"></div>
         <div class="field"><label>نوع الرخصة</label>
@@ -1172,6 +1188,8 @@ body.field-mode{ padding-bottom:76px; }
         <div class="field"><label>رقم البيت</label><input id="st_house"></div>
         <div class="field"><label>المدرب المعتاد (اختياري)</label><select id="st_instructor"></select></div>
         <div class="field"><label>السيارة المعتادة (اختياري)</label><select id="st_vehicle"></select></div>
+        <div class="field" style="grid-column:1/-1;"><label>ملاحظات (اختياري)</label>
+          <textarea id="st_notes" rows="2" placeholder="أي ملاحظة عن الطالب: ظروف خاصة، مواعيد مفضّلة، اتفاق دفع..." style="width:100%; box-sizing:border-box; resize:vertical;"></textarea></div>
       </div>
       <div class="form-actions"><button class="btn btn-accent" onclick="addStudent()">➕ إضافة طالب</button></div>
       <div class="note" style="margin-top:12px;">
@@ -1192,9 +1210,11 @@ body.field-mode{ padding-bottom:76px; }
       <div class="form-actions" style="margin-top:0; margin-bottom:12px;">
         <button class="btn" id="st_show_all_btn" onclick="showAllStudents()">👥 إظهار كل الطلاب</button>
         <button class="btn" onclick="printTableAsList('قائمة الطلاب','studentsBody')">🖨 طباعة القائمة</button>
+        <button class="btn btn-accent" id="st_print_selected" style="display:none;" onclick="printSelectedStudents()">🖨 طباعة المحدَّدين</button>
+        <button class="btn" id="st_clear_selection" style="display:none;" onclick="clearStudentSelection()">إلغاء التحديد</button>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th></th><th>الرقم</th><th>المدرسة</th><th>الاسم</th><th>الهاتف</th><th>نوع الرخصة</th><th>نوع الغيار</th><th>المدرب المعتاد</th><th>السيارة المعتادة</th><th>الساعات المنجزة</th><th>الحالة</th><th></th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="st_pick_all" onchange="toggleAllStudents(this)" title="تحديد الكل"></th><th></th><th>الرقم</th><th>المدرسة</th><th>الاسم</th><th>الهاتف</th><th>نوع الرخصة</th><th>نوع الغيار</th><th>المدرب المعتاد</th><th>السيارة المعتادة</th><th>الساعات المنجزة</th><th>الحالة</th><th></th></tr></thead>
         <tbody id="studentsBody"></tbody>
       </table></div>
       <div id="studentsEmpty" class="empty" style="display:none">لا يوجد طلاب مسجلين بعد</div>
@@ -2005,6 +2025,19 @@ body.field-mode{ padding-bottom:76px; }
         <div class="field"><label>تاريخ نهاية الترخيص</label><input id="si_license_end" type="date"></div>
       </div>
 
+      <h3 style="margin:16px 0 6px;">🖼️ شعار المدرسة</h3>
+      <div class="note" style="margin-bottom:10px;">يظهر الشعار في ترويسة المطبوعات وشاشات البرنامج. الحجم المناسب مربّع تقريباً وبخلفية بيضاء أو شفافة، وحتى 2 ميجابايت.</div>
+      <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+        <img id="si_logo_preview" style="width:96px; height:96px; object-fit:contain; border:1px solid var(--line,#ddd); border-radius:10px; background:#fff;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <label class="btn" style="cursor:pointer;">⬆ رفع شعار
+            <input type="file" accept="image/*" style="display:none;" onchange="handleSchoolLogoFile(this)">
+          </label>
+          <button type="button" class="btn" onclick="resetSchoolLogo()">↺ إعادة الشعار الافتراضي</button>
+        </div>
+        <span id="si_logo_status" class="note" style="margin:0;"></span>
+      </div>
+
       <h3 style="margin:16px 0 6px;">أصحاب المدرسة</h3>
       <div class="form-grid">
         <div class="field"><label>صاحب المدرسة</label><input id="si_owner_name"></div>
@@ -2061,7 +2094,7 @@ body.field-mode{ padding-bottom:76px; }
         <div class="field"><label>إلى تاريخ</label><input id="act_to" type="date" onchange="renderActivityLog()"></div>
         <div class="field"><label>المستخدم</label><select id="act_user" onchange="renderActivityLog()"><option value="">الكل</option></select></div>
         <div class="field"><label>نوع الحركة</label><select id="act_kind" onchange="renderActivityLog()">
-          <option value="">الكل</option><option value="إضافة">إضافة</option><option value="تعديل">تعديل</option><option value="حذف">حذف</option><option value="طباعة">طباعة</option><option value="أخرى">أخرى</option>
+          <option value="">الكل</option><option value="إضافة">إضافة</option><option value="تعديل">تعديل</option><option value="حذف">حذف</option><option value="طباعة">طباعة</option><option value="تصدير">تصدير</option><option value="استيراد">استيراد</option><option value="أخرى">أخرى</option>
         </select></div>
         <div class="field"><label>بحث</label><input id="act_search" type="text" placeholder="ابحث في الوصف..." oninput="renderActivityLog()"></div>
       </div>
@@ -2146,7 +2179,10 @@ const SCHOOLS = {
 // شعار كل مدرسة (يُستخدم فقط بالأوراق الرسمية والطباعة الخاصة بتلك المدرسة تحديداً،
 // وليس بترويسة البرنامج العامة التي توحَّدت على شعار الاعرج كمدرسة أمّ)
 const LOGO_BY_SCHOOL = { alaraj: ALARAJ_LOGO_DATA_URI, aqsa: AQSA_LOGO_DATA_URI, israa: ISRAA_LOGO_DATA_URI };
-function logoForSchool(schoolId){ return LOGO_BY_SCHOOL[schoolId] || ALARAJ_LOGO_DATA_URI; }
+function logoForSchool(schoolId){
+  const custom = (typeof schoolLogoOf === 'function') ? schoolLogoOf(schoolId) : null;   // شعار مرفوع من شاشة بيانات المدرسة
+  return custom || LOGO_BY_SCHOOL[schoolId] || ALARAJ_LOGO_DATA_URI;
+}
 
 // آخر مدرسة اختارها المستخدم بأي شاشة إدخال — تُستخدَم كافتراضي بكل قائمة منسدلة "المدرسة" جديدة
 const LAST_SCHOOL_STORAGE = 'alaraj_last_selected_school';
@@ -3307,6 +3343,13 @@ function sanitizeIncomingState(raw, sourceLabel){
   clean.schoolInfo = Object.assign(defaultSchoolInfo(),
     (raw.schoolInfo && typeof raw.schoolInfo === 'object' && !Array.isArray(raw.schoolInfo)) ? raw.schoolInfo : {});
 
+  // بيانات كل مدرسة على حدة (وشعارها المرفوع): كانت تُسقَط عند كل تحميل/مزامنة فتضيع.
+  if(raw.schoolInfoBySchool && typeof raw.schoolInfoBySchool === 'object' && !Array.isArray(raw.schoolInfoBySchool)){
+    clean.schoolInfoBySchool = raw.schoolInfoBySchool;
+  }
+  // إعدادات مفردة يجب ألا تضيع أيضاً
+  ['portalWaPrefix','lastFormDepartment'].forEach(k=>{ if(raw[k] !== undefined) clean[k] = raw[k]; });
+
   if(issues.length){
     console.warn(`تنبيه: بيانات ${sourceLabel||'واردة'} تحتوي حقولاً بشكل غير متوقَّع، تمت إعادة تعيينها بأمان:`, issues);
   }
@@ -3845,17 +3888,72 @@ const ACTIVITY_LABELS = {
   mark:'تسجيل حضور', booking:'طلب حجز', log:'سجل', logs:'سجلات', snapshot:'نسخة احتياطية'
 };
 function activityKindOf(fnName){
-  if(/^(add|create|register|record|new|import|generate|backup)/i.test(fnName)) return 'إضافة';
-  if(/^(edit|update|save|change|toggle|apply|set|replace|resolve|mark|approve|reject|confirm|assign|renew|pay|restore|migrate|merge|finalize|activate|deactivate|suspend|unbind|send)/i.test(fnName)) return 'تعديل';
+  if(/^(export|backup)/i.test(fnName)) return 'تصدير';
+  if(/^(import|restore)/i.test(fnName)) return 'استيراد';
+  if(/^(add|create|register|record|new|generate)/i.test(fnName)) return 'إضافة';
+  if(/^(edit|update|save|change|toggle|apply|set|replace|resolve|mark|approve|reject|confirm|assign|renew|pay|migrate|merge|finalize|activate|deactivate|suspend|unbind|send)/i.test(fnName)) return 'تعديل';
   if(/^(delete|remove|clear|reset|cancel|archive)/i.test(fnName)) return 'حذف';
   if(/^(print|export)/i.test(fnName)) return 'طباعة';
   return 'أخرى';
 }
 // يبني وصفاً عربياً من اسم الدالة: يأخذ آخر كلمة معروفة في الاسم (saveEditStudent → طالب)
+// أسماء صريحة لعمليات حسّاسة لا يصح توليد اسمها آلياً
+const ACTIVITY_EXPLICIT = {
+  exportData: 'تصدير نسخة احتياطية كاملة من بيانات البرنامج',
+  importData: 'استيراد نسخة احتياطية (استبدال بيانات البرنامج)',
+  exportBackup: 'تصدير نسخة احتياطية',
+  restoreBackup: 'استعادة نسخة احتياطية',
+  resetAllData: 'مسح كل بيانات البرنامج',
+  clearAllData: 'مسح كل بيانات البرنامج',
+  printStatement: 'طباعة كشف حساب',
+  printReceivables: 'طباعة الذمم المترصدة',
+  printTableAsList: 'طباعة قائمة من جدول',
+  printDetailReport: 'طباعة تقرير',
+  printStudentCard: 'طباعة بطاقة طالب',
+  printReceipt: 'طباعة سند قبض',
+  printDisbursement: 'طباعة سند صرف',
+  printOfficialCombinedForm: 'طباعة استمارة طالب (النموذج الرسمي)',
+  printPracticalExamForm: 'طباعة استمارة فحص عملي',
+  printSchoolLicenseRenewalForm: 'طباعة نموذج تجديد رخصة المدرسة',
+  printSchoolBlankRenewalForm: 'طباعة نموذج تجديد فارغ',
+  deleteFromStatement: 'حذف حركة من كشف الحساب',
+  sendSupportTicket: 'إرسال تذكرة دعم فني',
+  sendOutageSms: 'إرسال تنبيه انقطاع برسالة نصية',
+  sendOutageWhatsApp: 'إرسال تنبيه انقطاع عبر واتساب',
+  applyExamStudentPreferences: 'تعبئة بيانات الطالب في شاشة الامتحان',
+  applyInvoiceStudentPreferences: 'تعبئة بيانات الطالب في شاشة الفاتورة',
+  applyStudentPreferences: 'تعبئة بيانات الطالب في شاشة الحصة',
+  changeLessonStatus: 'تغيير حالة حصة',
+  renewVehicleLicense: 'تجديد رخصة سيارة',
+  renewStaffLicense: 'تجديد رخصة مدرب',
+  renewLicense: 'تجديد ترخيص البرنامج',
+  activateLicense: 'تفعيل ترخيص البرنامج',
+  toggleStudentStatus: 'إيقاف/تنشيط طالب',
+  toggleCommissionRate: 'تفعيل/تعطيل نسبة عمولة',
+  mergeDuplicateStudents: 'دمج طالبين مكررين',
+  confirmPosPayment: 'تأكيد دفع إلكتروني',
+  setChequeStatus: 'تغيير حالة شيك',
+  saveLessonPrice: 'حفظ تسعيرة حصة',
+  updatePaperPhoto: 'تحديث صورة معاملة رسمية',
+  applyLessonCompletionEffects: 'احتساب أثر إنجاز حصة (فاتورة وعمولة)'
+};
+// الفعل العربي المقابل لبداية اسم الدالة — يُستخدَم في الوصف بدل التصنيف العام،
+// فلا تختفي دلالة العملية ("اعتماد طلب حجز" بدل "تعديل طلب حجز").
+const ACTIVITY_VERB_WORDS = {
+  add:'إضافة', create:'إنشاء', register:'تسجيل', record:'تسجيل', new:'إضافة', generate:'توليد',
+  edit:'تعديل', update:'تحديث', change:'تغيير', save:'حفظ', apply:'تطبيق', replace:'استبدال', set:'ضبط',
+  toggle:'تبديل حالة', resolve:'معالجة', mark:'تسجيل', finalize:'اعتماد نهائي', merge:'دمج', migrate:'ترحيل',
+  approve:'اعتماد', reject:'رفض', confirm:'تأكيد', cancel:'إلغاء', assign:'إسناد', renew:'تجديد', pay:'تسديد',
+  delete:'حذف', remove:'حذف', clear:'مسح', reset:'تصفير', archive:'أرشفة',
+  send:'إرسال', print:'طباعة', export:'تصدير', backup:'نسخ احتياطي', import:'استيراد', restore:'استعادة',
+  activate:'تفعيل', deactivate:'تعطيل', suspend:'إيقاف', unbind:'فكّ ربط'
+};
 function activityDescribe(fnName){
+  if(ACTIVITY_EXPLICIT[fnName]) return ACTIVITY_EXPLICIT[fnName];
+  const verb = (fnName.match(/^[a-z]+/) || [''])[0];
   const rest = fnName.replace(/^[a-z]+/, '');
   const tokens = rest.split(/(?=[A-Z])/).filter(Boolean);
-  const kind = activityKindOf(fnName);
+  const kind = ACTIVITY_VERB_WORDS[verb] || activityKindOf(fnName);
   for(let i = tokens.length - 1; i >= 0; i--){
     const k = tokens[i].toLowerCase();
     const known = ACTIVITY_LABELS[k] || ACTIVITY_LABELS[k.replace(/s$/, '')];
@@ -3901,7 +3999,7 @@ function logActivity(kind, description, extra){
   }catch(_){ }
 }
 // تغليف تلقائي لدوال العمليات: أي دالة عامة اسمها يبدأ بـ add/edit/delete… تُسجَّل عند نجاحها
-const ACTIVITY_SKIP = /^(addEventListener|addActivity|logActivity|renderActivity|setActivityRange|printActivityLog|saveState|scheduleSync|applyPrintTypography|updateSyncBadge|setTimeout|setInterval|setAttribute|removeChannel|removeEventListener|removeAttribute|resetBranch|markRaw|updateLicenseStatusBadge|updatePortalBadge|setLastSelectedSchool|createElement|createObjectURL|newId|createClient)/;
+const ACTIVITY_SKIP = /^(addEventListener|addActivity|logActivity|renderActivity|setActivityRange|printActivityLog|saveState|scheduleSync|applyPrintTypography|updateSyncBadge|setTimeout|setInterval|setAttribute|removeChannel|removeEventListener|removeAttribute|resetBranch|markRaw|updateLicenseStatusBadge|updatePortalBadge|setLastSelectedSchool|createElement|createObjectURL|newId|createClient|toggleSidebar|markAllTabsDirty|markFieldQuickBar|updateQuickPreview|updateStatementQuickActions|updateUnsyncedPill|updateOpenDevicesBadge|printSideTipHtml|markPendingSync|recordSyncResult|applyUpdateNow|applyFieldMode|toggleFieldMode|applyManualCrop|cancelManualCrop|applyLightAutoLevels|backupTx|migrateInlineMediaToStorage|generateStatement|renderTabNow|renderActiveTabIfDirty)/;
 // كل فعل يغيّر البيانات — وليس فقط add/edit/delete
 let _activityDepth = 0;   // عمق تداخل الدوال أثناء تسجيل الحركات
 const ACTIVITY_VERBS = /^(add|create|register|record|new|edit|update|change|toggle|delete|remove|resolve|mark|replace|save|apply|approve|reject|confirm|cancel|assign|renew|pay|import|restore|archive|finalize|generate|send|migrate|merge|set|unbind|activate|deactivate|suspend|print|export|backup)[A-Z]/;
@@ -4638,6 +4736,7 @@ function filterTable(inputId, tbodyId, emptyId){
     emptyEl.style.display = (query && rows.length>0 && visibleCount===0) ? 'block' : 'none';
   }
   showSearchCount(input, query, visibleCount, rows.length);
+  if(tbodyId === 'studentsBody' && typeof updateStudentSelectionUI === 'function') updateStudentSelectionUI();
 }
 // عدّاد النتائج بجانب خانة البحث — يظهر عند الكتابة فقط
 function showSearchCount(input, query, visible, total){
@@ -4941,17 +5040,60 @@ function applyPrintTypography(win, mode){
     else run();
   }catch(_){ }
 }
-function printTableAsList(title, tableBodyId){
+// اختيار طلاب بعينهم وطباعة قائمة بهم فقط
+function selectedStudentRows(){
+  return Array.from(document.querySelectorAll('#studentsBody .st-pick:checked'))
+    .map(cb => cb.closest('tr'))
+    .filter(tr => tr && tr.style.display !== 'none');
+}
+function updateStudentSelectionUI(){
+  const n = selectedStudentRows().length;
+  const btn = document.getElementById('st_print_selected');
+  if(btn){
+    btn.style.display = n ? '' : 'none';
+    btn.textContent = `🖨 طباعة المحدَّدين (${n})`;
+  }
+  const clr = document.getElementById('st_clear_selection');
+  if(clr) clr.style.display = n ? '' : 'none';
+  const all = document.getElementById('st_pick_all');
+  if(all){
+    const boxes = Array.from(document.querySelectorAll('#studentsBody .st-pick'))
+      .filter(cb => cb.closest('tr').style.display !== 'none');
+    all.checked = boxes.length > 0 && boxes.every(cb => cb.checked);
+    all.indeterminate = !all.checked && boxes.some(cb => cb.checked);
+  }
+}
+function toggleAllStudents(cb){
+  document.querySelectorAll('#studentsBody .st-pick').forEach(box=>{
+    if(box.closest('tr').style.display !== 'none') box.checked = cb.checked;
+  });
+  updateStudentSelectionUI();
+}
+function clearStudentSelection(){
+  document.querySelectorAll('#studentsBody .st-pick').forEach(cb=> cb.checked = false);
+  updateStudentSelectionUI();
+}
+function printSelectedStudents(){
+  const rows = selectedStudentRows();
+  if(!rows.length){ alert('لم تحدّد أي طالب. ضع علامة بجانب الطلاب المطلوبين أولاً.'); return; }
+  printTableAsList('قائمة الطلاب المحدَّدين', 'studentsBody', rows);
+}
+function printTableAsList(title, tableBodyId, onlyRows){
   const bodyEl = document.getElementById(tableBodyId);
   if(!bodyEl) return;
   const table = bodyEl.closest('table');
   const theadCells = Array.from(table.querySelectorAll('thead th'));
   const includeCount = theadCells.length - 1; // استبعاد عمود الإجراءات الأخير
-  const headers = theadCells.slice(0, includeCount).map(th=>th.textContent.trim());
-  const visibleRows = Array.from(bodyEl.querySelectorAll('tr')).filter(tr=> tr.style.display !== 'none');
+  const headers = theadCells.slice(0, includeCount)
+    .filter(th => !th.querySelector('#st_pick_all'))
+    .map(th=>th.textContent.trim());
+  const visibleRows = (onlyRows && onlyRows.length)
+    ? onlyRows
+    : Array.from(bodyEl.querySelectorAll('tr')).filter(tr=> tr.style.display !== 'none');
   if(!visibleRows.length){ alert('لا توجد سجلات ظاهرة حالياً لطباعتها.'); return; }
   const rowsHtml = visibleRows.map(tr=>{
-    const cells = Array.from(tr.children).slice(0, includeCount);
+    const cells = Array.from(tr.children).slice(0, includeCount)
+      .filter(td => !td.querySelector('.st-pick'));   // عمود الاختيار لا يُطبع
     return '<tr>' + cells.map(td=>`<td>${td.textContent.trim()}</td>`).join('') + '</tr>';
   }).join('');
 
@@ -5036,6 +5178,7 @@ function addStudent(){
     id: newId('students'), name,
     phone: document.getElementById('st_phone').value.trim(),
     nid: document.getElementById('st_nid').value.trim(),
+    notes: document.getElementById('st_notes').value.trim(),
     prevLicenseNo: document.getElementById('st_prev_license_no').value.trim(),
     prevLicenseType: document.getElementById('st_prev_license_type').value.trim(),
     license: document.getElementById('st_license').value,
@@ -5054,8 +5197,12 @@ function addStudent(){
   setLastSelectedSchool(newStudent.school);
   // سجل الطالب أولاً — لا صورة شخصية دائمة ولا نقل لصورة الهوية قبل نجاح هذه الخطوة
   state.students.push(newStudent);
-  ['st_name','st_phone','st_nid','st_prev_license_no','st_prev_license_type','st_dob','st_city','st_street','st_house'].forEach(id=>document.getElementById(id).value='');
+  ['st_name','st_phone','st_nid','st_prev_license_no','st_prev_license_type','st_dob','st_city','st_street','st_house','st_notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('st_license_category').value = '';
+  updateIdPhotoPreview('st_photo_preview', null);
+  updateIdPhotoPreview('st_idphoto_preview', null);
+  const scanWrap = document.getElementById('st_scan_photos_wrap');
+  if(scanWrap) scanWrap.style.display = 'none';
   renderStudents();
   finalizeScanArtifactsForNewStudent(newStudent);
 }
@@ -5245,7 +5392,8 @@ function renderStudents(){
     .filter(s=>!stSchoolFilter || s.school===stSchoolFilter)
     .filter(s=>!todayOnly || String(s.enrolled || '').slice(0,10) === t)
     .map((s,i)=>`
-    <tr data-search="${optionSearchText(s)} ${s.prevLicenseNo || ''}">
+    <tr data-search="${optionSearchText(s)} ${s.prevLicenseNo || ''} ${s.notes || ''}">
+      <td><input type="checkbox" class="st-pick" value="${s.id}" onchange="updateStudentSelectionUI()"></td>
       <td><span class="avatar-sm" id="st_avatar_${s.id}" data-student-id="${s.id}">${avatarInitial(s.name)}</span></td>
       <td>${i+1}</td><td>${schoolBadge(s.school||'alaraj')}</td><td>${s.name}</td><td>${s.phone||'-'}</td><td>${s.license}</td>
       <td>${s.gearType||'-'}</td>
@@ -5298,6 +5446,7 @@ function openEditStudentModal(id){
   document.getElementById('ed_st_name').value = s.name || '';
   document.getElementById('ed_st_phone').value = s.phone || '';
   document.getElementById('ed_st_nid').value = s.nid || '';
+  document.getElementById('ed_st_notes').value = s.notes || '';
   document.getElementById('ed_st_prev_license_no').value = s.prevLicenseNo || '';
   document.getElementById('ed_st_prev_license_type').value = s.prevLicenseType || '';
   populateDynamicSelect('licenseTypes', s.license, 'ed_st_license');
@@ -5340,6 +5489,7 @@ function saveEditStudent(){
   s.name = name;
   s.phone = document.getElementById('ed_st_phone').value.trim();
   s.nid = document.getElementById('ed_st_nid').value.trim();
+  s.notes = document.getElementById('ed_st_notes').value.trim();
   s.prevLicenseNo = document.getElementById('ed_st_prev_license_no').value.trim();
   s.prevLicenseType = document.getElementById('ed_st_prev_license_type').value.trim();
   s.license = document.getElementById('ed_st_license').value;
@@ -5984,7 +6134,7 @@ async function printStudentCard(id){
           </div>
           <div class="card-footer">${schoolContactLine(s.school)}<br>${portalQr ? 'امسح الرمز لمتابعة حصصك ورصيدك من جوالك — ' : ''}تاريخ الإصدار: ${todayStr()}</div>
         </div>
-        <div class="no-print"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة البطاقة</button></div>
+        <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة البطاقة</button></div>
       </div>
     </body></html>
   `);
@@ -6064,9 +6214,7 @@ async function openStudentFile(id){
       <div class="section-title">المرفقات (${attachments.length})</div>
       ${attachments.length ? attachments.map(a=>`<div class="att-item">📎 ${a.name}</div>`).join('') : '<div style="color:#888;font-size:13px;">لا توجد مرفقات</div>'}
 
-      <div class="no-print" style="text-align:center;margin-top:24px;">
-        <button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة</button>
-      </div>
+      <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة ملف الطالب</button></div>
     </body></html>
   `);
   applyPrintTypography(win);
@@ -8557,6 +8705,8 @@ function confirmIdScanData(){
   if(streetVal) document.getElementById('st_street').value = streetVal;
   if(houseVal) document.getElementById('st_house').value = houseVal;
   updateIdPhotoPreview('st_idphoto_preview', _idScanCapturedPhoto);
+  updateIdPhotoPreview('st_photo_preview', _idScanProfilePhotoDataUrl);
+  refreshPendingScanPhotosUI();
 
   // لا نتم حدث المسح (حذف من id-scans / نسخ لمرفقات الطالب) الآن — نؤجّله حتى
   // ينجح إنشاء الطالب فعلياً في addStudent()، تماماً كما لا نرفع الصورة
@@ -8772,6 +8922,24 @@ function captureProfilePhotoFrame(){
   _idScanCropSourceImage = canvas.toDataURL('image/jpeg', 0.9);
   stopProfilePhotoCamera();
   startManualCropOnCurrentPhoto();
+}
+// معاينة صور المسح داخل نموذج إضافة الطالب — كان العنصر غير موجود فلا تظهر الصورة المقصوصة
+function refreshPendingScanPhotosUI(){
+  const wrap = document.getElementById('st_scan_photos_wrap');
+  if(!wrap) return;
+  const hasProfile = !!_idScanProfilePhotoDataUrl, hasId = !!_idScanCapturedPhoto;
+  wrap.style.display = (hasProfile || hasId) ? '' : 'none';
+  const cap1 = document.getElementById('st_photo_caption'), cap2 = document.getElementById('st_idphoto_caption');
+  if(cap1) cap1.style.display = hasProfile ? '' : 'none';
+  if(cap2) cap2.style.display = hasId ? '' : 'none';
+}
+function clearPendingScanPhotos(){
+  _idScanProfilePhotoDataUrl = null;
+  _idScanCapturedPhoto = null;
+  window._pendingProfilePhotoForNewStudent = null;
+  updateIdPhotoPreview('st_photo_preview', null);
+  updateIdPhotoPreview('st_idphoto_preview', null);
+  refreshPendingScanPhotosUI();
 }
 function updateIdPhotoPreview(imgId, dataUrl){
   const img = document.getElementById(imgId);
@@ -8998,9 +9166,7 @@ function printReceipt(paymentId){
       </table>
       <div class="amount-box">وذلك مبلغاً وقدره<br><span class="num">${fmtNum(p.amount, 2)}</span></div>
       <div class="sign"><div>توقيع المستلم</div><div>توقيع العميل</div></div>
-      <div class="no-print" style="text-align:center;margin-top:24px;">
-        <button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة</button>
-      </div>
+      <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة السند</button></div>
       <script>window.onload = () => window.print();<\/script>
     </body></html>
   `);
@@ -9197,9 +9363,7 @@ function printDisbursement(id){
       </table>
       <div class="amount-box">وذلك مبلغاً وقدره<br><span class="num">${fmtNum(d.amount, 2)}</span></div>
       <div class="sign"><div>توقيع الصارف</div><div>توقيع المستلم</div></div>
-      <div class="no-print" style="text-align:center;margin-top:24px;">
-        <button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة</button>
-      </div>
+      <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة السند</button></div>
       <script>window.onload = () => window.print();<\/script>
     </body></html>
   `);
@@ -9638,6 +9802,11 @@ function printOfficialCombinedForm(paperId){
       .side-tab-plain{ background:transparent; border-right:1.5px solid #000; }
       table{ width:100%; border-collapse:collapse; margin:6px 0; font-size:12px; }
       td, th{ border:1.5px solid #000; padding:6px 5px; text-align:center; vertical-align:middle; color:#000; }
+      /* الخلايا الفارغة (مدينة/شارع/رقم بيت غير مُدخلة) كانت تنكمش فتصغر مستطيلات الجدول:
+         نضمن ارتفاعاً موحَّداً ونملأ الفارغ بمسافة غير كاسرة */
+      td{ height:22px; }
+      td:empty::after{ content:"\\a0"; }
+      td.autofill:empty::after{ content:"\\a0"; }
       th{ background:#e2e2e2; font-weight:800; }
       .compact-rows td, .compact-rows th{ padding:1.5px 5px; }
       .sign-row{ display:flex; justify-content:space-between; margin-top:18px; font-size:12px; font-weight:700; }
@@ -9658,7 +9827,14 @@ function printOfficialCombinedForm(paperId){
       .fill-cell{ font-weight:700; padding-top:3px; padding-bottom:3px; }
       .fill-cell .blank-line{ display:block; border-bottom:1.5px dotted #000; height:12px; margin-bottom:2px; }
       .no-print{ text-align:center; margin-top:20px; }
-      @media print{ .no-print{ display:none; } }
+      @media print{
+        .no-print{ display:none; }
+        /* الطباعة على الوجهين: كل صفحة على ورقة مستقلة، وهوامش متماثلة على الوجهين */
+        .page{ break-after: page; page-break-after: always; }
+        .page:last-of-type{ break-after: auto; page-break-after: auto; }
+        @page :left{ margin: 8mm; }
+        @page :right{ margin: 8mm; }
+      }
     </style></head>
     <body>
 
@@ -9833,7 +10009,47 @@ function printOfficialCombinedForm(paperId){
         <div class="note">تم إعداد هذا النموذج آلياً بواسطة نظام إدارة مدرسة الاعرج لتعليم السياقة استناداً لبيانات الطالب المسجَّلة — يُرجى مراجعة الحقول الفارغة وتعبئتها يدوياً قبل التقديم.</div>
       </div>
 
-      <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة الصفحتين</button></div>
+      <div class="no-print" style="margin-top:20px;">
+        <button onclick="startDuplexPrint()" style="padding:10px 22px; font-size:15px; font-weight:800; background:#0f766e; color:#fff; border:0; border-radius:8px; cursor:pointer;">🖨 طباعة على الوجهين</button>
+        <button onclick="window.print()" style="padding:10px 18px; margin-inline-start:8px; font-size:14px; background:#eee; border:1px solid #ccc; border-radius:8px; cursor:pointer;">طباعة عادية</button>
+      </div>
+      <!-- تذكير يظهر لحظة الطباعة على الوجهين (خاص باستمارة الطالب فقط) -->
+      <div id="duplexReminder" class="no-print" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,32,.72); align-items:center; justify-content:center; padding:16px;">
+        <div style="background:#fff; border-radius:14px; max-width:480px; width:100%; padding:22px 24px; text-align:right; box-shadow:0 18px 50px rgba(0,0,0,.35);">
+          <div style="font-size:19px; font-weight:900; color:#0f766e; margin-bottom:10px;">🖨 خطوة واحدة قبل الطباعة</div>
+          <div style="font-size:15px; line-height:2;">
+            في نافذة الطباعة التي ستُفتح الآن:
+            <div style="background:#fff8e1; border:1px solid #e6c200; border-radius:10px; padding:10px 14px; margin:10px 0;">
+              اضغط <b>«مزيد من الإعدادات»</b> ثم فعّل <b>«الطباعة على الوجهين»</b>.
+            </div>
+            الاستمارة صفحتان بالضبط، فتخرج على ورقة واحدة.
+          </div>
+          <label style="display:block; margin:12px 0 4px; font-size:13px; color:#555;">
+            <input type="checkbox" id="duplexDontShow"> لا تُظهر هذا التذكير مرة أخرى (سأضبط الطابعة على الوجهين)
+          </label>
+          <div style="display:flex; gap:8px; margin-top:12px;">
+            <button onclick="proceedDuplexPrint()" style="flex:1; padding:11px; font-size:15px; font-weight:800; background:#0f766e; color:#fff; border:0; border-radius:8px; cursor:pointer;">فهمت، افتح الطباعة</button>
+            <button onclick="document.getElementById('duplexReminder').style.display='none'" style="padding:11px 16px; background:#eee; border:1px solid #ccc; border-radius:8px; cursor:pointer;">إلغاء</button>
+          </div>
+        </div>
+      </div>
+      <script>
+        function startDuplexPrint(){
+          var skip = false;
+          try{ skip = localStorage.getItem('hide_duplex_tip') === '1'; }catch(e){}
+          if(skip){ window.print(); return; }
+          var box = document.getElementById('duplexReminder');
+          box.style.display = 'flex';
+        }
+        function proceedDuplexPrint(){
+          try{
+            if(document.getElementById('duplexDontShow').checked) localStorage.setItem('hide_duplex_tip','1');
+          }catch(e){}
+          document.getElementById('duplexReminder').style.display = 'none';
+          setTimeout(function(){ window.print(); }, 120);
+        }
+      <\/script>
+      
     </body></html>
   `);
   applyPrintTypography(win, 'form-plain');
@@ -9874,8 +10090,74 @@ function loadSchoolInfoForm(){
     const el = document.getElementById(elId);
     if(el) el.value = info[key] || '';
   });
+  updateSchoolLogoPreview();
   const note = document.getElementById('si_saved_note');
   if(note) note.style.display = 'none';
+}
+// شعار المدرسة المرفوع: يُخزَّن مع بيانات كل مدرسة ويحلّ محل الشعار المدمج في البرنامج
+// يحفظ بيانات المدرسة في المكان الصحيح حسب البرنامج (متعدد المدارس أو مدرسة واحدة)
+function persistSchoolInfo(sid, info){
+  if(state.schoolInfoBySchool && typeof state.schoolInfoBySchool === 'object'){
+    state.schoolInfoBySchool[sid] = info;
+  } else if(sid && typeof SCHOOLS === 'object' && SCHOOLS && SCHOOLS[sid]){
+    state.schoolInfoBySchool = Object.assign({}, state.schoolInfoBySchool, { [sid]: info });
+  } else {
+    state.schoolInfo = info;
+  }
+}
+function schoolLogoOf(schoolId){
+  try{
+    const info = (typeof getSchoolInfo === 'function') ? getSchoolInfo(schoolId) : null;
+    if(info && info.logo) return info.logo;
+  }catch(_){ }
+  return null;
+}
+function handleSchoolLogoFile(inputEl){
+  const file = inputEl.files && inputEl.files[0];
+  inputEl.value = '';
+  if(!file) return;
+  if(!/^image\//.test(file.type)){ alert('الرجاء اختيار ملف صورة.'); return; }
+  if(file.size > 2 * 1024 * 1024){ alert('حجم الصورة كبير (أكثر من 2 ميجابايت). اختر صورة أصغر.'); return; }
+  const reader = new FileReader();
+  reader.onload = async ()=>{
+    let dataUrl = reader.result;
+    try{ if(typeof makeThumbnail === 'function') dataUrl = await makeThumbnail(dataUrl, 320); }catch(_){ }
+    const sid = (document.getElementById('si_school') || {}).value || (typeof getLastSelectedSchool === 'function' ? getLastSelectedSchool() : '');
+    const info = getSchoolInfo(sid);
+    info.logo = dataUrl;
+    persistSchoolInfo(sid, info);
+    saveState();
+    applySchoolLogoEverywhere();
+    updateSchoolLogoPreview();
+    const st = document.getElementById('si_logo_status');
+    if(st){ st.textContent = '✅ تم حفظ الشعار'; setTimeout(()=>{ st.textContent=''; }, 3000); }
+  };
+  reader.readAsDataURL(file);
+}
+function resetSchoolLogo(){
+  if(!confirm('إعادة الشعار الافتراضي المدمج في البرنامج؟')) return;
+  const sid = (document.getElementById('si_school') || {}).value || (typeof getLastSelectedSchool === 'function' ? getLastSelectedSchool() : '');
+  const info = getSchoolInfo(sid);
+  delete info.logo;
+  persistSchoolInfo(sid, info);
+  saveState();
+  applySchoolLogoEverywhere();
+  updateSchoolLogoPreview();
+}
+function updateSchoolLogoPreview(){
+  const img = document.getElementById('si_logo_preview');
+  if(!img) return;
+  const sid = (document.getElementById('si_school') || {}).value || (typeof getLastSelectedSchool === 'function' ? getLastSelectedSchool() : '');
+  img.src = logoForSchool(sid);
+}
+// شاشات البرنامج تعرض الشعار المرفوع فور حفظه
+function applySchoolLogoEverywhere(){
+  const sid = (typeof getLastSelectedSchool === 'function') ? getLastSelectedSchool() : '';
+  const src = logoForSchool(sid);
+  ['watermarkImg','headerLogo','splashLogo','homeLogo','lockLogo','licenseLogo'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.src = src;
+  });
 }
 function saveSchoolInfo(){
   if(!requireOnlineOrBlock()) return;
@@ -9969,6 +10251,11 @@ function printSchoolLicenseRenewalForm(paperId){
       .sig-row{ margin:6px 0; font-size:13px; }
       table{ width:100%; border-collapse:collapse; margin:8px 0; font-size:11px; }
       td, th{ border:1.5px solid #000; padding:5px 4px; text-align:center; vertical-align:middle; color:#000; }
+      /* الخلايا الفارغة (مدينة/شارع/رقم بيت غير مُدخلة) كانت تنكمش فتصغر مستطيلات الجدول:
+         نضمن ارتفاعاً موحَّداً ونملأ الفارغ بمسافة غير كاسرة */
+      td{ height:22px; }
+      td:empty::after{ content:"\\a0"; }
+      td.autofill:empty::after{ content:"\\a0"; }
       .page2 td, .page2 th{ padding:12px 4px; }
       th{ background:#e2e2e2; font-weight:800; }
       .section-title{ font-weight:900; font-size:13px; margin:16px 0 6px; }
@@ -10206,7 +10493,7 @@ function printSchoolLicenseRenewalForm(paperId){
         <div class="sig-row" style="margin-top:60px; font-size:16px; text-align:left;">التوقيع / ختم: <span class="fill" style="min-width:220px;"></span></div>
       </div>
 
-      <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة الصفحات الستة</button></div>
+      <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة</button></div>
     </body></html>
   `);
   applyPrintTypography(win, 'form-renewal');
@@ -10280,6 +10567,11 @@ function printSchoolBlankRenewalForm(){
       .sig-row{ margin:6px 0; font-size:13px; }
       table{ width:100%; border-collapse:collapse; margin:8px 0; font-size:11px; }
       td, th{ border:1.5px solid #000; padding:5px 4px; text-align:center; vertical-align:middle; color:#000; }
+      /* الخلايا الفارغة (مدينة/شارع/رقم بيت غير مُدخلة) كانت تنكمش فتصغر مستطيلات الجدول:
+         نضمن ارتفاعاً موحَّداً ونملأ الفارغ بمسافة غير كاسرة */
+      td{ height:22px; }
+      td:empty::after{ content:"\\a0"; }
+      td.autofill:empty::after{ content:"\\a0"; }
       .page2 td, .page2 th{ padding:12px 4px; }
       th{ background:#e2e2e2; font-weight:800; }
       .section-title{ font-weight:900; font-size:13px; margin:16px 0 6px; }
@@ -10494,7 +10786,7 @@ function printSchoolBlankRenewalForm(){
         <div class="sig-row" style="margin-top:60px; font-size:16px; text-align:left;">التوقيع / ختم: <span class="fill" style="min-width:220px;"></span></div>
       </div>
 
-      <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة النموذج الفارغ (٦ صفحات)</button></div>
+      <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة</button></div>
     </body></html>
   `);
   applyPrintTypography(win, 'form');
@@ -10639,7 +10931,7 @@ function printPracticalExamForm(paperId){
       .header .title-box{ padding:4px 0; font-size:20px; font-weight:900; text-align:right; border:none; white-space:nowrap; }
       .header .title-box .title-underlines{ border-top:2px solid #000; margin-top:6px; padding-top:5px; border-bottom:2px solid #000; padding-bottom:2px; height:4px; }
       .top-info{ display:grid; grid-template-columns:1fr 1.7fr; gap:16px; margin-bottom:4px; flex:1; }
-      .info-list{ flex:1; font-size:12px; display:flex; flex-direction:column; justify-content:space-between; }
+      .info-list{ flex:1; font-size:16px; display:flex; flex-direction:column; justify-content:space-between; }
       .info-list .row{ display:flex; align-items:center; height:49px; box-sizing:border-box; }
       .info-list .lbl{ white-space:nowrap; flex:0 0 auto; }
       .fill{
@@ -10647,7 +10939,8 @@ function printPracticalExamForm(paperId){
         flex:1; border-bottom:1.3px dotted #000; min-height:20px; padding:0 4px;
         text-align:center;
       }
-      .fill.filled{ border-bottom:1.4px solid #000; font-weight:900; }
+      /* استمارة الفحص العملي: خطوط أكبر للوضوح مع بقاء الاستمارة في صفحة واحدة */
+      .fill.filled{ border-bottom:1.4px solid #000; font-weight:900; font-size:16px; line-height:1.15; }
       .score-side{ display:flex; flex-direction:column; align-self:stretch; justify-content:flex-end; }
       /* الجدول يُنزَّل لأسفل العمود ثم يُرفع نصف سطر (سطر البيانات = 49px، فالرفع 24.5px)
          فيقع بين "توقيع الفاحص" و"رقم الفحص" */
@@ -10656,21 +10949,21 @@ function printPracticalExamForm(paperId){
       .tables-block{ display:flex; flex-direction:column; width:100%; flex:1; }
       .score-side td, .score-side th{ padding:2px 4px; vertical-align:middle; }
       .score-side tr{ height:45px; }
-      table{ width:100%; border-collapse:collapse; margin-bottom:0; font-size:12px; border:1.4px solid #000; }
+      table{ width:100%; border-collapse:collapse; margin-bottom:0; font-size:15.5px; border:1.4px solid #000; }
       td, th{ border:1.4px solid #000; padding:2px 3px; text-align:center; vertical-align:middle; }
       th{ background:#e2e2e2; font-weight:900; }
-      td.item{ text-align:right; padding-right:6px; word-break:break-word; font-size:11px; }
-      td.grade{ width:42px; white-space:nowrap; font-size:11px; }
-      .section-hdr{ background:#e2e2e2; font-weight:900; text-align:center; padding:5px; border:1.4px solid #000; font-size:12px; }
-      .notes-block{ margin:2px 0 2px; font-size:11px; }
+      td.item{ text-align:right; padding-right:6px; word-break:break-word; font-size:15px; }
+      td.grade{ width:42px; white-space:nowrap; font-size:14px; }
+      .section-hdr{ background:#e2e2e2; font-weight:900; text-align:center; padding:5px; border:1.4px solid #000; font-size:16px; }
+      .notes-block{ margin:2px 0 2px; font-size:14px; }
       .notes-row{ display:flex; align-items:baseline; gap:8px; margin:0 0 4px; }
       .notes-row .dotline{ flex:1; border-bottom:1.4px dotted #000; min-height:20px; padding:0 4px; font-weight:900; }
       .bottom-rect{ display:flex; border:1.8px solid #000; margin-top:2px; align-items:stretch; }
       .legend-part{ flex:0 0 auto; border-right:1.8px solid #000; display:flex; flex-direction:column; }
       .legend-part .legend-title{ text-align:center; font-weight:900; font-size:10px; letter-spacing:1px; padding:0 8px; height:56px; line-height:56px; border-bottom:1.4px solid #000; box-sizing:border-box; }
       .legend-part table{ margin:0; border-collapse:collapse; height:100%; }
-      .legend-part th{ padding:0 10px; height:56px; line-height:56px; font-size:11px; border:1.4px solid #000; box-sizing:border-box; }
-      .legend-part td{ padding:1px 10px; font-size:11px; border:1.4px solid #000; }
+      .legend-part th{ padding:0 10px; height:56px; line-height:56px; font-size:14px; border:1.4px solid #000; box-sizing:border-box; }
+      .legend-part td{ padding:1px 10px; font-size:14px; border:1.4px solid #000; }
       .legend-part tr th:first-child, .legend-part tr td:first-child{ border-right:none; }
       .legend-part tr th:last-child, .legend-part tr td:last-child{ border-left:none; }
       .legend-part tr:last-child td{ border-bottom:none; }
