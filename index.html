@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-14-pex-fonts</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-14-totals-fix</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -1336,6 +1336,11 @@ body.field-mode{ padding-bottom:76px; }
     </div>
     <div class="card">
       <h2>سجل مصاريف السيارات</h2>
+      <div class="table-search">
+        <span>🔍</span>
+        <input id="ve_search" type="text" placeholder="ابحث بالسيارة، النوع، المبلغ، التاريخ..." oninput="filterTable('ve_search','vehicleExpensesBody','vehicleExpensesSearchEmpty')">
+        <button class="clear-btn" onclick="clearTableSearch('ve_search','vehicleExpensesBody','vehicleExpensesSearchEmpty')">✕</button>
+      </div>
       <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:10px; cursor:pointer;">
         <input type="checkbox" id="ve_today_only" checked onchange="renderVehicleExpenses()"> 📅 عرض إدخالات اليوم فقط
       </label>
@@ -1344,6 +1349,7 @@ body.field-mode{ padding-bottom:76px; }
         <tbody id="vehicleExpensesBody"></tbody>
       </table></div>
       <div id="vehicleExpensesEmpty" class="empty" style="display:none">لا توجد مصاريف مسجلة بعد</div>
+      <div id="vehicleExpensesSearchEmpty" class="empty" style="display:none">لا توجد نتائج مطابقة للبحث</div>
     </div>
 
     <div class="card">
@@ -1363,11 +1369,17 @@ body.field-mode{ padding-bottom:76px; }
     </div>
     <div class="card">
       <h2>سجل الحركة اليومي المسجَّل</h2>
+      <div class="table-search">
+        <span>🔍</span>
+        <input id="vd_search" type="text" placeholder="ابحث بالسيارة، التاريخ، نوع الوقود..." oninput="filterTable('vd_search','vehicleDailyLogsBody','vehicleDailyLogsSearchEmpty')">
+        <button class="clear-btn" onclick="clearTableSearch('vd_search','vehicleDailyLogsBody','vehicleDailyLogsSearchEmpty')">✕</button>
+      </div>
       <div class="table-wrap"><table>
         <thead><tr><th>الرقم</th><th>المدرسة</th><th>السيارة</th><th>التاريخ</th><th>عداد البداية</th><th>عداد النهاية</th><th>المسافة (كم)</th><th>نوع الوقود</th><th>التكلفة</th><th>معدل التكلفة/كم</th><th></th></tr></thead>
         <tbody id="vehicleDailyLogsBody"></tbody>
       </table></div>
       <div id="vehicleDailyLogsEmpty" class="empty" style="display:none">لا توجد حركة يومية مسجَّلة بعد</div>
+      <div id="vehicleDailyLogsSearchEmpty" class="empty" style="display:none">لا توجد نتائج مطابقة للبحث</div>
     </div>
   </section>
 
@@ -1387,6 +1399,11 @@ body.field-mode{ padding-bottom:76px; }
     </div>
     <div class="card">
       <h2>سجل مصاريف المكتب</h2>
+      <div class="table-search">
+        <span>🔍</span>
+        <input id="ge_search" type="text" placeholder="ابحث بالنوع، المبلغ، التاريخ، الملاحظات..." oninput="filterTable('ge_search','generalExpensesBody','generalExpensesSearchEmpty')">
+        <button class="clear-btn" onclick="clearTableSearch('ge_search','generalExpensesBody','generalExpensesSearchEmpty')">✕</button>
+      </div>
       <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:10px; cursor:pointer;">
         <input type="checkbox" id="ge_today_only" checked onchange="renderGeneralExpenses()"> 📅 عرض إدخالات اليوم فقط
       </label>
@@ -1395,6 +1412,7 @@ body.field-mode{ padding-bottom:76px; }
         <tbody id="generalExpensesBody"></tbody>
       </table></div>
       <div id="generalExpensesEmpty" class="empty" style="display:none">لا توجد مصاريف مسجلة بعد</div>
+      <div id="generalExpensesSearchEmpty" class="empty" style="display:none">لا توجد نتائج مطابقة للبحث</div>
     </div>
   </section>
 
@@ -1557,10 +1575,12 @@ body.field-mode{ padding-bottom:76px; }
         <div class="field"><label>الطالب</label><input id="ex_student_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
         <select id="ex_student" onchange="applyExamStudentPreferences()"></select></div>
         <div class="field"><label>المدرب المسؤول</label><input id="ex_instructor_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
-        <select id="ex_instructor"></select></div>
+        <select id="ex_instructor" onchange="onExamInstructorChange()"></select></div>
         <div class="field"><label>تاريخ الامتحان</label><input id="ex_date" type="date"></div>
         <div class="field" id="ex_number_field" style="display:none;"><label>رقم الفحص</label><input id="ex_number" placeholder="رقم الفحص العملي"></div>
         <div class="field" id="ex_time_field" style="display:none;"><label>ساعة الفحص</label><input id="ex_time" type="time"></div>
+        <div class="field" id="ex_vehicle_field" style="display:none;"><label>رقم المركبة (يُطبع في الاستمارة)</label>
+          <input id="ex_vehicle_no" placeholder="يُعبَّأ تلقائياً من سيارة المدرب، وقابل للتعديل"></div>
         <div class="field"><label>مبلغ رسوم الفحص (اختياري)</label><input id="ex_fee" type="number" step="0.01" placeholder="0"></div>
         <div class="field"><label>💰 المبلغ المدفوع (اختياري)</label><input id="ex_paid" type="number" step="0.01" placeholder="0" min="0"></div>
         <div class="field"><label>ملاحظات (اختياري)</label><input id="ex_notes"></div>
@@ -1859,6 +1879,8 @@ body.field-mode{ padding-bottom:76px; }
       </div>
       <div class="form-actions" style="margin-top:0; margin-bottom:12px;">
         <button class="btn" onclick="printTableAsList('أوراق العمل والدوائر الرسمية','papersBody')">🖨 طباعة القائمة</button>
+        <button class="btn btn-accent" id="pap_print_selected" style="display:none;" onclick="printSelectedPapers()">🖨 طباعة المحدَّدة</button>
+        <button class="btn" id="pap_clear_selection" style="display:none;" onclick="clearPaperSelection()">إلغاء التحديد</button>
         <button class="btn" onclick="printSchoolBlankRenewalForm()">🖨 نموذج تجديد الرخصة (فارغ)</button>
         <button class="btn btn-danger" onclick="deleteAllOfficialPapers()">🗑 حذف كل المعاملات</button>
       </div>
@@ -1866,7 +1888,7 @@ body.field-mode{ padding-bottom:76px; }
         <input type="checkbox" id="pap_today_only" onchange="renderOfficialPapers()"> 📅 عرض إدخالات اليوم فقط
       </label>
       <div class="table-wrap"><table>
-        <thead><tr><th>الرقم</th><th>المدرسة</th><th>الطالب</th><th>النوع</th><th>الدائرة</th><th>تاريخ التقديم</th><th>المتابعة</th><th>الحالة</th><th>المرفقات</th><th>ملاحظات</th><th></th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="pap_pick_all" onchange="toggleAllPapers(this)" title="تحديد الكل"></th><th>الرقم</th><th>المدرسة</th><th>الطالب</th><th>النوع</th><th>الدائرة</th><th>تاريخ التقديم</th><th>المتابعة</th><th>الحالة</th><th>المرفقات</th><th>ملاحظات</th><th></th></tr></thead>
         <tbody id="papersBody"></tbody>
       </table></div>
       <div id="papersEmpty" class="empty" style="display:none">لا توجد أوراق عمل أو معاملات رسمية مسجلة بعد</div>
@@ -2305,6 +2327,35 @@ function defaultState(){
 let storageAvailable = true;
 let state = defaultState();
 
+// ترحيل أسماء أنواع الرخص: توحيد «رخصة شحن» القديمة تحت «شحن خفيف».
+// يعمل عند كل تحميل (محلي أو من السحابة) فلا يعيد أي جهاز الاسم القديم.
+const LICENSE_RENAMES = { 'رخصة شحن': 'شحن خفيف' };
+function migrateLicenseNames(st){
+  if(!st || typeof st !== 'object') return 0;
+  let n = 0;
+  const fix = (obj, key)=>{
+    if(!obj) return;
+    const v = obj[key];
+    if(typeof v === 'string' && LICENSE_RENAMES[v.trim()]){ obj[key] = LICENSE_RENAMES[v.trim()]; n++; }
+  };
+  (st.students || []).forEach(s=> fix(s, 'license'));
+  (st.lessonPrices || []).forEach(p=> fix(p, 'license'));
+  (st.commissionRates || []).forEach(c=> fix(c, 'license'));
+  (st.exams || []).forEach(e=>{ fix(e, 'licenseType'); fix(e, 'license'); });
+  if(Array.isArray(st.customLicenseTypes)){
+    st.customLicenseTypes = st.customLicenseTypes.map(t=>{
+      const v = String(t || '').trim();
+      if(LICENSE_RENAMES[v]){ n++; return LICENSE_RENAMES[v]; }
+      return t;
+    }).filter((t, i, arr)=> arr.indexOf(t) === i)     // بلا تكرار بعد التوحيد
+      .filter(t => {                                   // ولا تكرار مع الأنواع الأساسية
+        try{ return !(DYNAMIC_SELECTS.licenseTypes.base || []).includes(String(t || '').trim()); }
+        catch(_){ return true; }
+      });
+  }
+  if(n) console.info(`توحيد أنواع الرخص: صُحّح ${n} سجلاً`);
+  return n;
+}
 function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -2313,6 +2364,7 @@ function loadState(){
       const sanitized = sanitizeIncomingState(parsed, 'التخزين المحلي لهذا المتصفح');
       if(sanitized){
         state = sanitized.clean;
+        migrateLicenseNames(state);
         if(sanitized.issues.length){
           console.warn('بعض بيانات هذا الجهاز كانت تالفة الشكل وأُعيد ضبطها فارغة:', sanitized.issues);
         }
@@ -3197,6 +3249,7 @@ async function initDataSync(){
         return;
       }
       serverData = mergeActivityLogInto(mergeUsersInto(sanitized.clean, state), state);
+      migrateLicenseNames(serverData);
     }
     const serverHasData = hasSubstantialData(serverData);
     const localHasData = hasSubstantialData(state);
@@ -4703,7 +4756,8 @@ function normalizeSearchText(v){
 // كل كلمة في البحث يجب أن توجد (بأي ترتيب)؛ والأرقام تُطابَق ولو كُتبت بفواصل
 function matchesSearch(haystack, query){
   const hay = normalizeSearchText(haystack);
-  const hayDigits = hay.replace(/\D/g, '');
+  // أرقام كل خانة على حدة: يمنع التقاء مبلغ برقم تاريخ في خانة مجاورة فينتج تطابق كاذب
+  const hayDigitChunks = hay.split('|').map(part => part.replace(/\D/g, '')).filter(Boolean);
   const haySquashed = hay.replace(/\s+/g, '');   // لمطابقة "عبدالله" مع "عبد الله"
   const terms = normalizeSearchText(query).split(' ').filter(Boolean);
   if(!terms.length) return true;
@@ -4711,7 +4765,7 @@ function matchesSearch(haystack, query){
     if(hay.includes(t)) return true;
     if(t.length >= 4 && haySquashed.includes(t.replace(/\s+/g, ''))) return true;
     const d = t.replace(/\D/g, '');
-    return d.length >= 3 && hayDigits.includes(d);
+    return d.length >= 3 && hayDigitChunks.some(chunk => chunk.includes(d));
   });
 }
 // نص البحث لخيار في قائمة: الاسم + رقم الهوية + الجوال (يُخزَّن في data-search)
@@ -4727,7 +4781,8 @@ function filterTable(inputId, tbodyId, emptyId){
   const rows = Array.from(tbody.querySelectorAll('tr'));
   let visibleCount = 0;
   rows.forEach(row=>{
-    const match = !query || matchesSearch(row.textContent + ' ' + (row.dataset.search || ''), query);
+    const cellsText = Array.from(row.children).map(td => td.textContent).join(' | ');
+    const match = !query || matchesSearch(cellsText + ' ' + (row.dataset.search || ''), query);
     row.style.display = match ? '' : 'none';
     if(match) visibleCount++;
   });
@@ -4737,6 +4792,7 @@ function filterTable(inputId, tbodyId, emptyId){
   }
   showSearchCount(input, query, visibleCount, rows.length);
   if(tbodyId === 'studentsBody' && typeof updateStudentSelectionUI === 'function') updateStudentSelectionUI();
+  if(tbodyId === 'papersBody' && typeof updatePaperSelectionUI === 'function') updatePaperSelectionUI();
 }
 // عدّاد النتائج بجانب خانة البحث — يظهر عند الكتابة فقط
 function showSearchCount(input, query, visible, total){
@@ -5085,16 +5141,32 @@ function printTableAsList(title, tableBodyId, onlyRows){
   const theadCells = Array.from(table.querySelectorAll('thead th'));
   const includeCount = theadCells.length - 1; // استبعاد عمود الإجراءات الأخير
   const headers = theadCells.slice(0, includeCount)
-    .filter(th => !th.querySelector('#st_pick_all'))
+    .filter(th => !th.querySelector('#st_pick_all') && !th.querySelector('#pap_pick_all'))
     .map(th=>th.textContent.trim());
   const visibleRows = (onlyRows && onlyRows.length)
     ? onlyRows
     : Array.from(bodyEl.querySelectorAll('tr')).filter(tr=> tr.style.display !== 'none');
   if(!visibleRows.length){ alert('لا توجد سجلات ظاهرة حالياً لطباعتها.'); return; }
+  // قائمة الطلاب: يُضاف عمود رقم الهوية عند الطباعة (غير معروض على الشاشة لضيق المساحة)
+  const isStudents = tableBodyId === 'studentsBody';
+  if(isStudents){
+    const nameIdx = headers.findIndex(h => h.includes('الاسم'));
+    headers.splice(nameIdx >= 0 ? nameIdx + 1 : headers.length, 0, 'رقم الهوية');
+  }
+  const nidOfRow = (tr)=>{
+    const box = tr.querySelector('.st-pick');
+    const st = box ? state.students.find(s => String(s.id) === String(box.value)) : null;
+    return st ? (st.nid || '-') : '-';
+  };
   const rowsHtml = visibleRows.map(tr=>{
     const cells = Array.from(tr.children).slice(0, includeCount)
-      .filter(td => !td.querySelector('.st-pick'));   // عمود الاختيار لا يُطبع
-    return '<tr>' + cells.map(td=>`<td>${td.textContent.trim()}</td>`).join('') + '</tr>';
+      .filter(td => !td.querySelector('.st-pick') && !td.querySelector('.pap-pick'));   // عمود الاختيار لا يُطبع
+    const texts = cells.map(td => td.textContent.trim());
+    if(isStudents){
+      const nameIdx = headers.findIndex(h => h === 'رقم الهوية');
+      texts.splice(nameIdx, 0, nidOfRow(tr));
+    }
+    return '<tr>' + texts.map(t=>`<td>${t}</td>`).join('') + '</tr>';
   }).join('');
 
   const win = openPrintTarget('width=950,height=720');
@@ -5116,6 +5188,8 @@ function printTableAsList(title, tableBodyId, onlyRows){
       hr{ border:none; border-top:2px solid #111; margin:16px 0; }
       h2{ text-align:center; font-size:17px; margin:0 0 6px; }
       .meta{ text-align:center; font-size:11.5px; color:#777; margin-bottom:16px; }
+      /* القوائم تُطبع بالعرض (أفقي) لتتسع كل الأعمدة بلا ضغط */
+      @page{ size: A4 landscape; margin: 10mm; }
       table{ width:100%; border-collapse:collapse; font-size:12px; }
       th, td{ padding:7px 5px; border:1px solid #ccc; text-align:right; }
       th{ background:#f2f2f2; }
@@ -6682,6 +6756,7 @@ function saveEditStaff(){
   s.trainingLicenseIssueDate = document.getElementById('ed_sf_training_license_issue').value.trim();
   s.license = document.getElementById('ed_sf_license').value.trim();
   s.licenseExpiry = document.getElementById('ed_sf_license_expiry').value;
+  const staffPlateChanged = s.vehiclePlate !== document.getElementById('ed_sf_vehicle_plate').value.trim();
   s.vehiclePlate = document.getElementById('ed_sf_vehicle_plate').value.trim();
   s.vehicleType = document.getElementById('ed_sf_vehicle_type').value.trim();
   s.commissionMode = document.getElementById('ed_sf_commission_mode').value || 'fixed';
@@ -6689,6 +6764,17 @@ function saveEditStaff(){
   s.commissionExamPercent = parseFloat(document.getElementById('ed_sf_commission_exam_percent').value) || 0;
   closeEditStaffModal();
   renderStaff();
+  // الشاشات التي تعرض اسم المدرب أو سيارته تُحدَّث فوراً بلا إعادة تحميل
+  if(typeof renderLessons === 'function') renderLessons();
+  if(typeof renderExams === 'function') renderExams();
+  if(typeof refreshLessonDropdowns === 'function') refreshLessonDropdowns();
+  if(typeof refreshExamDropdowns === 'function') refreshExamDropdowns();
+  if(staffPlateChanged && typeof suggestExamVehicleNumber === 'function'){
+    const el = document.getElementById('ex_vehicle_no');
+    if(el) el.value = '';
+    suggestExamVehicleNumber();
+  }
+  saveState();
 }
 
 // ------------------------------------------------------------------
@@ -6794,6 +6880,24 @@ function openEditVehicleModal(id){
 function closeEditVehicleModal(){
   document.getElementById('editVehicleModal').classList.remove('show');
 }
+// عند تغيير رقم لوحة السيارة: تُحدَّث النسخ النصية المحفوظة منها في السجلات المرتبطة
+// (سيارة المدرب، ورقم المركبة في الامتحانات والمعاملات الرسمية) فلا تبقى أرقام قديمة.
+function propagatePlateChange(oldPlate, newPlate){
+  const from = String(oldPlate || '').trim();
+  const to = String(newPlate || '').trim();
+  if(!from || !to || from === to) return 0;
+  let n = 0;
+  (state.staff || []).forEach(s=>{ if(String(s.vehiclePlate || '').trim() === from){ s.vehiclePlate = to; n++; } });
+  (state.exams || []).forEach(e=>{ if(String(e.formVehicleNumber || '').trim() === from){ e.formVehicleNumber = to; n++; } });
+  (state.officialPapers || []).forEach(p=>{ if(String(p.vehicleNumber || '').trim() === from){ p.vehicleNumber = to; n++; } });
+  if(n){
+    console.info(`تحديث رقم المركبة في ${n} سجلاً مرتبطاً: ${from} → ${to}`);
+    if(typeof renderStaff === 'function') renderStaff();
+    if(typeof renderExams === 'function') renderExams();
+    if(typeof renderOfficialPapers === 'function') renderOfficialPapers();
+  }
+  return n;
+}
 function saveEditVehicle(){
   if(!requireOnlineOrBlock()) return;
   const id = parseInt(document.getElementById('editVehicleModal').dataset.editingId);
@@ -6801,7 +6905,9 @@ function saveEditVehicle(){
   if(!v) return;
   const plate = document.getElementById('ed_vh_plate').value.trim();
   if(!plate){ alert('الرجاء إدخال رقم اللوحة'); return; }
+  const oldPlate = v.plate;
   v.plate = plate;
+  propagatePlateChange(oldPlate, plate);
   v.ownerName = document.getElementById('ed_vh_owner_name').value.trim();
   v.model = document.getElementById('ed_vh_model').value.trim();
   v.year = document.getElementById('ed_vh_year').value;
@@ -6810,6 +6916,8 @@ function saveEditVehicle(){
   v.licenseExpiry = document.getElementById('ed_vh_license_expiry').value;
   closeEditVehicleModal();
   renderVehicles();
+  refreshLessonDropdowns();
+  saveState();
 }
 
 // -- مصاريف السيارات (صيانة / وقود) --
@@ -7005,6 +7113,11 @@ function findLessonPrice(license, lessonType, gear){
 const SHORT_LESSON_DURATION_LICENSES = ['باص', 'دراجة نارية', 'شحن ثقيل', 'تريلا', 'تراكتور'];
 // تعبئة الحقول المرتبطة بالطالب في شاشتي الامتحانات والفواتير بمجرد اختياره
 // (كانت مقتصرة على شاشة الحصص، فيختار الموظف الطالب ولا يُعبَّأ مدربه)
+function onExamInstructorChange(){
+  const el = document.getElementById('ex_vehicle_no');
+  if(el) el.value = '';        // يُعاد الاقتراح حسب المدرب الجديد
+  suggestExamVehicleNumber();
+}
 function applyExamStudentPreferences(){
   const sel = document.getElementById('ex_student');
   if(!sel) return;
@@ -7613,6 +7726,21 @@ function onExamTypeChange(){
   const isPractical = document.getElementById('ex_type').value === 'عملي';
   document.getElementById('ex_number_field').style.display = isPractical ? '' : 'none';
   document.getElementById('ex_time_field').style.display = isPractical ? '' : 'none';
+  const vf = document.getElementById('ex_vehicle_field');
+  if(vf) vf.style.display = isPractical ? '' : 'none';
+  if(isPractical) suggestExamVehicleNumber();
+}
+// رقم المركبة المقترَح: سيارة المدرب المختار، وإلا سيارة الطالب المعتادة
+function suggestExamVehicleNumber(){
+  const el = document.getElementById('ex_vehicle_no');
+  if(!el || el.value.trim()) return;
+  const instId = (document.getElementById('ex_instructor') || {}).value;
+  const inst = state.staff.find(s=>String(s.id)===String(instId));
+  if(inst && inst.vehiclePlate){ el.value = inst.vehiclePlate; return; }
+  const stId = (document.getElementById('ex_student') || {}).value;
+  const st = state.students.find(s=>String(s.id)===String(stId));
+  const veh = st && st.preferredVehicleId ? state.vehicles.find(v=>v.id===st.preferredVehicleId) : null;
+  if(veh) el.value = veh.plate || '';
 }
 function printTheoreticalExamCandidatesList(selectedDate){
   const list = (state.exams||[]).filter(e=> e.examType==='نظري' && (e.datetime||'').slice(0,10)===selectedDate);
@@ -7637,13 +7765,14 @@ function printTheoreticalExamCandidatesList(selectedDate){
       <td class="${paidClass}">${paidLabel}</td>
       <td class="collected"></td>
       <td class="result-cell ${resultClass}">${resultLabel}</td>
+      <td class="grade-cell">${e.examGrade != null && e.examGrade !== '' ? e.examGrade : ''}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="8" style="text-align:center;">لا يوجد متقدمون مسجلون لهذا التاريخ</td></tr>`;
+  }).join('') || `<tr><td colspan="9" style="text-align:center;">لا يوجد متقدمون مسجلون لهذا التاريخ</td></tr>`;
 
   // صف الإجمالي (مبلغ الرسوم وما شابه) — يُحسب من الصفوف نفسها
   const totalFees = list.reduce((sum,e)=> sum + (e.examFee || 0), 0);
   const totalsRow = list.length
-    ? `<tr class="totals-row"><td colspan="4"><b>الإجمالي (${list.length} متقدماً)</b></td><td><b>${fmtNum(totalFees, 2)}</b></td><td></td><td></td><td></td></tr>`
+    ? `<tr class="totals-row"><td colspan="4"><b>الإجمالي (${list.length} متقدماً)</b></td><td><b>${fmtNum(totalFees, 2)}</b></td><td></td><td></td><td></td><td></td></tr>`
     : '';
   const win = openPrintTarget('width=900,height=1100');
   if(!win){ alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
@@ -7667,6 +7796,9 @@ function printTheoreticalExamCandidatesList(selectedDate){
     .res-pass{ color:#15803d; font-weight:700; }
     .res-fail{ color:#b91c1c; font-weight:700; }
     tr.totals-row td{ background:#f0f0f0; font-weight:800; border-top:2px solid #000; }
+    /* المعدل: خانة يكتبها الفاحص بخط اليد إن لم تُسجَّل */
+    .grade-h{ width:70px; }
+    .grade-cell{ min-width:70px; }
     .brand-row{ display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:6px; }
     .brand-logo-corner{ width:58px; height:58px; object-fit:contain; flex-shrink:0; }
     .brand-center{ text-align:center; flex:1; } .brand-center h1{ font-size:18px; margin:0; }
@@ -7679,7 +7811,7 @@ function printTheoreticalExamCandidatesList(selectedDate){
   <h1>قائمة أسماء المتقدمين للفحص النظري</h1>
   <div class="meta">اليوم: ${dayName} — التاريخ: ${selectedDate}</div>
   <table>
-    <thead><tr><th>#</th><th>اسم الطالب</th><th>رقم الهوية</th><th>نوع الرخصة</th><th>مبلغ الرسوم</th><th>حالة الدفع</th><th class="collected-h">المبلغ المقبوض</th><th class="result-h">النتيجة</th></tr></thead>
+    <thead><tr><th>#</th><th>اسم الطالب</th><th>رقم الهوية</th><th>نوع الرخصة</th><th>مبلغ الرسوم</th><th>حالة الدفع</th><th class="collected-h">المبلغ المقبوض</th><th class="result-h">النتيجة</th><th class="grade-h">المعدل</th></tr></thead>
     <tbody>${rows}${totalsRow}</tbody>
   </table>
   <script>window.onload = ()=> window.print();<\/script>
@@ -7708,6 +7840,7 @@ function addExam(){
     examType, datetime: dt, result: 'لم يحدد بعد',
     examNumber: document.getElementById('ex_number').value.trim(),
     examTime: document.getElementById('ex_time').value,
+    formVehicleNumber: (document.getElementById('ex_vehicle_no') || {}).value ? document.getElementById('ex_vehicle_no').value.trim() : '',
     examFee: fee,
     examFeePaid: fee > 0 && paidNow >= fee,
     notes: document.getElementById('ex_notes').value.trim()
@@ -7748,14 +7881,39 @@ function addExam(){
   document.getElementById('ex_notes').value = '';
   document.getElementById('ex_fee').value = '';
   document.getElementById('ex_paid').value = '';
+  const exVeh = document.getElementById('ex_vehicle_no'); if(exVeh) exVeh.value = '';
   renderExams();
   // امتحان عملي: تُفتح شاشة نموذج الفحص العملي مباشرة (طباعة + حفظ المعاملة تلقائياً)
   if(examType === 'عملي') openPracticalExamFormModal(exam.id);
 }
+// حذف الامتحان يحذف معه ما تولّد عنه: الفاتورة وسند القبض والمعاملة الرسمية،
+// حتى لا تبقى ذمم وهمية على الطالب أو معاملات معلّقة بلا امتحان.
 function deleteExam(id){
-  if(!confirm('هل تريد حذف هذا الامتحان؟')) return;
-  state.exams = state.exams.filter(e=>e.id!==id);
+  const ex = state.exams.find(e=>String(e.id)===String(id));
+  if(!ex) return;
+  const invoices = state.invoices.filter(i=> String(i.examId) === String(id));
+  const invIds   = invoices.map(i=> i.id);
+  const payments = state.payments.filter(p=> String(p.examId) === String(id) || invIds.includes(p.invoiceId));
+  const papers   = state.officialPapers.filter(p=> String(p.examId) === String(id));
+  const paid     = payments.reduce((t,p)=> t + (Number(p.amount)||0), 0);
+  const amount   = invoices.reduce((t,i)=> t + (Number(i.amount)||0), 0);
+  let msg = `هل تريد حذف امتحان «${ex.examType || ''}» للطالب ${nameOf(state.students, ex.studentId)}؟`;
+  const extra = [];
+  if(invoices.length) extra.push(`${invoices.length} فاتورة بقيمة ${fmtNum(amount, 2)} ₪`);
+  if(payments.length) extra.push(`${payments.length} سند قبض بقيمة ${fmtNum(paid, 2)} ₪`);
+  if(papers.length)   extra.push(`${papers.length} معاملة رسمية (استمارة فحص عملي)`);
+  if(extra.length) msg += `\n\nسيُحذف معه:\n• ` + extra.join('\n• ') + `\n\nوسيتأثر رصيد الطالب تبعاً لذلك.`;
+  if(!confirm(msg)) return;
+  state.invoices       = state.invoices.filter(i=> String(i.examId) !== String(id));
+  state.payments       = state.payments.filter(p=> !(String(p.examId) === String(id) || invIds.includes(p.invoiceId)));
+  state.officialPapers = state.officialPapers.filter(p=> String(p.examId) !== String(id));
+  state.exams          = state.exams.filter(e=> String(e.id) !== String(id));
   renderExams();
+  if(typeof renderInvoices === 'function') renderInvoices();
+  if(typeof renderReceipts === 'function') renderReceipts();
+  if(typeof renderOfficialPapers === 'function') renderOfficialPapers();
+  if(typeof renderHomeStats === 'function') renderHomeStats();
+  saveState();
 }
 function setExamResult(id, result){
   const ex = state.exams.find(e=>e.id===id);
@@ -10853,7 +11011,7 @@ function confirmPracticalExamForm(){
   if(!paper){
     paper = { id: newId('officialPapers'), paperType: 'استمارة فحص عملي', studentId: ex.studentId,
       examId: ex.id, department: (typeof defaultFormDepartment === 'function' ? defaultFormDepartment() : 'طولكرم'),
-      submitDate: date, notes: ex.notes || '', created: todayStr() };
+      submitDate: date, status: 'قيد الإجراء', dueDate: '', notes: ex.notes || '', created: todayStr() };
     if(s && s.school) paper.school = s.school;
     state.officialPapers.push(paper);
   } else {
@@ -11259,6 +11417,44 @@ function _doPrintCandidatesList(selectedDate){
   win.document.close();
 }
 
+// تحديد معاملات بعينها وطباعة قائمة بها فقط (نفس أسلوب شاشة الطلاب)
+function selectedPaperRows(){
+  return Array.from(document.querySelectorAll('#papersBody .pap-pick:checked'))
+    .map(cb => cb.closest('tr'))
+    .filter(tr => tr && tr.style.display !== 'none');
+}
+function updatePaperSelectionUI(){
+  const n = selectedPaperRows().length;
+  const btn = document.getElementById('pap_print_selected');
+  if(btn){
+    btn.style.display = n ? '' : 'none';
+    btn.textContent = `🖨 طباعة المحدَّدة (${n})`;
+  }
+  const clr = document.getElementById('pap_clear_selection');
+  if(clr) clr.style.display = n ? '' : 'none';
+  const all = document.getElementById('pap_pick_all');
+  if(all){
+    const boxes = Array.from(document.querySelectorAll('#papersBody .pap-pick'))
+      .filter(cb => cb.closest('tr').style.display !== 'none');
+    all.checked = boxes.length > 0 && boxes.every(cb => cb.checked);
+    all.indeterminate = !all.checked && boxes.some(cb => cb.checked);
+  }
+}
+function toggleAllPapers(cb){
+  document.querySelectorAll('#papersBody .pap-pick').forEach(box=>{
+    if(box.closest('tr').style.display !== 'none') box.checked = cb.checked;
+  });
+  updatePaperSelectionUI();
+}
+function clearPaperSelection(){
+  document.querySelectorAll('#papersBody .pap-pick').forEach(cb=> cb.checked = false);
+  updatePaperSelectionUI();
+}
+function printSelectedPapers(){
+  const rows = selectedPaperRows();
+  if(!rows.length){ alert('لم تحدّد أي معاملة. ضع علامة بجانب المعاملات المطلوبة أولاً.'); return; }
+  printTableAsList('أوراق العمل والمعاملات الرسمية — المحدَّدة', 'papersBody', rows);
+}
 function renderOfficialPapers(){
   saveState();
   refreshPaperStudentDropdown();
@@ -11272,7 +11468,7 @@ function renderOfficialPapers(){
   body.innerHTML = sorted.map((p,i)=>{
     const attCount = (p.attachments||[]).length;
     return `<tr>
-      <td>${i+1}</td><td>${schoolBadge(p.school||'alaraj')}</td><td>${p.studentId ? nameOf(state.students, p.studentId) : '-'}</td>
+      <td><input type="checkbox" class="pap-pick" value="${p.id}" onchange="updatePaperSelectionUI()"></td><td>${i+1}</td><td>${schoolBadge(p.school||'alaraj')}</td><td>${p.studentId ? nameOf(state.students, p.studentId) : '-'}</td>
       <td>${p.paperType}</td><td>${p.department}</td>
       <td>${p.submitDate}</td><td>${p.dueDate || '-'}</td>
       <td><span class="badge ${paperStatusBadgeClass(p.status)}">${p.status}</span></td>
@@ -11911,13 +12107,18 @@ function buildTotalsRow(headHtml, bodyHtml, labelColIndex){
   const rows = Array.from(tmp.querySelectorAll('tbody tr')).filter(r=> !r.querySelector('[colspan]'));
   const colCount = headCells.length;
   if(!colCount || !rows.length) return '';
+  // أعمدة لا يصح جمعها وإن كانت أرقاماً: المعرّفات والهويات والهواتف والتواريخ والنسب
+  const NON_SUMMABLE_HEADER = /^#$|^م$|رقم|هوية|جوال|هاتف|تلفون|تاريخ|سنة|لوحة|مركبة|ترخيص|رخصة|معدل|نسبة|%|فئة|كود/;
+  const headTexts = Array.from(headCells).map(th => (th.textContent || '').trim());
+  const summable = headTexts.map(h => !NON_SUMMABLE_HEADER.test(h));
   const sums = new Array(colCount).fill(null);
   rows.forEach(r=>{
     Array.from(r.cells).forEach((c,i)=>{
-      if(i >= colCount) return;
+      if(i >= colCount || !summable[i]) return;           // عمود غير قابل للجمع حسب عنوانه
       // نقبل الأرقام بصيغها الشائعة (فواصل آلاف، إشارة سالبة) ونتجاهل النصوص والتواريخ
       const raw = (c.textContent||'').trim().replace(/,/g,'');
-      if(!raw || /[\/\-]\d{2}/.test(raw)) return;         // تجاهل التواريخ
+      // تجاهل التواريخ فقط (2026-09-14 أو 14/09/2026)، لا الأرقام السالبة مثل -50
+      if(!raw || /^\d{1,4}[-\/]\d{1,2}([-\/]\d{1,4})?$/.test(raw)) return;
       if(!/^-?\d+(\.\d+)?$/.test(raw)) return;            // نص أو شارة
       sums[i] = (sums[i] === null ? 0 : sums[i]) + parseFloat(raw);
     });
@@ -12137,7 +12338,25 @@ function generateDetailReport(){
       <tr><td><b>الامتحانات العملية</b></td><td><b>${practical.length}</b></td>
           <td>ناجح: ${passed(practical)} — راسب: ${failed(practical)} — لم يُحدَّد: ${practical.length - passed(practical) - failed(practical)}</td></tr>
       <tr><td>إجمالي الامتحانات</td><td>${exams.length}</td><td></td></tr>`;
-    rowCount = 5;
+
+    // تفصيل حسب نوع الرخصة: يوضّح أين يتركّز العمل (خصوصي، شحن، باص...)
+    const licOf = (sid)=>{ const st = state.students.find(x=> x.id === sid); return (st && st.license) ? st.license : 'غير محدَّد'; };
+    const byLicense = {};
+    const bump = (lic, key)=>{ (byLicense[lic] = byLicense[lic] || { lessons:0, done:0, theory:0, practical:0, passed:0 })[key]++; };
+    lessons.forEach(l=>{ const lic = licOf(l.studentId); bump(lic, 'lessons'); if(l.status==='منجز') bump(lic, 'done'); });
+    exams.forEach(e=>{
+      const lic = licOf(e.studentId);
+      bump(lic, e.examType === 'نظري' ? 'theory' : 'practical');
+      if((e.result||'').trim() === 'ناجح') bump(lic, 'passed');
+    });
+    const licRows = Object.entries(byLicense)
+      .sort((a,b)=> (b[1].lessons + b[1].theory + b[1].practical) - (a[1].lessons + a[1].theory + a[1].practical));
+    if(licRows.length){
+      body.innerHTML += `<tr><td colspan="3" style="background:#f5f5f5; font-weight:800;">التفصيل حسب نوع الرخصة</td></tr>`
+        + licRows.map(([lic, v])=> `<tr><td><b>${lic}</b></td><td><b>${v.lessons + v.theory + v.practical}</b></td>
+            <td>دروس: ${v.lessons} (منجزة ${v.done}) — نظري: ${v.theory} — عملي: ${v.practical} — ناجح: ${v.passed}</td></tr>`).join('');
+    }
+    rowCount = 5 + (licRows.length ? licRows.length + 1 : 0);
 
   } else if(type==='staffDues'){
     title = '👔 تقرير ذمم الموظفين';
