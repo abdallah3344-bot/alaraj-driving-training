@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-14-totals-fix</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-14-candidates-landscape</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -4158,7 +4158,9 @@ function printActivityLog(){
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>أرشيف الحركات</title>
     <style>
-      body{ font-family: Tahoma, Arial, sans-serif; padding:26px; color:#111; }
+      /* التقارير الجدولية تُطبع بالعرض لتتسع الأعمدة */
+    @page{ size: A4 landscape; margin: 10mm; }
+    body{ font-family: Tahoma, Arial, sans-serif; padding:26px; color:#111; }
       .brand-row{ display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:6px; }
       .brand-logo-corner{ width:58px; height:58px; object-fit:contain; }
       .brand-center{ text-align:center; flex:1; } .brand-center h1{ font-size:20px; margin:0; }
@@ -7779,7 +7781,8 @@ function printTheoreticalExamCandidatesList(selectedDate){
   win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
   <title>قائمة المتقدمين للفحص النظري - ${selectedDate}</title>
   <style>
-    @page{ size:A4; margin:12mm; }
+    /* قائمة أفقية لتتسع الأعمدة (الاسم، الهوية، الرخصة، الرسوم، الدفع، النتيجة، المعدل) */
+    @page{ size:A4 landscape; margin:10mm; }
     *{ box-sizing:border-box; }
     body{ font-family:Tahoma,Arial,sans-serif; padding:0; color:#111; }
     h1{ text-align:center; font-size:18px; margin-bottom:4px; }
@@ -11913,7 +11916,9 @@ function printReceivables(){
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>الذمم المترصدة</title>
     <style>
-      body{ font-family: Tahoma, Arial, sans-serif; padding:28px; color:#111; }
+      /* التقارير الجدولية تُطبع بالعرض لتتسع الأعمدة */
+    @page{ size: A4 landscape; margin: 10mm; }
+    body{ font-family: Tahoma, Arial, sans-serif; padding:28px; color:#111; }
       .brand-row{ display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:6px; }
       .brand-logo-corner{ width:58px; height:58px; object-fit:contain; flex-shrink:0; }
       .brand-center{ text-align:center; flex:1; } .brand-center h1{ font-size:20px; margin:0; }
@@ -11958,7 +11963,9 @@ function printStatement(){
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
     <title>${lastStatement.title}</title>
     <style>
-      body{ font-family: Tahoma, Arial, sans-serif; padding:28px; color:#111; }
+      /* التقارير الجدولية تُطبع بالعرض لتتسع الأعمدة */
+    @page{ size: A4 landscape; margin: 10mm; }
+    body{ font-family: Tahoma, Arial, sans-serif; padding:28px; color:#111; }
       .brand-row{ display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:6px; }
       .brand-logo-corner{ width:58px; height:58px; object-fit:contain; flex-shrink:0; }
       .brand-center{ text-align:center; flex:1; }
@@ -12149,7 +12156,9 @@ function printDetailReport(){
   win.document.write(`
     <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${reportTitle}</title>
     <style>
-      body{ font-family: Tahoma, Arial, sans-serif; padding:26px; color:#111; }
+      /* التقارير الجدولية تُطبع بالعرض لتتسع الأعمدة */
+    @page{ size: A4 landscape; margin: 10mm; }
+    body{ font-family: Tahoma, Arial, sans-serif; padding:26px; color:#111; }
       .brand-row{ display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:6px; }
       .brand-logo-corner{ width:58px; height:58px; object-fit:contain; flex-shrink:0; }
       .brand-center{ text-align:center; flex:1; } .brand-center h1{ font-size:20px; margin:0; }
