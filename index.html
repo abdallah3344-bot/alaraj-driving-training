@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-14-candidates-landscape</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-15-pex-fit3</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -4926,6 +4926,57 @@ function isStandaloneApp(){
   }catch(_){ return false; }
 }
 function isSmallScreen(){ return Math.min(window.innerWidth, window.innerHeight) <= 820; }
+// ينقل محتوى المطبوعة من الإطار إلى المستند الرئيسي، فيُطبع باتجاه الصفحة وهوامشها الصحيحة،
+// ثم يُزال كل شيء ويعود البرنامج كما كان.
+function printOverlayDocument(frame){
+  let host = null, injected = [], guard = null;
+  const cleanup = ()=>{
+    try{ if(host) host.remove(); }catch(_){ }
+    injected.forEach(el=>{ try{ el.remove(); }catch(_){ } });
+    try{ if(guard) guard.remove(); }catch(_){ }
+    document.documentElement.classList.remove('printing-overlay');
+    window.removeEventListener('afterprint', cleanup);
+  };
+  try{
+    const doc = frame.contentDocument || frame.contentWindow.document;
+    if(!doc || !doc.body){ try{ frame.contentWindow.print(); }catch(_){ } return; }
+
+    // 1) أنماط المطبوعة (بما فيها @page) تُنقل إلى رأس الصفحة الرئيسية
+    Array.from(doc.querySelectorAll('style, link[rel="stylesheet"]')).forEach(node=>{
+      const copy = node.cloneNode(true);
+      copy.setAttribute('data-print-host', '1');
+      document.head.appendChild(copy);
+      injected.push(copy);
+    });
+
+    // 2) قاعدة تُخفي واجهة البرنامج أثناء الطباعة وتُظهر المطبوعة وحدها
+    guard = document.createElement('style');
+    guard.setAttribute('data-print-host-guard', '1');
+    guard.textContent = `@media print{
+      body > *:not(#printHost){ display:none !important; }
+      #printHost{ display:block !important; position:static !important; }
+      #printHost .no-print{ display:none !important; }
+    }
+    #printHost{ display:none; }`;
+    document.head.appendChild(guard);
+
+    // 3) محتوى المطبوعة
+    host = document.createElement('div');
+    host.id = 'printHost';
+    host.setAttribute('dir', doc.documentElement.getAttribute('dir') || 'rtl');
+    host.innerHTML = doc.body.innerHTML;
+    host.querySelectorAll('script').forEach(s=> s.remove());
+    document.body.appendChild(host);
+
+    document.documentElement.classList.add('printing-overlay');
+    window.addEventListener('afterprint', cleanup);
+    setTimeout(()=>{ try{ window.print(); }catch(_){ } setTimeout(cleanup, 1500); }, 60);
+  }catch(err){
+    console.warn('تعذّر تجهيز الطباعة من الصفحة الرئيسية، سيُطبع الإطار مباشرة', err);
+    cleanup();
+    try{ frame.contentWindow.focus(); frame.contentWindow.print(); }catch(_){ }
+  }
+}
 function openPrintTarget(){
   if(!(isStandaloneApp() || isSmallScreen())){
     return window.open('', '_blank', arguments[0] || 'width=900,height=1000');
@@ -4947,7 +4998,9 @@ function openPrintTarget(){
   const closeOverlay = ()=>{ overlay.remove(); document.removeEventListener('keydown', onKey); };
   const onKey = (e)=>{ if(e.key === 'Escape') closeOverlay(); };
   close.onclick = closeOverlay;
-  print.onclick = ()=>{ try{ frame.contentWindow.focus(); frame.contentWindow.print(); }catch(_){ } };
+  // الطباعة على الجوال: تُنقل صفحة المطبوعة إلى المستند الرئيسي ثم تُطبع منه.
+  // طباعة الإطار المضمَّن مباشرةً تتجاهل إعدادات الصفحة (@page) مثل الاتجاه الأفقي.
+  print.onclick = ()=>{ printOverlayDocument(frame); };
   document.addEventListener('keydown', onKey);
   bar.appendChild(print); bar.appendChild(close);
   overlay.appendChild(bar); overlay.appendChild(frame);
@@ -11092,13 +11145,13 @@ function printPracticalExamForm(paperId){
       .header .title-box{ padding:4px 0; font-size:20px; font-weight:900; text-align:right; border:none; white-space:nowrap; }
       .header .title-box .title-underlines{ border-top:2px solid #000; margin-top:6px; padding-top:5px; border-bottom:2px solid #000; padding-bottom:2px; height:4px; }
       .top-info{ display:grid; grid-template-columns:1fr 1.7fr; gap:16px; margin-bottom:4px; flex:1; }
-      .info-list{ flex:1; font-size:16px; display:flex; flex-direction:column; justify-content:space-between; }
+      .info-list{ flex:1; font-size:14px; display:flex; flex-direction:column; justify-content:space-between; }
       .info-list .row{ display:flex; align-items:center; height:49px; box-sizing:border-box; }
       .info-list .lbl{ white-space:nowrap; flex:0 0 auto; }
       .fill{
         display:inline-flex; align-items:center; justify-content:center;
-        flex:1; border-bottom:1.3px dotted #000; min-height:20px; padding:0 4px;
-        text-align:center;
+        flex:1; border-bottom:1.3px dotted #000; min-height:26px; padding:0 4px;
+        text-align:center; line-height:1.25; overflow-wrap:anywhere;
       }
       /* استمارة الفحص العملي: خطوط أكبر للوضوح مع بقاء الاستمارة في صفحة واحدة */
       .fill.filled{ border-bottom:1.4px solid #000; font-weight:900; font-size:16px; line-height:1.15; }
@@ -11110,12 +11163,12 @@ function printPracticalExamForm(paperId){
       .tables-block{ display:flex; flex-direction:column; width:100%; flex:1; }
       .score-side td, .score-side th{ padding:2px 4px; vertical-align:middle; }
       .score-side tr{ height:45px; }
-      table{ width:100%; border-collapse:collapse; margin-bottom:0; font-size:15.5px; border:1.4px solid #000; }
+      table{ width:100%; border-collapse:collapse; margin-bottom:0; font-size:14px; border:1.4px solid #000; }
       td, th{ border:1.4px solid #000; padding:2px 3px; text-align:center; vertical-align:middle; }
       th{ background:#e2e2e2; font-weight:900; }
-      td.item{ text-align:right; padding-right:6px; word-break:break-word; font-size:15px; }
+      td.item{ text-align:right; padding:2px 4px; font-size:14px; white-space:nowrap; }
       td.grade{ width:42px; white-space:nowrap; font-size:14px; }
-      .section-hdr{ background:#e2e2e2; font-weight:900; text-align:center; padding:5px; border:1.4px solid #000; font-size:16px; }
+      .section-hdr{ background:#e2e2e2; font-weight:900; text-align:center; padding:5px; border:1.4px solid #000; font-size:14px; }
       .notes-block{ margin:2px 0 2px; font-size:14px; }
       .notes-row{ display:flex; align-items:baseline; gap:8px; margin:0 0 4px; }
       .notes-row .dotline{ flex:1; border-bottom:1.4px dotted #000; min-height:20px; padding:0 4px; font-weight:900; }
@@ -11172,8 +11225,8 @@ function printPracticalExamForm(paperId){
           <div class="tables-spacer"></div>
           <div class="tables-block">
           <table style="table-layout:fixed; border-bottom:none;">
-            <col><col style="width:52px;"><col><col style="width:52px;">
-            <tr><th>أ ـ السيطرة على المركبة</th><th style="width:52px;">الدرجة</th><th>ج ـ الإندماج في الحركة</th><th style="width:52px;">الدرجة</th></tr>
+            <col><col style="width:40px;"><col><col style="width:40px;">
+            <tr><th>أ ـ السيطرة على المركبة</th><th style="width:40px; font-size:12.5px; padding:2px;">الدرجة</th><th>ج ـ الإندماج في الحركة</th><th style="width:40px; font-size:12.5px; padding:2px;">الدرجة</th></tr>
             <tr><td class="item">1. ضبط المركبة</td><td class="grade"></td><td class="item">1. النظر إلى الأمام والجوانب</td><td class="grade"></td></tr>
             <tr><td class="item">2. ضبط المقود</td><td class="grade"></td><td class="item">2. السرعة</td><td class="grade"></td></tr>
             <tr><td class="item">3. إستعمال الغيار</td><td class="grade"></td><td class="item">3. سرعة الحركة في السفر</td><td class="grade"></td></tr>
@@ -11184,7 +11237,7 @@ function printPracticalExamForm(paperId){
             <tr><td class="item">8. الإنتباه</td><td class="grade"></td><td class="item">8. التصرف عند التقابل</td><td class="grade"></td></tr>
           </table>
           <table style="table-layout:fixed; border-top:none;">
-            <col><col style="width:52px;"><col><col style="width:52px;">
+            <col><col style="width:40px;"><col><col style="width:40px;">
             <tr><th colspan="4" class="section-hdr">ب ـ الحركة على الطريق</th></tr>
             <tr><td class="item">1. موقع المركبة في الطريق</td><td class="grade"></td><td class="item">4. الوقوف في المفترقات</td><td class="grade"></td></tr>
             <tr><td class="item">2. الإستدارة</td><td class="grade"></td><td class="item">5. التجاوز</td><td class="grade"></td></tr>
@@ -11224,6 +11277,33 @@ function printPracticalExamForm(paperId){
 
       </div>
       <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:8px 18px;">🖨 طباعة استمارة الفحص العملي</button></div>
+      <script>
+        // البنود الطويلة ("النظر إلى الأمام والجوانب"، "الوقوف في المفترقات"، "موقع المركبة في الطريق")
+        // تُصغَّر وحدها بالقدر اللازم لتبقى على سطر واحد، وبقية البنود تبقى بحجم 14
+        (function fitItemsOneLine(){
+          var MIN = 11.5;   // أصغر حجم مقبول للقراءة
+          function fit(){
+            document.querySelectorAll('td.item').forEach(function(td){
+              var size = 14;
+              td.style.whiteSpace = 'nowrap';
+              td.style.fontSize = size + 'px';
+              var guard = 0;
+              while(td.scrollWidth > td.clientWidth + 1 && size > MIN && guard++ < 20){
+                size -= 0.5;
+                td.style.fontSize = size + 'px';
+              }
+              // بند طويل جداً لا يتسع في سطر بحجم مقروء: يبقى على سطرين بحجم 14 بدل تصغيره أو قصّه
+              if(td.scrollWidth > td.clientWidth + 1){
+                td.style.whiteSpace = 'normal';
+                td.style.fontSize = '14px';
+              }
+            });
+          }
+          if(document.readyState === 'complete') fit();
+          else window.addEventListener('load', fit);
+          setTimeout(fit, 120);
+        })();
+      <\/script>
     </body></html>
   `);
   applyPrintTypography(win, 'form-practical');
