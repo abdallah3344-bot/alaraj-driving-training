@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-15-form-school-name</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-15-plate-guard</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -6800,6 +6800,7 @@ function addStaff(){
   if(!requireOnlineOrBlock()) return;
   const name = document.getElementById('sf_name').value.trim();
   if(!name){ alert('الرجاء إدخال اسم الموظف'); return; }
+  if(!warnUnknownPlate('sf_')) return;
   state.staff.push({
     id: newId('staff'), name,
     phone: document.getElementById('sf_phone').value.trim(),
@@ -6863,6 +6864,21 @@ function refreshVehiclePlateDatalist(){
     `<option value="${v.plate}">${[v.model, v.type].filter(Boolean).join(' - ')}</option>`).join('');
 }
 // عند إدخال/اختيار رقم لوحة مطابق لمركبة مسجَّلة، يُعبَّأ نوعها تلقائياً (ويبقى قابلاً للتعديل يدوياً)
+// تحذير عند كتابة لوحة غير مسجَّلة في السيارات (سبب شائع لاختلاف الرقم على النماذج)
+function warnUnknownPlate(prefix){
+  const el = document.getElementById(prefix + 'vehicle_plate');
+  if(!el) return true;
+  const plate = el.value.trim();
+  if(!plate) return true;
+  const known = (state.vehicles || []).some(v => String(v.plate || '').trim() === plate);
+  if(known){ el.style.borderColor = ''; return true; }
+  el.style.borderColor = '#c0392b';
+  const near = (state.vehicles || [])
+    .map(v => String(v.plate || '').trim())
+    .filter(p => p && p.replace(/\D/g,'') === plate.replace(/\D/g,''));
+  const hint = near.length ? `\n\nهل تقصد: ${near.join(' أو ')} ؟` : '';
+  return confirm(`رقم المركبة «${plate}» غير مسجَّل في شاشة السيارات.${hint}\n\nالمتابعة قد تُظهر رقماً مختلفاً على النماذج المطبوعة.\nهل تريد الحفظ بهذا الرقم على أي حال؟`);
+}
 function autofillStaffVehicleType(prefix){
   const plate = (document.getElementById(prefix+'vehicle_plate').value||'').trim();
   const typeField = document.getElementById(prefix+'vehicle_type');
@@ -6941,6 +6957,7 @@ function saveEditStaff(){
   s.trainingLicenseIssueDate = document.getElementById('ed_sf_training_license_issue').value.trim();
   s.license = document.getElementById('ed_sf_license').value.trim();
   s.licenseExpiry = document.getElementById('ed_sf_license_expiry').value;
+  if(!warnUnknownPlate('ed_sf_')) return;
   const oldStaffPlate = s.vehiclePlate;
   const staffPlateChanged = s.vehiclePlate !== document.getElementById('ed_sf_vehicle_plate').value.trim();
   s.vehiclePlate = document.getElementById('ed_sf_vehicle_plate').value.trim();
