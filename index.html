@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-15-propagate-edits</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-15-exam-school</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -1587,8 +1587,9 @@ body.field-mode{ padding-bottom:76px; }
         <div class="field"><label>ملاحظات (اختياري)</label><input id="ex_notes"></div>
       </div>
       <div class="form-actions"><button class="btn btn-accent" onclick="addExam()">📝 تسجيل الامتحان</button></div>
-      <div class="form-actions" style="margin-top:8px;">
+      <div class="form-actions" style="margin-top:8px; flex-wrap:wrap; align-items:center; gap:8px;">
         <input id="ex_theory_report_date" type="date">
+        <select id="ex_report_school" title="المدرسة في قائمة المتقدمين"></select>
         <button class="btn" onclick="printTheoreticalExamCandidatesList(document.getElementById('ex_theory_report_date').value || todayStr())">🖨️ طباعة قائمة المتقدمين للفحص النظري</button>
       </div>
     </div>
@@ -7837,6 +7838,21 @@ function saveEditLesson(){
 // ------------------------------------------------------------------
 // الامتحانات (نظري / عملي) + التقويم الشهري + تذكير قبل يوم
 // ------------------------------------------------------------------
+// قائمة اختيار المدرسة في تقارير المتقدمين (النظري والعملي) — مع خيار "كل المدارس"
+function refreshExamReportSchoolSelect(){
+  const sel = document.getElementById('ex_report_school');
+  if(!sel || typeof SCHOOLS === 'undefined') return;
+  const cur = sel.value || getLastSelectedSchool();
+  sel.innerHTML = '<option value="__all">كل المدارس</option>'
+    + Object.keys(SCHOOLS).map(id=>`<option value="${id}">${SCHOOLS[id].name}</option>`).join('');
+  sel.value = cur;
+}
+// المدرسة المختارة للتقرير: '' تعني كل المدارس
+function examReportSchool(){
+  const sel = document.getElementById('ex_report_school');
+  const v = sel ? sel.value : '';
+  return (!v || v === '__all') ? '' : v;
+}
 function refreshExamDropdowns(){
   const avail = activeStudentsForSelect();
   document.getElementById('ex_student').innerHTML = avail.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('')
@@ -7844,6 +7860,7 @@ function refreshExamDropdowns(){
   const instructors = state.staff.filter(s=>s.role==='مدرب');
   document.getElementById('ex_instructor').innerHTML = instructors.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
   if(typeof refreshExamVehicleSelect === 'function') refreshExamVehicleSelect();
+  if(typeof refreshExamReportSchoolSelect === 'function') refreshExamReportSchoolSelect();
 }
 // موعد الفحص الافتراضي: صباحاً (يبقى قابلاً للتعديل لكل امتحان)
 const DEFAULT_EXAM_TIME = '09:00';
@@ -7911,7 +7928,14 @@ function suggestExamVehicleNumber(){
   if(plate){ refreshExamVehicleSelect(plate); }
 }
 function printTheoreticalExamCandidatesList(selectedDate){
-  const list = (state.exams||[]).filter(e=> e.examType==='نظري' && (e.datetime||'').slice(0,10)===selectedDate);
+  const schoolFilter = (typeof examReportSchool === 'function') ? examReportSchool() : '';
+  const list = (state.exams||[]).filter(e=> e.examType==='نظري' && (e.datetime||'').slice(0,10)===selectedDate)
+    .filter(e=>{
+      if(!schoolFilter) return true;
+      const st = state.students.find(s=>s.id===e.studentId);
+      const sch = e.school || (st && st.school);
+      return !sch || sch === schoolFilter;   // سجل بلا مدرسة محدَّدة لا يُستبعَد
+    });
   const dateObj = new Date(selectedDate + 'T00:00:00');
   const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
   const dayName = days[dateObj.getDay()] || '';
@@ -11486,11 +11510,20 @@ function printExamCandidatesList(preselectedDate){
 }
 
 function _doPrintCandidatesList(selectedDate){
-  const info = getSchoolInfo(getLastSelectedSchool());
-  const schoolName = info.schoolName || '';
+  const schoolFilter = (typeof examReportSchool === 'function') ? examReportSchool() : '';
+  const info = getSchoolInfo(schoolFilter || getLastSelectedSchool());
+  const schoolName = schoolFilter
+    ? (info.schoolName || (SCHOOLS[schoolFilter] ? SCHOOLS[schoolFilter].name : ''))
+    : 'جميع المدارس';
 
   const papers = (state.officialPapers || [])
-    .filter(p => p.paperType === 'استمارة فحص عملي' && p.submitDate === selectedDate);
+    .filter(p => p.paperType === 'استمارة فحص عملي' && p.submitDate === selectedDate)
+    .filter(p => {
+      if(!schoolFilter) return true;
+      const st = p.studentId ? state.students.find(s=>s.id===p.studentId) : null;
+      const sch = p.school || (st && st.school);
+      return !sch || sch === schoolFilter;   // سجل بلا مدرسة محدَّدة لا يُستبعَد
+    });
 
   const getLinkedExam = (paper) => {
     const student = paper.studentId ? state.students.find(s=>s.id===paper.studentId) : null;
