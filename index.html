@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-15-pex-items</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-15-exam-vehicle-select</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -1580,7 +1580,8 @@ body.field-mode{ padding-bottom:76px; }
         <div class="field" id="ex_number_field" style="display:none;"><label>رقم الفحص</label><input id="ex_number" placeholder="رقم الفحص العملي"></div>
         <div class="field" id="ex_time_field" style="display:none;"><label>ساعة الفحص</label><input id="ex_time" type="time"></div>
         <div class="field" id="ex_vehicle_field" style="display:none;"><label>رقم المركبة (يُطبع في الاستمارة)</label>
-          <input id="ex_vehicle_no" placeholder="يُعبَّأ تلقائياً من سيارة المدرب، وقابل للتعديل"></div>
+          <select id="ex_vehicle_sel" onchange="onExamVehicleSelect()"></select>
+          <input id="ex_vehicle_no" style="display:none; margin-top:4px;" placeholder="اكتب رقم المركبة"></div>
         <div class="field"><label>مبلغ رسوم الفحص (اختياري)</label><input id="ex_fee" type="number" step="0.01" placeholder="0"></div>
         <div class="field"><label>💰 المبلغ المدفوع (اختياري)</label><input id="ex_paid" type="number" step="0.01" placeholder="0" min="0"></div>
         <div class="field"><label>ملاحظات (اختياري)</label><input id="ex_notes"></div>
@@ -7190,8 +7191,10 @@ const SHORT_LESSON_DURATION_LICENSES = ['باص', 'دراجة نارية', 'شح
 // تعبئة الحقول المرتبطة بالطالب في شاشتي الامتحانات والفواتير بمجرد اختياره
 // (كانت مقتصرة على شاشة الحصص، فيختار الموظف الطالب ولا يُعبَّأ مدربه)
 function onExamInstructorChange(){
+  const sel = document.getElementById('ex_vehicle_sel');
+  if(sel) sel.value = '';      // يُعاد الاقتراح حسب المدرب الجديد
   const el = document.getElementById('ex_vehicle_no');
-  if(el) el.value = '';        // يُعاد الاقتراح حسب المدرب الجديد
+  if(el) el.value = '';
   suggestExamVehicleNumber();
 }
 function applyExamStudentPreferences(){
@@ -7797,26 +7800,72 @@ function refreshExamDropdowns(){
     || (state.students.length ? '<option value="">كل الطلاب متوقفون حالياً</option>' : '<option value="">لا يوجد طلاب</option>');
   const instructors = state.staff.filter(s=>s.role==='مدرب');
   document.getElementById('ex_instructor').innerHTML = instructors.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
+  if(typeof refreshExamVehicleSelect === 'function') refreshExamVehicleSelect();
 }
+// موعد الفحص الافتراضي: صباحاً (يبقى قابلاً للتعديل لكل امتحان)
+const DEFAULT_EXAM_TIME = '09:00';
 function onExamTypeChange(){
   const isPractical = document.getElementById('ex_type').value === 'عملي';
   document.getElementById('ex_number_field').style.display = isPractical ? '' : 'none';
-  document.getElementById('ex_time_field').style.display = isPractical ? '' : 'none';
+  document.getElementById('ex_time_field').style.display = '';   // ساعة الفحص للنوعين
+  const timeEl = document.getElementById('ex_time');
+  if(timeEl && !timeEl.value) timeEl.value = DEFAULT_EXAM_TIME;    // موعد صباحي افتراضي
   const vf = document.getElementById('ex_vehicle_field');
   if(vf) vf.style.display = isPractical ? '' : 'none';
   if(isPractical) suggestExamVehicleNumber();
 }
 // رقم المركبة المقترَح: سيارة المدرب المختار، وإلا سيارة الطالب المعتادة
+// قائمة سيارات المدرسة في شاشة الامتحان، مع إمكانية كتابة رقم غير مسجَّل
+function refreshExamVehicleSelect(keepValue){
+  const sel = document.getElementById('ex_vehicle_sel');
+  if(!sel) return;
+  const current = keepValue != null ? keepValue : sel.value;
+  const plates = (state.vehicles || []).map(v => v.plate).filter(Boolean);
+  sel.innerHTML = '<option value="">— بلا مركبة —</option>'
+    + (state.vehicles || []).filter(v=>v.plate).map(v=>`<option value="${v.plate}">${vehicleOptionLabel(v)}</option>`).join('')
+    + '<option value="__other">✏️ رقم آخر (غير مسجَّل)</option>';
+  if(current && current !== '__other' && !plates.includes(current)){
+    // رقم غير مسجَّل محفوظ سابقاً: يبقى ظاهراً في القائمة
+    const o = document.createElement('option'); o.value = current; o.textContent = current + ' (غير مسجَّلة)';
+    sel.insertBefore(o, sel.lastElementChild);
+  }
+  sel.value = current || '';
+  onExamVehicleSelect();
+}
+function onExamVehicleSelect(){
+  const sel = document.getElementById('ex_vehicle_sel');
+  const input = document.getElementById('ex_vehicle_no');
+  if(!sel || !input) return;
+  if(sel.value === '__other'){
+    input.style.display = '';
+    if(input.value === sel.value) input.value = '';
+    setTimeout(()=> input.focus(), 40);
+  } else {
+    input.style.display = 'none';
+    input.value = sel.value;      // القيمة المعتمدة دائماً في خانة النص المخفية
+  }
+}
+function examVehicleNumber(){
+  const sel = document.getElementById('ex_vehicle_sel');
+  const input = document.getElementById('ex_vehicle_no');
+  if(sel && sel.value === '__other') return (input ? input.value.trim() : '');
+  return sel ? sel.value : (input ? input.value.trim() : '');
+}
 function suggestExamVehicleNumber(){
-  const el = document.getElementById('ex_vehicle_no');
-  if(!el || el.value.trim()) return;
+  const sel = document.getElementById('ex_vehicle_sel');
+  if(!sel) return;
+  refreshExamVehicleSelect(sel.value);
+  if(sel.value) return;                       // اختيار المستخدم له الأولوية
   const instId = (document.getElementById('ex_instructor') || {}).value;
   const inst = state.staff.find(s=>String(s.id)===String(instId));
-  if(inst && inst.vehiclePlate){ el.value = inst.vehiclePlate; return; }
-  const stId = (document.getElementById('ex_student') || {}).value;
-  const st = state.students.find(s=>String(s.id)===String(stId));
-  const veh = st && st.preferredVehicleId ? state.vehicles.find(v=>v.id===st.preferredVehicleId) : null;
-  if(veh) el.value = veh.plate || '';
+  let plate = (inst && inst.vehiclePlate) ? inst.vehiclePlate : '';
+  if(!plate){
+    const stId = (document.getElementById('ex_student') || {}).value;
+    const st = state.students.find(s=>String(s.id)===String(stId));
+    const veh = st && st.preferredVehicleId ? state.vehicles.find(v=>v.id===st.preferredVehicleId) : null;
+    plate = veh ? (veh.plate || '') : '';
+  }
+  if(plate){ refreshExamVehicleSelect(plate); }
 }
 function printTheoreticalExamCandidatesList(selectedDate){
   const list = (state.exams||[]).filter(e=> e.examType==='نظري' && (e.datetime||'').slice(0,10)===selectedDate);
@@ -7916,8 +7965,8 @@ function addExam(){
     id: newId('exams'), studentId, instructorId: instructorId || null,
     examType, datetime: dt, result: 'لم يحدد بعد',
     examNumber: document.getElementById('ex_number').value.trim(),
-    examTime: document.getElementById('ex_time').value,
-    formVehicleNumber: (document.getElementById('ex_vehicle_no') || {}).value ? document.getElementById('ex_vehicle_no').value.trim() : '',
+    examTime: document.getElementById('ex_time').value || DEFAULT_EXAM_TIME,
+    formVehicleNumber: (typeof examVehicleNumber === 'function') ? examVehicleNumber() : '',
     examFee: fee,
     examFeePaid: fee > 0 && paidNow >= fee,
     notes: document.getElementById('ex_notes').value.trim()
@@ -7959,6 +8008,8 @@ function addExam(){
   document.getElementById('ex_fee').value = '';
   document.getElementById('ex_paid').value = '';
   const exVeh = document.getElementById('ex_vehicle_no'); if(exVeh) exVeh.value = '';
+  const exVehSel = document.getElementById('ex_vehicle_sel'); if(exVehSel) exVehSel.value = '';
+  const exTime = document.getElementById('ex_time'); if(exTime) exTime.value = DEFAULT_EXAM_TIME;
   renderExams();
   // امتحان عملي: تُفتح شاشة نموذج الفحص العملي مباشرة (طباعة + حفظ المعاملة تلقائياً)
   if(examType === 'عملي') openPracticalExamFormModal(exam.id);
@@ -11063,7 +11114,7 @@ function openPracticalExamFormModal(examId){
   _pexExamId = ex.id;
   document.getElementById('pexStudent').textContent = (s ? s.name : '') + (ex.datetime ? ' — امتحان عملي بتاريخ ' + ex.datetime.slice(0,10) : '');
   document.getElementById('pex_number').value = ex.examNumber || '';
-  document.getElementById('pex_time').value = ex.examTime || '';
+  document.getElementById('pex_time').value = ex.examTime || DEFAULT_EXAM_TIME;
   document.getElementById('pex_date').value = (ex.datetime || '').slice(0,10) || todayStr();
   document.getElementById('pex_vehicle_type').value = ex.formVehicleType || (s ? (s.license || '') : '');
   document.getElementById('pex_vehicle_no').value = ex.formVehicleNumber
