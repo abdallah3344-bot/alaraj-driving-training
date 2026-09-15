@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-15-exam-school</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-15-exam-created-fill</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -960,6 +960,53 @@ body.field-mode{ padding-bottom:76px; }
   </div>
 </div>
 
+<!-- تعديل كامل بيانات الامتحان -->
+<!-- امتحانات يوم محدد من التقويم -->
+<div id="calDayModal" class="modal-overlay">
+  <div class="modal-box card" style="max-width:620px;">
+    <h2 id="cal_day_title">📅 امتحانات اليوم</h2>
+    <div class="form-actions" style="margin:6px 0 12px; flex-wrap:wrap; gap:8px; align-items:center;">
+      <select id="cal_day_type" onchange="renderCalDayList()">
+        <option value="all">الكل</option>
+        <option value="نظري">📘 نظري</option>
+        <option value="عملي">🚗 عملي</option>
+      </select>
+      <button class="btn btn-accent" onclick="printCalDayList()">🖨 طباعة القائمة</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>الطالب</th><th>النوع</th><th>الساعة</th><th>المدرب</th><th>النتيجة</th></tr></thead>
+      <tbody id="calDayBody"></tbody>
+    </table></div>
+    <div id="calDayEmpty" class="empty" style="display:none;">لا توجد امتحانات بهذه المواصفات في هذا اليوم</div>
+    <div class="form-actions" style="margin-top:10px;"><button class="btn" onclick="closeCalDayModal()">إغلاق</button></div>
+  </div>
+</div>
+<div id="editExamModal" class="modal-overlay">
+  <div class="modal-box card" style="max-width:520px;">
+    <h2>✏ تعديل بيانات الامتحان</h2>
+    <p class="note" id="ed_ex_student_name" style="margin:6px 0 12px;"></p>
+    <div class="form-grid">
+      <div class="field"><label>نوع الامتحان</label>
+        <select id="ed_ex_type" onchange="onEditExamTypeChange()"><option>نظري</option><option>عملي</option></select></div>
+      <div class="field"><label>الطالب</label><select id="ed_ex_student"></select></div>
+      <div class="field"><label>المدرب المسؤول</label><select id="ed_ex_instructor"></select></div>
+      <div class="field" id="ed_ex_school_field" style="display:none;"><label>المدرسة</label><select id="ed_ex_school"></select></div>
+      <div class="field"><label>تاريخ الامتحان</label><input id="ed_ex_date" type="date"></div>
+      <div class="field"><label>ساعة الفحص</label><input id="ed_ex_time" type="time"></div>
+      <div class="field" id="ed_ex_number_field"><label>رقم الفحص</label><input id="ed_ex_number"></div>
+      <div class="field" id="ed_ex_vehicle_field"><label>رقم المركبة</label><select id="ed_ex_vehicle"></select></div>
+      <div class="field"><label>النتيجة</label>
+        <select id="ed_ex_result"><option>لم يحدد بعد</option><option>ناجح</option><option>راسب</option></select></div>
+      <div class="field"><label>المعدل (اختياري)</label><input id="ed_ex_grade" type="number" min="0" max="100"></div>
+      <div class="field"><label>مبلغ رسوم الفحص</label><input id="ed_ex_fee" type="number" step="0.01"></div>
+      <div class="field"><label>ملاحظات</label><input id="ed_ex_notes"></div>
+    </div>
+    <div class="form-actions" style="margin-top:8px;">
+      <button class="btn btn-accent" onclick="saveEditExam()">💾 حفظ التعديلات</button>
+      <button class="btn" onclick="closeEditExamModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
 <div id="editLessonModal" class="modal-overlay">
   <div class="modal-box card">
     <h2>✏ تعديل الحصة</h2>
@@ -1574,6 +1621,7 @@ body.field-mode{ padding-bottom:76px; }
         </div>
         <div class="field"><label>الطالب</label><input id="ex_student_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
         <select id="ex_student" onchange="applyExamStudentPreferences()"></select></div>
+        <div class="field"><label>المدرسة</label><select id="ex_school"></select></div>
         <div class="field"><label>المدرب المسؤول</label><input id="ex_instructor_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
         <select id="ex_instructor" onchange="onExamInstructorChange()"></select></div>
         <div class="field"><label>تاريخ الامتحان</label><input id="ex_date" type="date"></div>
@@ -1603,7 +1651,7 @@ body.field-mode{ padding-bottom:76px; }
         <div id="ex_school_filter_wrap"></div>
       </div>
       <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:10px; cursor:pointer;">
-        <input type="checkbox" id="ex_today_only" checked onchange="renderExams()"> 📅 عرض إدخالات اليوم فقط
+        <input type="checkbox" id="ex_today_only" checked onchange="renderExams()"> 📅 عرض ما أُدخل اليوم فقط (حسب تاريخ الإدخال)
       </label>
       <div class="table-wrap"><table>
         <thead><tr><th>الرقم</th><th>المدرسة</th><th>الطالب</th><th>المدرب</th><th>النوع</th><th>الموعد</th><th>رقم الفحص</th><th>ساعة الفحص</th><th>النتيجة</th><th>ملاحظات</th><th></th></tr></thead>
@@ -2332,8 +2380,19 @@ let state = defaultState();
 // ترحيل أسماء أنواع الرخص: توحيد «رخصة شحن» القديمة تحت «شحن خفيف».
 // يعمل عند كل تحميل (محلي أو من السحابة) فلا يعيد أي جهاز الاسم القديم.
 const LICENSE_RENAMES = { 'رخصة شحن': 'شحن خفيف' };
+// الامتحانات القديمة بلا تاريخ إدخال: يُعتمد تاريخ الامتحان بديلاً، فتظهر في فلتر الإدخالات
+function migrateExamCreatedDates(st){
+  if(!st || !Array.isArray(st.exams)) return 0;
+  let n = 0;
+  st.exams.forEach(e=>{
+    if(!e.created && e.datetime){ e.created = String(e.datetime).slice(0,10); n++; }
+  });
+  if(n) console.info(`تعبئة تاريخ الإدخال لـ ${n} امتحاناً قديماً`);
+  return n;
+}
 function migrateLicenseNames(st){
   if(!st || typeof st !== 'object') return 0;
+  migrateExamCreatedDates(st);
   let n = 0;
   const fix = (obj, key)=>{
     if(!obj) return;
@@ -4818,6 +4877,7 @@ function filterTodayOnly(items, dateField, toggleId){
   const today = todayStr();
   return items.filter(item=>{
     const val = item[dateField];
+    if(!val && dateField === 'created') return false;   // سجل قديم بلا تاريخ إدخال: ليس من إدخالات اليوم
     return val && val.slice(0,10) === today;
   });
 }
@@ -6507,7 +6567,7 @@ function gatherExamAlertItems(){
   return state.exams
     .filter(e=> e.datetime && e.datetime.slice(0,10) === tomorrowStr)
     .map(e=> ({
-      label: `امتحان ${e.examType} غداً: ${nameOf(state.students, e.studentId)} — الساعة ${e.datetime.slice(11,16)}`,
+      label: `امتحان ${e.examType} غداً: ${nameOf(state.students, e.studentId)}${examTimeLabel(e)}`,
       badge: '<span class="badge badge-amber">غداً</span>'
     }));
 }
@@ -7241,7 +7301,21 @@ function onExamInstructorChange(){
   if(el) el.value = '';
   suggestExamVehicleNumber();
 }
+// قائمة المدرسة في نموذج تسجيل الامتحان — تُملأ من مدرسة الطالب وتبقى قابلة للتعديل
+function refreshExamSchoolSelect(selected){
+  const sel = document.getElementById('ex_school');
+  if(!sel || typeof SCHOOLS === 'undefined') return;
+  const cur = selected || sel.value || getLastSelectedSchool();
+  sel.innerHTML = Object.keys(SCHOOLS).map(id=>`<option value="${id}">${SCHOOLS[id].name}</option>`).join('');
+  sel.value = SCHOOLS[cur] ? cur : getLastSelectedSchool();
+}
+function syncExamSchoolWithStudent(){
+  const stId = (document.getElementById('ex_student') || {}).value;
+  const st = state.students.find(s=>String(s.id)===String(stId));
+  if(st && st.school) refreshExamSchoolSelect(st.school);
+}
 function applyExamStudentPreferences(){
+  syncExamSchoolWithStudent();
   const sel = document.getElementById('ex_student');
   if(!sel) return;
   const student = state.students.find(s=>String(s.id)===String(sel.value));
@@ -7861,9 +7935,19 @@ function refreshExamDropdowns(){
   document.getElementById('ex_instructor').innerHTML = instructors.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
   if(typeof refreshExamVehicleSelect === 'function') refreshExamVehicleSelect();
   if(typeof refreshExamReportSchoolSelect === 'function') refreshExamReportSchoolSelect();
+  const exTimeEl = document.getElementById('ex_time');
+  if(exTimeEl && !exTimeEl.value && typeof DEFAULT_EXAM_TIME === 'string') exTimeEl.value = DEFAULT_EXAM_TIME;
+  if(typeof refreshExamSchoolSelect === 'function') refreshExamSchoolSelect();
+  if(typeof syncExamSchoolWithStudent === 'function') syncExamSchoolWithStudent();
 }
 // موعد الفحص الافتراضي: صباحاً (يبقى قابلاً للتعديل لكل امتحان)
 const DEFAULT_EXAM_TIME = '09:00';
+// نص الساعة في التنبيهات: يعتمد ساعة الفحص المسجَّلة، وإن لم تكن يُحذف ذكر الساعة تماماً
+function examTimeLabel(e){
+  const t = (e && e.examTime) ? String(e.examTime).slice(0,5)
+    : ((e && e.datetime && e.datetime.length > 15) ? e.datetime.slice(11,16) : '');
+  return t ? ` — الساعة ${t}` : '';
+}
 function onExamTypeChange(){
   const isPractical = document.getElementById('ex_type').value === 'عملي';
   document.getElementById('ex_number_field').style.display = isPractical ? '' : 'none';
@@ -8026,7 +8110,9 @@ function addExam(){
   // لا رسوم مُدخلة لكن هناك مبلغ مدفوع: يُعتمد المبلغ المدفوع رسوماً للامتحان حتى تُصدَر فاتورة تُرصَّد عليها الدفعة
   if(paidNow > 0 && fee <= 0) fee = paidNow;
   if(paidNow > fee){ alert('المبلغ المدفوع (' + fmtNum(paidNow, 2) + ') أكبر من رسوم الامتحان (' + fmtNum(fee, 2) + ') — صحّح أحد المبلغين'); return; }
-  const school = (typeof schoolOfStudent === 'function') ? schoolOfStudent(studentId) : undefined;
+  const schoolSel = document.getElementById('ex_school');
+  const school = (schoolSel && schoolSel.value) ? schoolSel.value
+    : ((typeof schoolOfStudent === 'function') ? schoolOfStudent(studentId) : undefined);
   const student = state.students.find(s=>s.id===studentId);
   const exam = {
     id: newId('exams'), studentId, instructorId: instructorId || null,
@@ -8036,6 +8122,7 @@ function addExam(){
     formVehicleNumber: (typeof examVehicleNumber === 'function') ? examVehicleNumber() : '',
     examFee: fee,
     examFeePaid: fee > 0 && paidNow >= fee,
+    created: (typeof localDateStr === 'function') ? localDateStr() : todayStr(),   // تاريخ الإدخال
     notes: document.getElementById('ex_notes').value.trim()
   };
   if(school) exam.school = school;
@@ -8116,6 +8203,92 @@ function setExamResult(id, result){
   ex.result = result;
   renderExams();
 }
+// تعديل كامل لبيانات الامتحان (كان مقتصراً على الموعد)
+function openEditExamModal(id){
+  const ex = state.exams.find(e=>String(e.id)===String(id));
+  if(!ex) return;
+  const modal = document.getElementById('editExamModal');
+  modal.dataset.editingId = ex.id;
+  document.getElementById('ed_ex_student_name').textContent =
+    'الطالب الحالي: ' + nameOf(state.students, ex.studentId);
+  const stSel = document.getElementById('ed_ex_student');
+  stSel.innerHTML = state.students.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('');
+  stSel.value = ex.studentId;
+  const inSel = document.getElementById('ed_ex_instructor');
+  inSel.innerHTML = '<option value="">— بلا مدرب —</option>'
+    + state.staff.filter(s=>s.role==='مدرب').map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  inSel.value = ex.instructorId || '';
+  const vhSel = document.getElementById('ed_ex_vehicle');
+  const plates = (state.vehicles||[]).filter(v=>v.plate);
+  vhSel.innerHTML = '<option value="">— بلا مركبة —</option>'
+    + plates.map(v=>`<option value="${v.plate}">${vehicleOptionLabel(v)}</option>`).join('');
+  const savedPlate = ex.formVehicleNumber || '';
+  if(savedPlate && !plates.some(v=>v.plate===savedPlate)){
+    const o = document.createElement('option'); o.value = savedPlate; o.textContent = savedPlate + ' (غير مسجَّلة)';
+    vhSel.appendChild(o);
+  }
+  vhSel.value = savedPlate;
+  const schoolField = document.getElementById('ed_ex_school_field');
+  if(typeof SCHOOLS !== 'undefined'){
+    schoolField.style.display = '';
+    const scSel = document.getElementById('ed_ex_school');
+    scSel.innerHTML = Object.keys(SCHOOLS).map(id=>`<option value="${id}">${SCHOOLS[id].name}</option>`).join('');
+    scSel.value = ex.school || getLastSelectedSchool();
+  } else {
+    schoolField.style.display = 'none';
+  }
+  document.getElementById('ed_ex_type').value = ex.examType || 'نظري';
+  document.getElementById('ed_ex_date').value = (ex.datetime || '').slice(0,10);
+  document.getElementById('ed_ex_time').value = ex.examTime || '';
+  document.getElementById('ed_ex_number').value = ex.examNumber || '';
+  document.getElementById('ed_ex_result').value = ex.result || 'لم يحدد بعد';
+  document.getElementById('ed_ex_grade').value = (ex.examGrade != null ? ex.examGrade : '');
+  document.getElementById('ed_ex_fee').value = (ex.examFee != null ? ex.examFee : 0);
+  document.getElementById('ed_ex_notes').value = ex.notes || '';
+  onEditExamTypeChange();
+  modal.classList.add('show');
+}
+function closeEditExamModal(){ document.getElementById('editExamModal').classList.remove('show'); }
+function onEditExamTypeChange(){
+  const isPractical = document.getElementById('ed_ex_type').value === 'عملي';
+  document.getElementById('ed_ex_number_field').style.display = isPractical ? '' : 'none';
+  document.getElementById('ed_ex_vehicle_field').style.display = isPractical ? '' : 'none';
+}
+function saveEditExam(){
+  if(!requireOnlineOrBlock()) return;
+  const id = document.getElementById('editExamModal').dataset.editingId;
+  const ex = state.exams.find(e=>String(e.id)===String(id));
+  if(!ex) return;
+  const date = document.getElementById('ed_ex_date').value;
+  if(!date){ alert('الرجاء إدخال تاريخ الامتحان'); return; }
+  const studentId = parseInt(document.getElementById('ed_ex_student').value);
+  if(!studentId){ alert('الرجاء اختيار الطالب'); return; }
+  ex.studentId = studentId;
+  ex.instructorId = document.getElementById('ed_ex_instructor').value ? parseInt(document.getElementById('ed_ex_instructor').value) : null;
+  ex.examType = document.getElementById('ed_ex_type').value;
+  ex.datetime = date;
+  ex.examTime = document.getElementById('ed_ex_time').value;
+  ex.examNumber = document.getElementById('ed_ex_number').value.trim();
+  ex.result = document.getElementById('ed_ex_result').value;
+  const grade = document.getElementById('ed_ex_grade').value;
+  ex.examGrade = grade === '' ? null : Number(grade);
+  ex.examFee = Number(document.getElementById('ed_ex_fee').value) || 0;
+  ex.notes = document.getElementById('ed_ex_notes').value.trim();
+  if(ex.examType === 'عملي') ex.formVehicleNumber = document.getElementById('ed_ex_vehicle').value;
+  const scSel = document.getElementById('ed_ex_school');
+  if(scSel && scSel.value) ex.school = scSel.value;
+  // المعاملة الرسمية المرتبطة تتبع الامتحان في الطالب والتاريخ ورقم المركبة
+  (state.officialPapers || []).forEach(p=>{
+    if(String(p.examId) !== String(ex.id)) return;
+    p.studentId = ex.studentId;
+    p.submitDate = date;
+    if(ex.formVehicleNumber) p.vehicleNumber = ex.formVehicleNumber;
+    if(scSel && scSel.value) p.school = scSel.value;
+  });
+  closeEditExamModal();
+  if(typeof refreshLinkedScreens === 'function') refreshLinkedScreens(); else renderExams();
+  saveState();
+}
 function editExamDate(id){
   const ex = state.exams.find(e=>e.id===id);
   if(!ex) return;
@@ -8144,7 +8317,7 @@ function renderExamAlerts(){
     .filter(e=> e.datetime && e.datetime.slice(0,10) === tomorrowStr)
     .sort((a,b)=> a.datetime.localeCompare(b.datetime))
     .map(e=>({
-      label: `امتحان ${e.examType} غداً: ${nameOf(state.students, e.studentId)} — الساعة ${e.datetime.slice(11,16)}${e.instructorId? ' مع المدرب ' + nameOf(state.staff, e.instructorId) : ''}`,
+      label: `امتحان ${e.examType} غداً: ${nameOf(state.students, e.studentId)}${examTimeLabel(e)}${e.instructorId? ' مع المدرب ' + nameOf(state.staff, e.instructorId) : ''}`,
       badge: `<span class="badge badge-amber">غداً (${e.datetime.slice(0,10)})</span>`
     }));
   renderAlertBanner('examAlertBanner', items, 'تذكير: امتحانات غداً');
@@ -8156,7 +8329,8 @@ function renderExams(){
   const exSchoolFilter = schoolFilterValue('ex_school_filter');
   const body = document.getElementById('examsBody');
   let sorted = state.exams.filter(e=>!exSchoolFilter || e.school===exSchoolFilter).sort((a,b)=> b.datetime.localeCompare(a.datetime));
-  sorted = filterTodayOnly(sorted, 'datetime', 'ex_today_only');
+  // "إدخالات اليوم" تعني ما أُدخل اليوم فعلاً، لا ما موعد امتحانه اليوم
+  sorted = filterTodayOnly(sorted, 'created', 'ex_today_only');
   body.innerHTML = sorted.map((e,i)=>`
     <tr>
       <td>${i+1}</td><td>${schoolBadge(e.school||'alaraj')}</td><td>${nameOf(state.students, e.studentId)}</td>
@@ -8167,7 +8341,7 @@ function renderExams(){
       <td>${e.notes||'-'}</td>
       <td class="row-actions">
         ${e.examType === 'عملي' ? `<button class="btn" onclick="openPracticalExamFormModal(${e.id})">🖨 استمارة الفحص العملي</button>` : ''}
-        <button class="btn" onclick="editExamDate(${e.id})">✏ تعديل الموعد</button>
+        <button class="btn" onclick="openEditExamModal(${e.id})">✏ تعديل البيانات</button>
         <button class="btn" onclick="setExamResult(${e.id},'ناجح')">✅ ناجح</button>
         <button class="btn" onclick="setExamResult(${e.id},'راسب')">❌ راسب</button>
         <button class="btn btn-danger" onclick="deleteExam(${e.id})">حذف</button>
@@ -8192,6 +8366,47 @@ function arabicDayName(dateStr){
 function shiftExamCalendar(delta){
   examCalendarDate.setMonth(examCalendarDate.getMonth() + delta);
   renderExamCalendar();
+}
+// عرض امتحانات يوم من التقويم، مع تصفية بالنوع وطباعة القائمة
+let _calDayDate = null;
+function openCalDay(iso){
+  _calDayDate = iso;
+  const sel = document.getElementById('cal_day_type');
+  if(sel) sel.value = 'all';
+  document.getElementById('cal_day_title').textContent = '📅 امتحانات يوم ' + iso;
+  renderCalDayList();
+  document.getElementById('calDayModal').classList.add('show');
+}
+function closeCalDayModal(){ document.getElementById('calDayModal').classList.remove('show'); }
+function calDayExams(){
+  const type = (document.getElementById('cal_day_type') || {}).value || 'all';
+  return (state.exams || [])
+    .filter(e => (e.datetime || '').slice(0,10) === _calDayDate)
+    .filter(e => type === 'all' ? true : e.examType === type)
+    .sort((a,b)=> String(a.examTime||'').localeCompare(String(b.examTime||''))
+      || nameOf(state.students, a.studentId).localeCompare(nameOf(state.students, b.studentId)));
+}
+function renderCalDayList(){
+  const body = document.getElementById('calDayBody');
+  if(!body) return;
+  const list = calDayExams();
+  body.innerHTML = list.map((e,i)=>`<tr>
+      <td>${i+1}</td>
+      <td>${nameOf(state.students, e.studentId)}</td>
+      <td>${e.examType === 'عملي' ? '🚗 عملي' : '📘 نظري'}</td>
+      <td>${e.examTime || '-'}</td>
+      <td>${e.instructorId ? nameOf(state.staff, e.instructorId) : '-'}</td>
+      <td>${e.result || '-'}</td>
+    </tr>`).join('');
+  const empty = document.getElementById('calDayEmpty');
+  if(empty) empty.style.display = list.length ? 'none' : 'block';
+}
+function printCalDayList(){
+  const list = calDayExams();
+  if(!list.length){ alert('لا توجد امتحانات لطباعتها بهذه المواصفات.'); return; }
+  const type = (document.getElementById('cal_day_type') || {}).value || 'all';
+  const typeLabel = type === 'all' ? 'النظري والعملي' : type;
+  printTableAsList(`امتحانات يوم ${_calDayDate} — ${typeLabel}`, 'calDayBody');
 }
 function renderExamCalendar(){
   const grid = document.getElementById('examCalendarGrid');
@@ -8225,7 +8440,7 @@ function renderExamCalendar(){
     const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     const isToday = iso === todayIso;
     const dayExams = (examsByDay[day] || []).sort((a,b)=> nameOf(state.students,a.studentId).localeCompare(nameOf(state.students,b.studentId)));
-    html += `<div class="cal-cell${isToday? ' today':''}">
+    html += `<div class="cal-cell${isToday? ' today':''}" style="cursor:pointer;" title="اضغط لعرض امتحانات هذا اليوم" onclick="openCalDay('${iso}')">
       <div class="cal-daynum">${day}</div>
       ${dayExams.map(e=>{
         const resultIcon = e.result==='ناجح' ? '✅' : (e.result==='راسب' ? '❌' : '⏳');
