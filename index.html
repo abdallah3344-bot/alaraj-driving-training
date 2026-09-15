@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-15-exam-vehicle-select</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-15-propagate-edits</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -5625,6 +5625,50 @@ function openEditStudentModal(id){
 function closeEditStudentModal(){
   document.getElementById('editStudentModal').classList.remove('show');
 }
+// انعكاس تعديلات الطالب/المدرب/السيارة على السجلات المدخَلة سابقاً:
+// معظم السجلات مرتبطة بالمعرّف فتتحدّث وحدها، وهذه الدوال تعالج النسخ النصية المحفوظة
+// (نوع المركبة ورقمها في الامتحانات والمعاملات الرسمية) حتى لا تُطبع بيانات قديمة.
+function propagateStudentLicenseChange(studentId, oldLicense, newLicense){
+  const from = String(oldLicense || '').trim(), to = String(newLicense || '').trim();
+  if(!from || !to || from === to) return 0;
+  let n = 0;
+  (state.exams || []).forEach(e=>{
+    if(String(e.studentId) !== String(studentId)) return;
+    if(String(e.formVehicleType || '').trim() === from){ e.formVehicleType = to; n++; }
+  });
+  (state.officialPapers || []).forEach(p=>{
+    if(String(p.studentId) !== String(studentId)) return;
+    if(String(p.vehicleType || '').trim() === from){ p.vehicleType = to; n++; }
+  });
+  if(n) console.info(`تحديث نوع المركبة في ${n} سجلاً بعد تغيير رخصة الطالب: ${from} → ${to}`);
+  return n;
+}
+function propagateInstructorPlateChange(instructorId, oldPlate, newPlate){
+  const from = String(oldPlate || '').trim(), to = String(newPlate || '').trim();
+  if(!from || !to || from === to) return 0;
+  let n = 0;
+  (state.exams || []).forEach(e=>{
+    if(String(e.instructorId) !== String(instructorId)) return;
+    if(String(e.formVehicleNumber || '').trim() === from){
+      e.formVehicleNumber = to; n++;
+      (state.officialPapers || []).forEach(p=>{
+        if(String(p.examId) === String(e.id) && String(p.vehicleNumber || '').trim() === from){ p.vehicleNumber = to; n++; }
+      });
+    }
+  });
+  if(n) console.info(`تحديث رقم المركبة في ${n} سجلاً بعد تغيير سيارة المدرب: ${from} → ${to}`);
+  return n;
+}
+// تحديث كل الشاشات التي تعرض بيانات مشتقة من الطلاب/المدربين/السيارات
+function refreshLinkedScreens(){
+  ['renderStudents','renderStaff','renderVehicles','renderLessons','renderExams','renderInvoices',
+   'renderReceipts','renderOfficialPapers','renderReceivables','renderHome'].forEach(fn=>{
+    if(typeof window[fn] === 'function'){ try{ window[fn](); }catch(_){ } }
+  });
+  ['refreshLessonDropdowns','refreshInvoiceDropdowns','refreshExamDropdowns','refreshExpenseDropdown']
+    .forEach(fn=>{ if(typeof window[fn] === 'function'){ try{ window[fn](); }catch(_){ } } });
+  if(typeof refreshExamVehicleSelect === 'function') refreshExamVehicleSelect();
+}
 function saveEditStudent(){
   if(!requireOnlineOrBlock()) return;
   const id = parseInt(document.getElementById('editStudentModal').dataset.editingId);
@@ -5639,7 +5683,9 @@ function saveEditStudent(){
   s.notes = document.getElementById('ed_st_notes').value.trim();
   s.prevLicenseNo = document.getElementById('ed_st_prev_license_no').value.trim();
   s.prevLicenseType = document.getElementById('ed_st_prev_license_type').value.trim();
+  const oldLicense = s.license;
   s.license = document.getElementById('ed_st_license').value;
+  propagateStudentLicenseChange(s.id, oldLicense, s.license);
   s.licenseCategory = document.getElementById('ed_st_license_category').value || '';
   s.gearType = document.getElementById('ed_st_gear').value;
   s.gender = document.getElementById('ed_st_gender').value;
@@ -5665,7 +5711,8 @@ function saveEditStudent(){
     }
   }
   closeEditStudentModal();
-  renderStudents();
+  refreshLinkedScreens();
+  saveState();
   renderLessons(); renderInvoices(); renderExams();
 }
 
@@ -6833,19 +6880,16 @@ function saveEditStaff(){
   s.trainingLicenseIssueDate = document.getElementById('ed_sf_training_license_issue').value.trim();
   s.license = document.getElementById('ed_sf_license').value.trim();
   s.licenseExpiry = document.getElementById('ed_sf_license_expiry').value;
+  const oldStaffPlate = s.vehiclePlate;
   const staffPlateChanged = s.vehiclePlate !== document.getElementById('ed_sf_vehicle_plate').value.trim();
   s.vehiclePlate = document.getElementById('ed_sf_vehicle_plate').value.trim();
+  if(staffPlateChanged) propagateInstructorPlateChange(s.id, oldStaffPlate, s.vehiclePlate);
   s.vehicleType = document.getElementById('ed_sf_vehicle_type').value.trim();
   s.commissionMode = document.getElementById('ed_sf_commission_mode').value || 'fixed';
   s.commissionLessonPercent = parseFloat(document.getElementById('ed_sf_commission_lesson_percent').value) || 0;
   s.commissionExamPercent = parseFloat(document.getElementById('ed_sf_commission_exam_percent').value) || 0;
   closeEditStaffModal();
-  renderStaff();
-  // الشاشات التي تعرض اسم المدرب أو سيارته تُحدَّث فوراً بلا إعادة تحميل
-  if(typeof renderLessons === 'function') renderLessons();
-  if(typeof renderExams === 'function') renderExams();
-  if(typeof refreshLessonDropdowns === 'function') refreshLessonDropdowns();
-  if(typeof refreshExamDropdowns === 'function') refreshExamDropdowns();
+  refreshLinkedScreens();   // كل شاشة تعرض اسم المدرب أو سيارته تتحدّث فوراً
   if(staffPlateChanged && typeof suggestExamVehicleNumber === 'function'){
     const el = document.getElementById('ex_vehicle_no');
     if(el) el.value = '';
@@ -6992,8 +7036,7 @@ function saveEditVehicle(){
   v.nextMaint = document.getElementById('ed_vh_maint').value;
   v.licenseExpiry = document.getElementById('ed_vh_license_expiry').value;
   closeEditVehicleModal();
-  renderVehicles();
-  refreshLessonDropdowns();
+  refreshLinkedScreens();
   saveState();
 }
 
@@ -8099,6 +8142,7 @@ function renderExams(){
       <td><span class="badge ${resultBadgeClass(e.result)}">${e.result}</span></td>
       <td>${e.notes||'-'}</td>
       <td class="row-actions">
+        ${e.examType === 'عملي' ? `<button class="btn" onclick="openPracticalExamFormModal(${e.id})">🖨 استمارة الفحص العملي</button>` : ''}
         <button class="btn" onclick="editExamDate(${e.id})">✏ تعديل الموعد</button>
         <button class="btn" onclick="setExamResult(${e.id},'ناجح')">✅ ناجح</button>
         <button class="btn" onclick="setExamResult(${e.id},'راسب')">❌ راسب</button>
