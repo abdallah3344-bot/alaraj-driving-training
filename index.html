@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-15-candidates-vehicle</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-16-fuel-voucher</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -840,6 +840,8 @@ body.field-mode{ padding-bottom:76px; }
       <div class="field"><label>رقم البيت</label><input id="ed_st_house"></div>
       <div class="field"><label>المدرب المعتاد (اختياري)</label><select id="ed_st_instructor"></select></div>
       <div class="field"><label>السيارة المعتادة (اختياري)</label><select id="ed_st_vehicle"></select></div>
+      <div class="field"><label>تاريخ النجاح في التوريا (النظري)</label>
+        <input id="ed_st_theory_pass" type="date"></div>
       <div class="field"><label>ملاحظات</label>
         <textarea id="ed_st_notes" rows="2" style="width:100%; box-sizing:border-box; resize:vertical;"></textarea></div>
       <div class="field"><label>الحالة</label><select id="ed_st_status"><option>نشط</option><option>متوقف</option></select></div>
@@ -979,6 +981,24 @@ body.field-mode{ padding-bottom:76px; }
     </table></div>
     <div id="calDayEmpty" class="empty" style="display:none;">لا توجد امتحانات بهذه المواصفات في هذا اليوم</div>
     <div class="form-actions" style="margin-top:10px;"><button class="btn" onclick="closeCalDayModal()">إغلاق</button></div>
+  </div>
+</div>
+<!-- تعديل حركة يومية مسجَّلة -->
+<div id="editDailyLogModal" class="modal-overlay">
+  <div class="modal-box card" style="max-width:480px;">
+    <h2>✏ تعديل حركة اليوم</h2>
+    <div class="form-grid">
+      <div class="field"><label>السيارة</label><select id="ed_vd_vehicle"></select></div>
+      <div class="field"><label>التاريخ</label><input id="ed_vd_date" type="date"></div>
+      <div class="field"><label>عداد بداية اليوم (كم)</label><input id="ed_vd_start" type="number" step="0.1"></div>
+      <div class="field"><label>عداد نهاية اليوم (كم)</label><input id="ed_vd_end" type="number" step="0.1"></div>
+      <div class="field"><label>نوع الوقود</label><select id="ed_vd_fuel_type"><option>بنزين</option><option>سولار</option><option>كهرباء</option></select></div>
+      <div class="field"><label>تكلفة الوقود (اختياري)</label><input id="ed_vd_fuel_cost" type="number" step="0.01" placeholder="اتركها فارغة إن لم تعبّئ"></div>
+    </div>
+    <div class="form-actions" style="margin-top:8px;">
+      <button class="btn btn-accent" onclick="saveEditDailyLog()">💾 حفظ التعديلات</button>
+      <button class="btn" onclick="closeEditDailyLogModal()">إلغاء</button>
+    </div>
   </div>
 </div>
 <div id="editExamModal" class="modal-overlay">
@@ -1235,6 +1255,8 @@ body.field-mode{ padding-bottom:76px; }
         <div class="field"><label>رقم البيت</label><input id="st_house"></div>
         <div class="field"><label>المدرب المعتاد (اختياري)</label><select id="st_instructor"></select></div>
         <div class="field"><label>السيارة المعتادة (اختياري)</label><select id="st_vehicle"></select></div>
+        <div class="field"><label>تاريخ النجاح في التوريا (النظري)</label>
+          <input id="st_theory_pass" type="date" title="صلاحية النجاح في التوريا أربع سنوات"></div>
         <div class="field" style="grid-column:1/-1;"><label>ملاحظات (اختياري)</label>
           <textarea id="st_notes" rows="2" placeholder="أي ملاحظة عن الطالب: ظروف خاصة، مواعيد مفضّلة، اتفاق دفع..." style="width:100%; box-sizing:border-box; resize:vertical;"></textarea></div>
       </div>
@@ -1427,6 +1449,22 @@ body.field-mode{ padding-bottom:76px; }
       </table></div>
       <div id="vehicleDailyLogsEmpty" class="empty" style="display:none">لا توجد حركة يومية مسجَّلة بعد</div>
       <div id="vehicleDailyLogsSearchEmpty" class="empty" style="display:none">لا توجد نتائج مطابقة للبحث</div>
+    </div>
+
+    <div class="card">
+      <h2>📏 عداد السيارات الشهري</h2>
+      <div class="note" style="margin-bottom:10px;">سجّل قراءة العداد أول كل شهر لكل سيارة. تُستخدم في ميزانية السيارة الشهرية، وتُكمِّل سجل الحركة اليومي.</div>
+      <div class="form-grid">
+        <div class="field"><label>السيارة</label><select id="mo_vehicle"></select></div>
+        <div class="field"><label>الشهر</label><input id="mo_month" type="month"></div>
+        <div class="field"><label>قراءة العداد (كم)</label><input id="mo_reading" type="number" step="1" placeholder="مثال: 10000"></div>
+        <div class="field" style="padding-top:18px;"><button class="btn btn-accent" onclick="addMonthlyOdometer()">💾 حفظ القراءة</button></div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>السيارة</th><th>الشهر</th><th>قراءة العداد</th><th></th></tr></thead>
+        <tbody id="monthlyOdoBody"></tbody>
+      </table></div>
+      <div id="monthlyOdoEmpty" class="empty" style="display:none">لم تُسجَّل أي قراءة عداد شهرية بعد</div>
     </div>
   </section>
 
@@ -2043,10 +2081,12 @@ body.field-mode{ padding-bottom:76px; }
             <option value="profitLoss">📈 تقرير صافي الربح أو الخسارة</option>
             <option value="vehicleExpenses">🚗 تقرير مصاريف السيارات</option>
             <option value="vehicleMovement">🛣️ تقرير حركة السيارات (العداد/التكلفة)</option>
+            <option value="vehicleBudget">🚗 ميزانية السيارات الشهرية (إيراد ومصروف وصافي)</option>
             <option value="generalExpenses">🏢 تقرير مصاريف المكتب العامة</option>
             <option value="topInstructors">🏆 أفضل المدربين (حسب الحصص المنجزة)</option>
             <option value="commissions">💰 تقرير عمولات المدربين</option>
             <option value="staffDues">👔 تقرير ذمم الموظفين (المستحق مقابل المصروف)</option>
+            <option value="lessonsDetail">📋 تقرير الدروس التفصيلي (حسب المدرب/السيارة/المدرسة)</option>
             <option value="lessonsExams">📚 تقرير الدروس والامتحانات</option>
             <option value="studentsByInstructor">👥 تقرير أسماء الطلاب (حسب المدرب / المدرسة)</option>
             <option value="exams">📝 تقرير الامتحانات حسب المدرب</option>
@@ -2054,6 +2094,17 @@ body.field-mode{ padding-bottom:76px; }
         </div>
         <div class="field"><label>من تاريخ</label><input id="rpt_from" type="date"></div>
         <div class="field"><label>إلى تاريخ</label><input id="rpt_to" type="date"></div>
+        <div class="field" id="rpt_filter_mode_wrap" style="display:none;">
+          <label>تصفية أولى حسب</label>
+          <select id="rpt_filter_mode" onchange="onReportFilterModeChange()">
+            <option value="instructor">المدرب</option>
+            <option value="vehicle">السيارة</option>
+          </select>
+        </div>
+        <div class="field" id="rpt_filter2_wrap" style="display:none;">
+          <label id="rpt_filter2_label">تصفية إضافية</label>
+          <select id="rpt_filter2"><option value="__all">— الكل —</option></select>
+        </div>
         <div class="field" id="rpt_filter_wrap" style="display:none;">
           <label id="rpt_filter_label">تصفية إضافية</label>
           <select id="rpt_filter"><option value="">— الكل —</option></select>
@@ -2374,7 +2425,7 @@ function defaultState(){
     ],
     security: { passwordHash: null },
     users: [],
-    nextId: { students:1, staff:1, vehicles:1, lessons:1, invoices:1, payments:1, vehicleExpenses:1, generalExpenses:1, lessonPrices:9, exams:1, users:1, commissionRates:3, disbursements:1, cheques:1, officialPapers:1 }
+    nextId: { students:1, staff:1, vehicles:1, lessons:1, invoices:1, payments:1, vehicleExpenses:1, generalExpenses:1, lessonPrices:9, exams:1, users:1, commissionRates:3, disbursements:1, cheques:1, officialPapers:1, monthlyOdometers:1 }
   };
 }
 
@@ -3358,7 +3409,7 @@ async function initDataSync(){
   }
 }
 const STATE_ARRAY_FIELDS = ['students','staff','vehicles','lessons','invoices','payments',
-  'vehicleExpenses','generalExpenses','lessonPrices','exams','customLicenseTypes','customExpenseTypes','customInvoiceTypes','users','commissionRates','disbursements','cheques','customPaperTypes','customDepartments','officialPapers','licenseCategoryOptions','vehicleDailyLogs','deletedUsers','activityLog'];
+  'vehicleExpenses','generalExpenses','lessonPrices','exams','customLicenseTypes','customExpenseTypes','customInvoiceTypes','users','commissionRates','disbursements','cheques','customPaperTypes','customDepartments','officialPapers','monthlyOdometers','licenseCategoryOptions','vehicleDailyLogs','deletedUsers','activityLog'];
 
 // يحسب إجمالي عدد السجلات عبر كل مصفوفات البيانات الرئيسية — يُستخدم لاكتشاف
 // التعارض بين نسخة محلية ونسخة واردة من الخادم قبل أي استبدال تلقائي بالمزامنة الدورية.
@@ -5390,6 +5441,7 @@ function addStudent(){
     id: newId('students'), name,
     phone: document.getElementById('st_phone').value.trim(),
     nid: document.getElementById('st_nid').value.trim(),
+    theoryPassDate: document.getElementById('st_theory_pass').value || '',
     notes: document.getElementById('st_notes').value.trim(),
     prevLicenseNo: document.getElementById('st_prev_license_no').value.trim(),
     prevLicenseType: document.getElementById('st_prev_license_type').value.trim(),
@@ -5409,7 +5461,7 @@ function addStudent(){
   setLastSelectedSchool(newStudent.school);
   // سجل الطالب أولاً — لا صورة شخصية دائمة ولا نقل لصورة الهوية قبل نجاح هذه الخطوة
   state.students.push(newStudent);
-  ['st_name','st_phone','st_nid','st_prev_license_no','st_prev_license_type','st_dob','st_city','st_street','st_house','st_notes'].forEach(id=>document.getElementById(id).value='');
+  ['st_name','st_phone','st_nid','st_prev_license_no','st_prev_license_type','st_dob','st_city','st_street','st_house','st_notes','st_theory_pass'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('st_license_category').value = '';
   updateIdPhotoPreview('st_photo_preview', null);
   updateIdPhotoPreview('st_idphoto_preview', null);
@@ -5658,6 +5710,7 @@ function openEditStudentModal(id){
   document.getElementById('ed_st_name').value = s.name || '';
   document.getElementById('ed_st_phone').value = s.phone || '';
   document.getElementById('ed_st_nid').value = s.nid || '';
+  document.getElementById('ed_st_theory_pass').value = s.theoryPassDate || '';
   document.getElementById('ed_st_notes').value = s.notes || '';
   document.getElementById('ed_st_prev_license_no').value = s.prevLicenseNo || '';
   document.getElementById('ed_st_prev_license_type').value = s.prevLicenseType || '';
@@ -5745,6 +5798,7 @@ function saveEditStudent(){
   s.name = name;
   s.phone = document.getElementById('ed_st_phone').value.trim();
   s.nid = document.getElementById('ed_st_nid').value.trim();
+  s.theoryPassDate = document.getElementById('ed_st_theory_pass').value || '';
   s.notes = document.getElementById('ed_st_notes').value.trim();
   s.prevLicenseNo = document.getElementById('ed_st_prev_license_no').value.trim();
   s.prevLicenseType = document.getElementById('ed_st_prev_license_type').value.trim();
@@ -6575,8 +6629,34 @@ function gatherExamAlertItems(){
       badge: '<span class="badge badge-amber">غداً</span>'
     }));
 }
+// صلاحية النجاح في التوريا أربع سنوات؛ ننبّه قبل انتهائها لمن لم ينجح في أي فحص عملي بعد
+function gatherTheoryExpiryAlertItems(){
+  const today = (typeof localDateStr === 'function') ? localDateStr() : todayStr();
+  const items = [];
+  (state.students || []).forEach(s=>{
+    if(!s.theoryPassDate) return;
+    if((s.status || '') === 'موقوف') return;
+    const passedPractical = (state.exams || []).some(e=>
+      String(e.studentId) === String(s.id) && e.examType === 'عملي' && (e.result || '').trim() === 'ناجح');
+    if(passedPractical) return;                       // نجح عملياً فلا معنى للتنبيه
+    const d = new Date(s.theoryPassDate + 'T00:00:00');
+    if(isNaN(d.getTime())) return;
+    d.setFullYear(d.getFullYear() + 4);
+    const expiry = d.toISOString().slice(0,10);
+    const days = Math.round((d - new Date(today + 'T00:00:00')) / 86400000);
+    if(days > 90) return;                             // ننبّه في آخر ثلاثة أشهر فقط
+    if(days < 0){
+      items.push({ label: `انتهت صلاحية التوريا للطالب ${s.name} بتاريخ ${expiry} (ولم ينجح في فحص عملي)`,
+        badge: '<span class="badge badge-red">منتهية</span>' });
+    } else {
+      items.push({ label: `صلاحية التوريا للطالب ${s.name} تنتهي بتاريخ ${expiry} (بعد ${days} يوماً)`,
+        badge: '<span class="badge badge-amber">قريباً</span>' });
+    }
+  });
+  return items;
+}
 function renderHomeAlerts(){
-  const items = [...gatherLicenseAlertItems(), ...gatherExamAlertItems()];
+  const items = [...gatherLicenseAlertItems(), ...gatherExamAlertItems(), ...gatherTheoryExpiryAlertItems()];
   renderAlertBanner('homeAlerts', items, 'تنبيهات هامة تحتاج انتباهك');
 }
 
@@ -7065,6 +7145,7 @@ function renderVehicles(){
   refreshExpenseDropdown();
   renderVehicleAlerts();
   refreshStudentDropdowns();
+  if(typeof renderMonthlyOdometers === 'function') renderMonthlyOdometers();
 }
 function openEditVehicleModal(id){
   const v = state.vehicles.find(v=>v.id===id);
@@ -7130,6 +7211,72 @@ function refreshExpenseDropdown(){
   if(sel) sel.innerHTML = optionsHtml;
   if(sel2) sel2.innerHTML = optionsHtml;
 }
+// تعديل حركة يومية مسجَّلة، مع مزامنة مصروف الوقود المرتبط بها
+function openEditDailyLogModal(id){
+  const log = (state.vehicleDailyLogs || []).find(l=> String(l.id) === String(id));
+  if(!log) return;
+  const modal = document.getElementById('editDailyLogModal');
+  modal.dataset.editingId = log.id;
+  const sel = document.getElementById('ed_vd_vehicle');
+  sel.innerHTML = (state.vehicles || []).map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('');
+  sel.value = log.vehicleId;
+  document.getElementById('ed_vd_date').value = log.date || '';
+  document.getElementById('ed_vd_start').value = log.startOdo;
+  document.getElementById('ed_vd_end').value = log.endOdo;
+  document.getElementById('ed_vd_fuel_type').value = log.fuelType || 'بنزين';
+  document.getElementById('ed_vd_fuel_cost').value = (log.fuelCost ? log.fuelCost : '');
+  modal.classList.add('show');
+}
+function closeEditDailyLogModal(){ document.getElementById('editDailyLogModal').classList.remove('show'); }
+function saveEditDailyLog(){
+  if(!requireOnlineOrBlock()) return;
+  const id = document.getElementById('editDailyLogModal').dataset.editingId;
+  const log = (state.vehicleDailyLogs || []).find(l=> String(l.id) === String(id));
+  if(!log) return;
+  const vehicleId = parseInt(document.getElementById('ed_vd_vehicle').value);
+  const date = document.getElementById('ed_vd_date').value || log.date;
+  const startOdo = parseFloat(document.getElementById('ed_vd_start').value);
+  const endOdo = parseFloat(document.getElementById('ed_vd_end').value);
+  const fuelType = document.getElementById('ed_vd_fuel_type').value;
+  const raw = parseFloat(document.getElementById('ed_vd_fuel_cost').value);
+  const cost = isNaN(raw) ? 0 : raw;
+  if(isNaN(startOdo) || isNaN(endOdo)){ alert('الرجاء إدخال عداد بداية ونهاية اليوم'); return; }
+  if(endOdo < startOdo){ alert('عداد نهاية اليوم لا يمكن أن يكون أقل من عداد بداية اليوم'); return; }
+  if(cost < 0){ alert('تكلفة الوقود لا يمكن أن تكون بالسالب'); return; }
+  const distanceKm = Math.round((endOdo - startOdo) * 100) / 100;
+  Object.assign(log, { vehicleId, date, startOdo, endOdo, distanceKm, fuelType, fuelCost: cost,
+    costPerKm: (cost > 0 && distanceKm > 0) ? Math.round((cost / distanceKm) * 100) / 100 : 0,
+    school: (typeof schoolOfVehicle === 'function') ? schoolOfVehicle(vehicleId) : log.school });
+  // مصروف الوقود المرتبط: يُحدَّث أو يُنشأ أو يُحذف تبعاً للقيمة الجديدة
+  const linked = log.linkedExpenseId
+    ? (state.vehicleExpenses || []).find(x=> String(x.id) === String(log.linkedExpenseId)) : null;
+  const note = `سجل حركة يومي — من ${startOdo} إلى ${endOdo} كم (${distanceKm} كم)`;
+  if(cost > 0){
+    if(linked){ Object.assign(linked, { vehicleId, type: fuelType, cost, date, notes: note }); }
+    else {
+      const newExpId = newId('vehicleExpenses');
+      state.vehicleExpenses.push({ id: newExpId, vehicleId, type: fuelType, cost, date, notes: note,
+        school: (typeof schoolOfVehicle === 'function') ? schoolOfVehicle(vehicleId) : undefined });
+      log.linkedExpenseId = newExpId;
+    }
+  } else if(linked){
+    state.vehicleExpenses = state.vehicleExpenses.filter(x=> String(x.id) !== String(linked.id));
+    log.linkedExpenseId = null;
+  }
+  // سند الصرف المرتبط يتبع القيمة الجديدة
+  const linkedDsb = log.linkedDisbursementId
+    ? (state.disbursements || []).find(d=> String(d.id) === String(log.linkedDisbursementId)) : null;
+  if(cost > 0 && linkedDsb){ Object.assign(linkedDsb, { amount: cost, date }); }
+  else if(cost <= 0 && linkedDsb){
+    state.disbursements = state.disbursements.filter(d=> String(d.id) !== String(linkedDsb.id));
+    log.linkedDisbursementId = null;
+  }
+  closeEditDailyLogModal();
+  renderVehicles();
+  if(typeof renderVehicleExpenses === 'function') renderVehicleExpenses();
+  if(typeof renderVehicleDailyLogs === 'function') renderVehicleDailyLogs();
+  saveState();
+}
 function addVehicleDailyLog(){
   if(!requireOnlineOrBlock()) return;
   const vehicleId = parseInt(document.getElementById('vd_vehicle').value);
@@ -7140,23 +7287,38 @@ function addVehicleDailyLog(){
   const fuelCost = parseFloat(document.getElementById('vd_fuel_cost').value);
   if(!vehicleId){ alert('الرجاء اختيار السيارة'); return; }
   if(isNaN(startOdo) || isNaN(endOdo)){ alert('الرجاء إدخال عداد بداية ونهاية اليوم'); return; }
-  if(endOdo <= startOdo){ alert('عداد نهاية اليوم يجب أن يكون أكبر من عداد بداية اليوم'); return; }
-  if(!fuelCost || fuelCost<=0){ alert('الرجاء إدخال تكلفة وقود صحيحة'); return; }
+  if(endOdo < startOdo){ alert('عداد نهاية اليوم لا يمكن أن يكون أقل من عداد بداية اليوم'); return; }
+  if(fuelCost < 0){ alert('تكلفة الوقود لا يمكن أن تكون بالسالب'); return; }   // الوقود اختياري
 
+  const cost = isNaN(fuelCost) ? 0 : fuelCost;
   const distanceKm = Math.round((endOdo - startOdo) * 100) / 100;
-  const costPerKm = Math.round((fuelCost / distanceKm) * 100) / 100;
+  const costPerKm = (cost > 0 && distanceKm > 0) ? Math.round((cost / distanceKm) * 100) / 100 : 0;
 
-  // تُسجَّل كمصروف سيارة عادي أيضاً حتى تظهر في كل تقارير المصاريف الحالية
-  const expenseId = newId('vehicleExpenses');
-  state.vehicleExpenses.push({
-    id: expenseId, vehicleId, type: fuelType, cost: fuelCost, date,
-    notes: `سجل حركة يومي — من ${startOdo} إلى ${endOdo} كم (${distanceKm} كم)`,
-    school: schoolOfVehicle(vehicleId)
-  });
+  // مصروف السيارة يُسجَّل فقط إن كان هناك وقود فعلاً
+  let expenseId = null, fuelDisbursementId = null;
+  if(cost > 0){
+    expenseId = newId('vehicleExpenses');
+    state.vehicleExpenses.push({
+      id: expenseId, vehicleId, type: fuelType, cost, date,
+      notes: `سجل حركة يومي — من ${startOdo} إلى ${endOdo} كم (${distanceKm} كم)`,
+      school: schoolOfVehicle(vehicleId)
+    });
+    // سند صرف تلقائي مقابل الوقود
+    const _v = (state.vehicles || []).find(x=> String(x.id) === String(vehicleId));
+    const _plate = _v ? (_v.plate || '') : '';
+    fuelDisbursementId = newId('disbursements');
+    state.disbursements.push({
+      id: fuelDisbursementId, recipientName: `تعبئة وقود${_plate ? ' — ' + _plate : ''}`,
+      disbursementType: 'مصروف سيارة', staffId: null, amount: cost, date,
+      method: 'نقدي', notes: 'سند تلقائي من شاشة عداد السيارة',
+      linkedVehicleExpenseId: expenseId, school: schoolOfVehicle(vehicleId)
+    });
+  }
 
   state.vehicleDailyLogs.push({
     id: newId('vehicleDailyLogs'), vehicleId, date, startOdo, endOdo, distanceKm,
-    fuelType, fuelCost, costPerKm, linkedExpenseId: expenseId, school: schoolOfVehicle(vehicleId)
+    fuelType, fuelCost: cost, costPerKm, linkedExpenseId: expenseId,
+    linkedDisbursementId: fuelDisbursementId, school: schoolOfVehicle(vehicleId)
   });
 
   document.getElementById('vd_start_odo').value = '';
@@ -7172,6 +7334,9 @@ function deleteVehicleDailyLog(id){
   if(log && log.linkedExpenseId){
     state.vehicleExpenses = state.vehicleExpenses.filter(e=>e.id!==log.linkedExpenseId);
   }
+  if(log && log.linkedDisbursementId){
+    state.disbursements = (state.disbursements || []).filter(d=> String(d.id) !== String(log.linkedDisbursementId));
+  }
   state.vehicleDailyLogs = state.vehicleDailyLogs.filter(l=>l.id!==id);
   renderVehicleDailyLogs();
   renderVehicleExpenses();
@@ -7185,7 +7350,8 @@ function renderVehicleDailyLogs(){
       <td>${l.id}</td><td>${schoolBadge(l.school||'alaraj')}</td><td>${nameOf(state.vehicles, l.vehicleId)}</td><td>${l.date||'-'}</td>
       <td>${l.startOdo}</td><td>${l.endOdo}</td><td>${l.distanceKm}</td>
       <td>${l.fuelType}</td><td>${fmtNum(l.fuelCost, 2)}</td><td><b>${fmtNum(l.costPerKm, 2)}</b></td>
-      <td class="row-actions"><button class="btn btn-danger" onclick="deleteVehicleDailyLog(${l.id})">حذف</button></td>
+      <td class="row-actions"><button class="btn" onclick="openEditDailyLogModal(${l.id})">✏ تعديل</button>
+        <button class="btn btn-danger" onclick="deleteVehicleDailyLog(${l.id})">حذف</button></td>
     </tr>`).join('');
   document.getElementById('vehicleDailyLogsEmpty').style.display = state.vehicleDailyLogs.length? 'none':'block';
 }
@@ -11962,6 +12128,74 @@ function printSelectedPapers(){
   if(!rows.length){ alert('لم تحدّد أي معاملة. ضع علامة بجانب المعاملات المطلوبة أولاً.'); return; }
   printTableAsList('أوراق العمل والمعاملات الرسمية — المحدَّدة', 'papersBody', rows);
 }
+// ---------- عداد السيارات الشهري وميزانية السيارة ----------
+function refreshMonthlyOdoSelect(){
+  const sel = document.getElementById('mo_vehicle');
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = (state.vehicles || []).map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('');
+  if(cur) sel.value = cur;
+  const m = document.getElementById('mo_month');
+  if(m && !m.value) m.value = (typeof localDateStr === 'function' ? localDateStr() : todayStr()).slice(0,7);
+}
+function addMonthlyOdometer(){
+  if(!requireOnlineOrBlock()) return;
+  const vehicleId = parseInt(document.getElementById('mo_vehicle').value);
+  const month = document.getElementById('mo_month').value;
+  const reading = parseFloat(document.getElementById('mo_reading').value);
+  if(!vehicleId){ alert('الرجاء اختيار السيارة'); return; }
+  if(!month){ alert('الرجاء اختيار الشهر'); return; }
+  if(isNaN(reading) || reading < 0){ alert('الرجاء إدخال قراءة عداد صحيحة'); return; }
+  if(!Array.isArray(state.monthlyOdometers)) state.monthlyOdometers = [];
+  const existing = state.monthlyOdometers.find(o=> String(o.vehicleId)===String(vehicleId) && o.month===month);
+  if(existing){
+    if(!confirm(`توجد قراءة محفوظة لهذا الشهر (${fmtNum(existing.reading,0)} كم). هل تريد استبدالها بـ ${fmtNum(reading,0)} كم؟`)) return;
+    existing.reading = reading;
+  } else {
+    state.monthlyOdometers.push({ id: newId('monthlyOdometers'), vehicleId, month, reading,
+      created: (typeof localDateStr === 'function' ? localDateStr() : todayStr()) });
+  }
+  document.getElementById('mo_reading').value = '';
+  renderMonthlyOdometers();
+  saveState();
+}
+function deleteMonthlyOdometer(id){
+  if(!confirm('حذف قراءة العداد هذه؟')) return;
+  state.monthlyOdometers = (state.monthlyOdometers || []).filter(o=> String(o.id) !== String(id));
+  renderMonthlyOdometers();
+  saveState();
+}
+function renderMonthlyOdometers(){
+  const body = document.getElementById('monthlyOdoBody');
+  if(!body) return;
+  const list = (state.monthlyOdometers || []).slice().sort((a,b)=> (b.month||'').localeCompare(a.month||''));
+  body.innerHTML = list.map(o=>`<tr>
+      <td>${nameOfVehicle(o.vehicleId)}</td><td>${o.month}</td><td>${fmtNum(o.reading, 0)} كم</td>
+      <td class="row-actions"><button class="btn btn-danger" onclick="deleteMonthlyOdometer(${o.id})">حذف</button></td>
+    </tr>`).join('');
+  const empty = document.getElementById('monthlyOdoEmpty');
+  if(empty) empty.style.display = list.length ? 'none' : 'block';
+  refreshMonthlyOdoSelect();
+}
+function nameOfVehicle(id){
+  const v = (state.vehicles || []).find(x=> String(x.id) === String(id));
+  return v ? (v.plate || ('#' + id)) : ('#' + id);
+}
+// عداد أول الشهر وآخره: القراءة الشهرية أولاً، وإلا من سجل الحركة اليومي
+function monthOdometerRange(vehicleId, from, to){
+  const month = (from || '').slice(0,7);
+  const rec = (state.monthlyOdometers || []).find(o=> String(o.vehicleId)===String(vehicleId) && o.month===month);
+  const logs = (state.vehicleDailyLogs || [])
+    .filter(l=> String(l.vehicleId)===String(vehicleId) && inRange(l.date, from, to))
+    .sort((a,b)=> String(a.date).localeCompare(String(b.date)));
+  const start = rec ? rec.reading : (logs.length ? logs[0].startOdo : null);
+  // نهاية الشهر: قراءة الشهر التالي إن وُجدت، وإلا آخر عداد في السجل اليومي
+  const nextMonth = month ? (()=>{ const d = new Date(month + '-01T00:00:00'); d.setMonth(d.getMonth()+1);
+      return d.toISOString().slice(0,7); })() : '';
+  const nextRec = (state.monthlyOdometers || []).find(o=> String(o.vehicleId)===String(vehicleId) && o.month===nextMonth);
+  const end = nextRec ? nextRec.reading : (logs.length ? logs[logs.length-1].endOdo : null);
+  return { start, end, distance: (start != null && end != null && end >= start) ? (end - start) : null };
+}
 function renderOfficialPapers(){
   saveState();
   refreshPaperStudentDropdown();
@@ -12551,6 +12785,20 @@ function renderReports(){
 }
 
 // -- التقرير التفصيلي المنسدل (يظهر فقط عند اختياره صراحة) --
+function onReportFilterModeChange(){
+  const mode = document.getElementById('rpt_filter_mode').value;
+  const label = document.getElementById('rpt_filter_label');
+  const select = document.getElementById('rpt_filter');
+  if(mode === 'vehicle'){
+    label.textContent = 'السيارة';
+    select.innerHTML = '<option value="">— كل السيارات —</option>'
+      + (state.vehicles || []).map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('');
+  } else {
+    label.textContent = 'المدرب';
+    select.innerHTML = '<option value="">— كل المدربين —</option>'
+      + (state.staff || []).filter(s=>s.role==='مدرب').map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  }
+}
 function onReportTypeChange(){
   const type = document.getElementById('rpt_type').value;
   const schoolWrap = document.getElementById('rpt_school_wrap');
@@ -12558,13 +12806,29 @@ function onReportTypeChange(){
   const wrap = document.getElementById('rpt_filter_wrap');
   const label = document.getElementById('rpt_filter_label');
   const select = document.getElementById('rpt_filter');
+  const modeWrap = document.getElementById('rpt_filter_mode_wrap');
+  const wrap2 = document.getElementById('rpt_filter2_wrap');
+  const label2 = document.getElementById('rpt_filter2_label');
+  const select2 = document.getElementById('rpt_filter2');
+  if(modeWrap) modeWrap.style.display = 'none';
+  if(wrap2) wrap2.style.display = 'none';
+
+  if(type==='lessonsDetail'){
+    wrap.style.display = ''; modeWrap.style.display = ''; wrap2.style.display = '';
+    onReportFilterModeChange();
+    label2.textContent = 'المدرسة أو الحالة';
+    select2.innerHTML = '<option value="__all">— الكل —</option>'
+      + Object.keys(SCHOOLS).map(id=>`<option value="${id}">${SCHOOLS[id].name}</option>`).join('')
+      + '<option value="منجز">منجز فقط</option><option value="مجدول">مجدول فقط</option><option value="ملغى">ملغى فقط</option>';
+    return;
+  }
 
   if(type==='lessonsExams'){
     wrap.style.display = '';
     label.textContent = 'تصفية حسب المدرب';
     select.innerHTML = '<option value="">— كل المدربين —</option>'
       + state.staff.filter(s=>s.role==='مدرب').map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-  } else if(type==='vehicleExpenses' || type==='vehicleMovement'){
+  } else if(type==='vehicleExpenses' || type==='vehicleMovement' || type==='vehicleBudget'){
     wrap.style.display = '';
     label.textContent = 'تصفية حسب السيارة';
     select.innerHTML = '<option value="">— كل السيارات —</option>' + state.vehicles.map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('');
@@ -12775,6 +13039,67 @@ function generateDetailReport(){
     }).join('');
     rowCount = rows.length;
 
+  } else if(type==='vehicleBudget'){
+    title = '🚗 ميزانية السيارات الشهرية';
+    const vehicles = (state.vehicles || []).filter(v=> !filterId || v.id === filterId);
+    head.innerHTML = '<tr><th>السيارة</th><th>عداد البداية</th><th>عداد النهاية</th><th>المسافة (كم)</th>'
+      + '<th>عدد الدروس</th><th>عدد الفحوصات</th><th>الإيراد</th>'
+      + '<th>وقود</th><th>صيانة وتصليح</th><th>ترخيص وتأمين</th><th>ضريبة</th><th>مصاريف أخرى</th>'
+      + '<th>عمولة المدربين</th><th>إجمالي المصروف</th><th>الصافي</th></tr>';
+    const bucketOf = (t)=>{
+      const s = String(t || '');
+      if(/وقود|بنزين|سولار|محروق/.test(s)) return 'fuel';
+      if(/صيانة|تصليح|إصلاح|قطع|زيت|إطار/.test(s)) return 'repair';
+      if(/ترخيص|تأمين|تامين/.test(s)) return 'license';
+      if(/ضريبة|ضريبه/.test(s)) return 'tax';
+      return 'other';
+    };
+    let sums = { lessons:0, exams:0, revenue:0, fuel:0, repair:0, license:0, tax:0, other:0, commission:0 };
+    const rows = vehicles.map(v=>{
+      const odo = monthOdometerRange(v.id, from, to);
+      const lessons = (state.lessons || []).filter(l=> String(l.vehicleId)===String(v.id)
+        && inRange((l.datetime||'').slice(0,10), from, to) && l.status === 'منجز');
+      // الفحوصات المنفَّذة على هذه السيارة (حسب رقم المركبة المسجَّل في الامتحان)
+      const exams = (state.exams || []).filter(e=> inRange((e.datetime||'').slice(0,10), from, to)
+        && String(e.formVehicleNumber || '').trim() === String(v.plate || '').trim() && String(v.plate||'').trim() !== '');
+      const lessonRevenue = lessons.reduce((t,l)=> t + (Number(l.price) || 0), 0);
+      const examRevenue = exams.reduce((t,e)=> t + (Number(e.examFee) || 0), 0);
+      const revenue = lessonRevenue + examRevenue;
+      const commission = lessons.reduce((t,l)=> t + (Number(l.commissionAmount) || 0), 0);
+      const exp = { fuel:0, repair:0, license:0, tax:0, other:0 };
+      (state.vehicleExpenses || []).forEach(x=>{
+        if(String(x.vehicleId) !== String(v.id) || !inRange(x.date, from, to)) return;
+        exp[bucketOf(x.type)] += (Number(x.cost) || 0);
+      });
+      // وقود السجل اليومي يُضاف فقط إن لم يُسجَّل له مصروف سيارة (منعاً للاحتساب مرتين)
+      const dailyLogs = (state.vehicleDailyLogs && state.vehicleDailyLogs.length)
+        ? state.vehicleDailyLogs : (state.vehicleLogs || []);
+      dailyLogs.forEach(l=>{
+        if(String(l.vehicleId) !== String(v.id) || !inRange(l.date, from, to)) return;
+        if(l.linkedExpenseId || l.expenseId) return;     // محتسَب ضمن مصاريف السيارة
+        exp.fuel += (Number(l.fuelCost != null ? l.fuelCost : l.expenseAmount) || 0);
+      });
+      const totalExp = exp.fuel + exp.repair + exp.license + exp.tax + exp.other + commission;
+      const net = revenue - totalExp;
+      sums.lessons += lessons.length; sums.exams += exams.length; sums.revenue += revenue;
+      sums.fuel += exp.fuel; sums.repair += exp.repair; sums.license += exp.license;
+      sums.tax += exp.tax; sums.other += exp.other; sums.commission += commission;
+      return `<tr>
+        <td><b>${v.plate || '-'}</b></td>
+        <td>${odo.start != null ? fmtNum(odo.start,0) : '—'}</td>
+        <td>${odo.end != null ? fmtNum(odo.end,0) : '—'}</td>
+        <td>${odo.distance != null ? fmtNum(odo.distance,0) : '—'}</td>
+        <td>${lessons.length}</td><td>${exams.length}</td>
+        <td><b>${fmtNum(revenue,2)}</b></td>
+        <td>${fmtNum(exp.fuel,2)}</td><td>${fmtNum(exp.repair,2)}</td><td>${fmtNum(exp.license,2)}</td>
+        <td>${fmtNum(exp.tax,2)}</td><td>${fmtNum(exp.other,2)}</td>
+        <td>${fmtNum(commission,2)}</td>
+        <td><b>${fmtNum(totalExp,2)}</b></td>
+        <td style="font-weight:900; color:${net >= 0 ? '#0f766e' : '#c0392b'};">${fmtNum(net,2)}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="15" style="text-align:center;">لا توجد سيارات مسجّلة</td></tr>';
+    body.innerHTML = rows;
+    rowCount = vehicles.length;
   } else if(type==='vehicleMovement'){
     title = '🛣️ تقرير حركة السيارات';
     const filtered = state.vehicleDailyLogs.filter(l=> inRange(l.date, from, to) && (!filterId || l.vehicleId===filterId));
@@ -12832,6 +13157,57 @@ function generateDetailReport(){
       <td>${fmtNum(r.revenue, 2)}</td><td>${fmtNum(r.lessonCommissionTotal, 2)}</td><td>${fmtNum(r.examCommissionTotal, 2)}</td><td><b>${fmtNum(r.commission, 2)} ₪</b></td></tr>`).join('');
     rowCount = rows.length;
 
+  } else if(type==='lessonsDetail'){
+    title = '📋 تقرير الدروس التفصيلي';
+    const extra = document.getElementById('rpt_filter2') ? document.getElementById('rpt_filter2').value : '';
+    const isMulti = (typeof SCHOOLS !== 'undefined');
+    let list = (state.lessons || []).filter(l=> inRange((l.datetime||'').slice(0,10), from, to));
+    const mode = document.getElementById('rpt_filter_mode') ? document.getElementById('rpt_filter_mode').value : 'instructor';
+    if(filterId){
+      list = list.filter(l=> mode === 'vehicle'
+        ? String(l.vehicleId) === String(filterId)
+        : String(l.instructorId) === String(filterId));
+    }
+    if(extra && extra !== '__all'){
+      if(['منجز','مجدول','ملغى'].includes(extra)) list = list.filter(l=> l.status === extra);
+      else list = list.filter(l=>{
+        const st = state.students.find(s=> String(s.id) === String(l.studentId));
+        const sch = l.school || (st && st.school);
+        return !sch || sch === extra;
+      });
+    }
+    list.sort((a,b)=> String(a.datetime||'').localeCompare(String(b.datetime||'')));
+    head.innerHTML = '<tr><th>#</th><th>التاريخ</th>' + (isMulti ? '<th>المدرسة</th>' : '')
+      + '<th>الطالب</th><th>المدرب</th><th>السيارة</th><th>النوع</th><th>المدة (دقيقة)</th>'
+      + '<th>الحالة</th><th>السعر</th><th>عمولة المدرب</th><th>ملاحظات</th></tr>';
+    let totalMinutes = 0, totalPrice = 0, totalCommission = 0, doneCount = 0;
+    body.innerHTML = list.map((l,i)=>{
+      const st = state.students.find(s=> String(s.id) === String(l.studentId));
+      const sch = l.school || (st && st.school);
+      totalMinutes += Number(l.duration) || 0;
+      totalPrice += Number(l.price) || 0;
+      totalCommission += Number(l.commissionAmount) || 0;
+      if(l.status === 'منجز') doneCount++;
+      return `<tr>
+        <td>${i+1}</td><td>${(l.datetime||'').replace('T',' ')}</td>
+        ${isMulti ? `<td>${sch && SCHOOLS[sch] ? SCHOOLS[sch].name : '—'}</td>` : ''}
+        <td>${st ? st.name : '—'}</td>
+        <td>${l.instructorId ? nameOf(state.staff, l.instructorId) : '—'}</td>
+        <td>${l.vehicleId ? nameOf(state.vehicles, l.vehicleId) : '—'}</td>
+        <td>${l.type || '—'}</td><td>${l.duration || 0}</td>
+        <td>${l.status || '—'}</td>
+        <td>${fmtNum(Number(l.price) || 0, 2)}</td>
+        <td>${fmtNum(Number(l.commissionAmount) || 0, 2)}</td>
+        <td>${l.notes || '—'}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="${isMulti ? 12 : 11}" style="text-align:center;">لا توجد دروس بهذه المواصفات</td></tr>`;
+    if(list.length){
+      body.innerHTML += `<tr style="background:#f5f5f5; font-weight:900;">
+        <td colspan="${isMulti ? 6 : 5}">الإجمالي — ${list.length} درساً (منجز: ${doneCount})</td>
+        <td></td><td>${fmtNum(totalMinutes/60, 2)} ساعة</td><td></td>
+        <td>${fmtNum(totalPrice, 2)}</td><td>${fmtNum(totalCommission, 2)}</td><td></td></tr>`;
+    }
+    rowCount = list.length;
   } else if(type==='lessonsExams'){
     title = '📚 تقرير الدروس والامتحانات';
     const inPeriod = (dt)=> dt && inRange(String(dt).slice(0,10), from, to);
@@ -13009,7 +13385,7 @@ function listAutoBackups(){
 }
 function countStateRecordsForBackup(s){
   const keys = ['students','staff','vehicles','lessons','invoices','payments','vehicleExpenses',
-    'generalExpenses','exams','disbursements','cheques','officialPapers'];
+    'generalExpenses','exams','disbursements','cheques','officialPapers','monthlyOdometers'];
   return keys.reduce((n,k)=> n + ((s && s[k] && s[k].length) || 0), 0);
 }
 // يحذف كل نسخة أقدم من مدة الاحتفاظ (7 أيام)
