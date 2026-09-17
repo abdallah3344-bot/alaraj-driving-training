@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-16-fuel-voucher</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-16-oil-change</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -1465,6 +1465,25 @@ body.field-mode{ padding-bottom:76px; }
         <tbody id="monthlyOdoBody"></tbody>
       </table></div>
       <div id="monthlyOdoEmpty" class="empty" style="display:none">لم تُسجَّل أي قراءة عداد شهرية بعد</div>
+    </div>
+
+    <div class="card">
+      <h2>🛢️ غيار الزيت</h2>
+      <div class="note" style="margin-bottom:10px;">موعد الغيار القادم يُحسب <b>بالعداد</b> لا بالمدة: قراءة العداد عند الغيار + مسافة الغيار.</div>
+      <div class="form-grid">
+        <div class="field"><label>السيارة</label><select id="oil_vehicle"></select></div>
+        <div class="field"><label>تاريخ الغيار</label><input id="oil_date" type="date"></div>
+        <div class="field"><label>عداد السيارة عند الغيار (كم)</label><input id="oil_odo" type="number" step="1"></div>
+        <div class="field"><label>الغيار القادم بعد (كم)</label><input id="oil_interval" type="number" step="100" value="5000"></div>
+        <div class="field"><label>التكلفة (اختياري)</label><input id="oil_cost" type="number" step="0.01" placeholder="تُسجَّل مصروفاً وسند صرف"></div>
+        <div class="field"><label>ملاحظات</label><input id="oil_notes" placeholder="نوع الزيت، الفلتر..."></div>
+        <div class="field" style="padding-top:18px;"><button class="btn btn-accent" onclick="addOilChange()">💾 حفظ غيار الزيت</button></div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>السيارة</th><th>تاريخ الغيار</th><th>عداد الغيار</th><th>الغيار القادم عند</th><th>العداد الحالي</th><th>المتبقي (كم)</th><th>التكلفة</th><th>ملاحظات</th><th></th></tr></thead>
+        <tbody id="oilChangesBody"></tbody>
+      </table></div>
+      <div id="oilChangesEmpty" class="empty" style="display:none">لم يُسجَّل أي غيار زيت بعد</div>
     </div>
   </section>
 
@@ -3409,7 +3428,7 @@ async function initDataSync(){
   }
 }
 const STATE_ARRAY_FIELDS = ['students','staff','vehicles','lessons','invoices','payments',
-  'vehicleExpenses','generalExpenses','lessonPrices','exams','customLicenseTypes','customExpenseTypes','customInvoiceTypes','users','commissionRates','disbursements','cheques','customPaperTypes','customDepartments','officialPapers','monthlyOdometers','licenseCategoryOptions','vehicleDailyLogs','deletedUsers','activityLog'];
+  'vehicleExpenses','generalExpenses','lessonPrices','exams','customLicenseTypes','customExpenseTypes','customInvoiceTypes','users','commissionRates','disbursements','cheques','customPaperTypes','customDepartments','officialPapers','monthlyOdometers','oilChanges','licenseCategoryOptions','vehicleDailyLogs','deletedUsers','activityLog'];
 
 // يحسب إجمالي عدد السجلات عبر كل مصفوفات البيانات الرئيسية — يُستخدم لاكتشاف
 // التعارض بين نسخة محلية ونسخة واردة من الخادم قبل أي استبدال تلقائي بالمزامنة الدورية.
@@ -6656,7 +6675,7 @@ function gatherTheoryExpiryAlertItems(){
   return items;
 }
 function renderHomeAlerts(){
-  const items = [...gatherLicenseAlertItems(), ...gatherExamAlertItems(), ...gatherTheoryExpiryAlertItems()];
+  const items = [...gatherLicenseAlertItems(), ...gatherExamAlertItems(), ...gatherTheoryExpiryAlertItems(), ...gatherOilChangeAlertItems()];
   renderAlertBanner('homeAlerts', items, 'تنبيهات هامة تحتاج انتباهك');
 }
 
@@ -7146,6 +7165,7 @@ function renderVehicles(){
   renderVehicleAlerts();
   refreshStudentDropdowns();
   if(typeof renderMonthlyOdometers === 'function') renderMonthlyOdometers();
+  if(typeof renderOilChanges === 'function') renderOilChanges();
 }
 function openEditVehicleModal(id){
   const v = state.vehicles.find(v=>v.id===id);
@@ -12129,6 +12149,136 @@ function printSelectedPapers(){
   printTableAsList('أوراق العمل والمعاملات الرسمية — المحدَّدة', 'papersBody', rows);
 }
 // ---------- عداد السيارات الشهري وميزانية السيارة ----------
+// ---------- غيار الزيت: الموعد القادم بالعداد لا بالمدة ----------
+function refreshOilVehicleSelect(){
+  const sel = document.getElementById('oil_vehicle');
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = (state.vehicles || []).map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('');
+  if(cur) sel.value = cur;
+  const d = document.getElementById('oil_date');
+  if(d && !d.value) d.value = (typeof localDateStr === 'function') ? localDateStr() : todayStr();
+}
+// آخر قراءة عداد معروفة للسيارة: من السجل اليومي أو القراءات الشهرية أو آخر غيار
+function currentOdometerOf(vehicleId){
+  let best = null;
+  const logs = (state.vehicleDailyLogs && state.vehicleDailyLogs.length) ? state.vehicleDailyLogs : (state.vehicleLogs || []);
+  logs.forEach(l=>{
+    if(String(l.vehicleId) !== String(vehicleId)) return;
+    const v = Number(l.endOdo != null ? l.endOdo : l.endOdometer);
+    if(!isNaN(v) && (best == null || v > best)) best = v;
+  });
+  (state.monthlyOdometers || []).forEach(o=>{
+    if(String(o.vehicleId) !== String(vehicleId)) return;
+    const v = Number(o.reading);
+    if(!isNaN(v) && (best == null || v > best)) best = v;
+  });
+  (state.oilChanges || []).forEach(o=>{
+    if(String(o.vehicleId) !== String(vehicleId)) return;
+    const v = Number(o.odometer);
+    if(!isNaN(v) && (best == null || v > best)) best = v;
+  });
+  return best;
+}
+function addOilChange(){
+  if(!requireOnlineOrBlock()) return;
+  const vehicleId = parseInt(document.getElementById('oil_vehicle').value);
+  const date = document.getElementById('oil_date').value || ((typeof localDateStr === 'function') ? localDateStr() : todayStr());
+  const odometer = parseFloat(document.getElementById('oil_odo').value);
+  const interval = parseFloat(document.getElementById('oil_interval').value);
+  const rawCost = parseFloat(document.getElementById('oil_cost').value);
+  const cost = isNaN(rawCost) ? 0 : rawCost;
+  const notes = document.getElementById('oil_notes').value.trim();
+  if(!vehicleId){ alert('الرجاء اختيار السيارة'); return; }
+  if(isNaN(odometer) || odometer < 0){ alert('الرجاء إدخال قراءة عداد صحيحة عند الغيار'); return; }
+  if(isNaN(interval) || interval <= 0){ alert('الرجاء إدخال مسافة الغيار القادم بالكيلومترات'); return; }
+  if(cost < 0){ alert('التكلفة لا يمكن أن تكون بالسالب'); return; }
+  if(!Array.isArray(state.oilChanges)) state.oilChanges = [];
+  const _v = (state.vehicles || []).find(x=> String(x.id) === String(vehicleId));
+  const _plate = _v ? (_v.plate || '') : '';
+  let expenseId = null, disbursementId = null;
+  if(cost > 0){
+    expenseId = newId('vehicleExpenses');
+    state.vehicleExpenses.push({ id: expenseId, vehicleId, type: 'غيار زيت', cost, date,
+      notes: `غيار زيت عند ${fmtNum(odometer,0)} كم${notes ? ' — ' + notes : ''}` });
+    disbursementId = newId('disbursements');
+    state.disbursements.push({ id: disbursementId, recipientName: `غيار زيت${_plate ? ' — ' + _plate : ''}`,
+      disbursementType: 'مصروف سيارة', staffId: null, amount: cost, date, method: 'نقدي',
+      notes: 'سند تلقائي من شاشة غيار الزيت', linkedVehicleExpenseId: expenseId });
+  }
+  state.oilChanges.push({ id: newId('oilChanges'), vehicleId, date, odometer, intervalKm: interval,
+    nextOdometer: odometer + interval, cost, notes, expenseId, disbursementId,
+    created: (typeof localDateStr === 'function') ? localDateStr() : todayStr() });
+  ['oil_odo','oil_cost','oil_notes'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ''; });
+  renderOilChanges();
+  if(typeof renderVehicleExpenses === 'function') renderVehicleExpenses();
+  saveState();
+}
+function deleteOilChange(id){
+  const rec = (state.oilChanges || []).find(o=> String(o.id) === String(id));
+  if(!rec) return;
+  if(!confirm('حذف سجل غيار الزيت هذا؟' + (rec.cost > 0 ? ' سيُحذف معه المصروف وسند الصرف المرتبطان.' : ''))) return;
+  if(rec.expenseId) state.vehicleExpenses = (state.vehicleExpenses || []).filter(x=> String(x.id) !== String(rec.expenseId));
+  if(rec.disbursementId) state.disbursements = (state.disbursements || []).filter(d=> String(d.id) !== String(rec.disbursementId));
+  state.oilChanges = state.oilChanges.filter(o=> String(o.id) !== String(id));
+  renderOilChanges();
+  if(typeof renderVehicleExpenses === 'function') renderVehicleExpenses();
+  saveState();
+}
+// آخر غيار لكل سيارة (الأعلى عداداً)
+function latestOilChanges(){
+  const byVehicle = {};
+  (state.oilChanges || []).forEach(o=>{
+    const cur = byVehicle[o.vehicleId];
+    if(!cur || Number(o.odometer) > Number(cur.odometer)) byVehicle[o.vehicleId] = o;
+  });
+  return byVehicle;
+}
+function renderOilChanges(){
+  const body = document.getElementById('oilChangesBody');
+  if(!body) return;
+  const list = (state.oilChanges || []).slice().sort((a,b)=> String(b.date||'').localeCompare(String(a.date||'')));
+  body.innerHTML = list.map(o=>{
+    const now = currentOdometerOf(o.vehicleId);
+    const remaining = (now != null) ? (o.nextOdometer - now) : null;
+    const color = remaining == null ? '' : (remaining <= 0 ? 'color:#c0392b; font-weight:900;'
+      : (remaining <= 500 ? 'color:#b7791f; font-weight:900;' : 'color:#0f766e;'));
+    return `<tr>
+      <td>${nameOfVehicle(o.vehicleId)}</td><td>${o.date}</td>
+      <td>${fmtNum(o.odometer,0)} كم</td>
+      <td><b>${fmtNum(o.nextOdometer,0)} كم</b></td>
+      <td>${now != null ? fmtNum(now,0) + ' كم' : '—'}</td>
+      <td style="${color}">${remaining == null ? '—' : (remaining <= 0 ? 'تجاوز بـ ' + fmtNum(-remaining,0) : fmtNum(remaining,0))}</td>
+      <td>${o.cost ? fmtNum(o.cost,2) : '—'}</td>
+      <td>${o.notes || '—'}</td>
+      <td class="row-actions"><button class="btn btn-danger" onclick="deleteOilChange(${o.id})">حذف</button></td>
+    </tr>`;
+  }).join('');
+  const empty = document.getElementById('oilChangesEmpty');
+  if(empty) empty.style.display = list.length ? 'none' : 'block';
+  refreshOilVehicleSelect();
+}
+// تنبيه غيار الزيت حسب العداد
+function gatherOilChangeAlertItems(){
+  const items = [];
+  const latest = latestOilChanges();
+  Object.keys(latest).forEach(vid=>{
+    const o = latest[vid];
+    const now = currentOdometerOf(vid);
+    if(now == null) return;
+    const remaining = o.nextOdometer - now;
+    if(remaining > 500) return;
+    const plate = nameOfVehicle(vid);
+    if(remaining <= 0){
+      items.push({ label: `غيار الزيت مستحق للمركبة ${plate} — تجاوزت الموعد بـ ${fmtNum(-remaining,0)} كم`,
+        badge: '<span class="badge badge-red">مستحق</span>' });
+    } else {
+      items.push({ label: `غيار الزيت يقترب للمركبة ${plate} — متبقٍ ${fmtNum(remaining,0)} كم`,
+        badge: '<span class="badge badge-amber">قريباً</span>' });
+    }
+  });
+  return items;
+}
 function refreshMonthlyOdoSelect(){
   const sel = document.getElementById('mo_vehicle');
   if(!sel) return;
@@ -13385,7 +13535,7 @@ function listAutoBackups(){
 }
 function countStateRecordsForBackup(s){
   const keys = ['students','staff','vehicles','lessons','invoices','payments','vehicleExpenses',
-    'generalExpenses','exams','disbursements','cheques','officialPapers','monthlyOdometers'];
+    'generalExpenses','exams','disbursements','cheques','officialPapers','monthlyOdometers','oilChanges'];
   return keys.reduce((n,k)=> n + ((s && s[k] && s[k].length) || 0), 0);
 }
 // يحذف كل نسخة أقدم من مدة الاحتفاظ (7 أيام)
