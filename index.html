@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-16-oil-change</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-16-combined-report</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -1413,6 +1413,7 @@ body.field-mode{ padding-bottom:76px; }
       <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:10px; cursor:pointer;">
         <input type="checkbox" id="ve_today_only" checked onchange="renderVehicleExpenses()"> 📅 عرض إدخالات اليوم فقط
       </label>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('سجل مصاريف السيارات','vehicleExpensesBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>الرقم</th><th>المدرسة</th><th>السيارة</th><th>النوع</th><th>التكلفة</th><th>التاريخ</th><th>ملاحظات</th><th></th></tr></thead>
         <tbody id="vehicleExpensesBody"></tbody>
@@ -1443,6 +1444,7 @@ body.field-mode{ padding-bottom:76px; }
         <input id="vd_search" type="text" placeholder="ابحث بالسيارة، التاريخ، نوع الوقود..." oninput="filterTable('vd_search','vehicleDailyLogsBody','vehicleDailyLogsSearchEmpty')">
         <button class="clear-btn" onclick="clearTableSearch('vd_search','vehicleDailyLogsBody','vehicleDailyLogsSearchEmpty')">✕</button>
       </div>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('سجل حركة السيارات اليومي','vehicleDailyLogsBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>الرقم</th><th>المدرسة</th><th>السيارة</th><th>التاريخ</th><th>عداد البداية</th><th>عداد النهاية</th><th>المسافة (كم)</th><th>نوع الوقود</th><th>التكلفة</th><th>معدل التكلفة/كم</th><th></th></tr></thead>
         <tbody id="vehicleDailyLogsBody"></tbody>
@@ -1460,6 +1462,7 @@ body.field-mode{ padding-bottom:76px; }
         <div class="field"><label>قراءة العداد (كم)</label><input id="mo_reading" type="number" step="1" placeholder="مثال: 10000"></div>
         <div class="field" style="padding-top:18px;"><button class="btn btn-accent" onclick="addMonthlyOdometer()">💾 حفظ القراءة</button></div>
       </div>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('عداد السيارات الشهري','monthlyOdoBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>السيارة</th><th>الشهر</th><th>قراءة العداد</th><th></th></tr></thead>
         <tbody id="monthlyOdoBody"></tbody>
@@ -1479,6 +1482,7 @@ body.field-mode{ padding-bottom:76px; }
         <div class="field"><label>ملاحظات</label><input id="oil_notes" placeholder="نوع الزيت، الفلتر..."></div>
         <div class="field" style="padding-top:18px;"><button class="btn btn-accent" onclick="addOilChange()">💾 حفظ غيار الزيت</button></div>
       </div>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('سجل غيار الزيت','oilChangesBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>السيارة</th><th>تاريخ الغيار</th><th>عداد الغيار</th><th>الغيار القادم عند</th><th>العداد الحالي</th><th>المتبقي (كم)</th><th>التكلفة</th><th>ملاحظات</th><th></th></tr></thead>
         <tbody id="oilChangesBody"></tbody>
@@ -1511,6 +1515,7 @@ body.field-mode{ padding-bottom:76px; }
       <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:10px; cursor:pointer;">
         <input type="checkbox" id="ge_today_only" checked onchange="renderGeneralExpenses()"> 📅 عرض إدخالات اليوم فقط
       </label>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('سجل مصاريف المكتب','generalExpensesBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>الرقم</th><th>المدرسة</th><th>النوع</th><th>المبلغ</th><th>التاريخ</th><th>ملاحظات</th><th></th></tr></thead>
         <tbody id="generalExpensesBody"></tbody>
@@ -1546,6 +1551,7 @@ body.field-mode{ padding-bottom:76px; }
     </div>
     <div class="card">
       <h2>قائمة الأسعار المعتمدة</h2>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('قائمة تسعيرة الدروس','pricingBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>نوع الرخصة</th><th>نوع الحصة</th><th>نوع الغيار</th><th>السعر / حصة 40 دقيقة</th><th></th></tr></thead>
         <tbody id="pricingBody"></tbody>
@@ -1570,6 +1576,7 @@ body.field-mode{ padding-bottom:76px; }
     </div>
     <div class="card">
       <h2>قائمة مبالغ العمولة المعتمدة</h2>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('قائمة نسب العمولات','commissionRatesBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>نوع الرخصة</th><th>مبلغ العمولة (شيكل)</th><th></th></tr></thead>
         <tbody id="commissionRatesBody"></tbody>
@@ -1658,6 +1665,7 @@ body.field-mode{ padding-bottom:76px; }
       <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:10px; cursor:pointer;">
         <input type="checkbox" id="ls_today_only" checked onchange="renderLessons()"> 📅 عرض إدخالات اليوم فقط
       </label>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('قائمة الدروس','lessonsBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>الرقم</th><th>المدرسة</th><th>الطالب</th><th>المدرب</th><th>السيارة</th><th>الموعد</th><th>النوع</th><th>سعر الحصة</th><th>عمولة المدرب</th><th>الحالة</th><th></th></tr></thead>
         <tbody id="lessonsBody"></tbody>
@@ -1710,6 +1718,7 @@ body.field-mode{ padding-bottom:76px; }
       <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:10px; cursor:pointer;">
         <input type="checkbox" id="ex_today_only" checked onchange="renderExams()"> 📅 عرض ما أُدخل اليوم فقط (حسب تاريخ الإدخال)
       </label>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('قائمة الامتحانات','examsBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>الرقم</th><th>المدرسة</th><th>الطالب</th><th>المدرب</th><th>النوع</th><th>الموعد</th><th>رقم الفحص</th><th>ساعة الفحص</th><th>النتيجة</th><th>ملاحظات</th><th></th></tr></thead>
         <tbody id="examsBody"></tbody>
@@ -1802,6 +1811,7 @@ body.field-mode{ padding-bottom:76px; }
       <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:10px; cursor:pointer;">
         <input type="checkbox" id="inv_today_only" checked onchange="renderInvoices()"> 📅 عرض إدخالات اليوم فقط
       </label>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('قائمة الفواتير','invoicesBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>الرقم</th><th>المدرسة</th><th>الطالب</th><th>النوع</th><th>المبلغ</th><th>المدفوع</th><th>المتبقي</th><th>الاستحقاق</th><th>الحالة</th><th>ملاحظات</th><th></th></tr></thead>
         <tbody id="invoicesBody"></tbody>
@@ -1839,6 +1849,7 @@ body.field-mode{ padding-bottom:76px; }
       <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:10px; cursor:pointer;">
         <input type="checkbox" id="rcpt_today_only" checked onchange="renderReceipts()"> 📅 عرض إدخالات اليوم فقط
       </label>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('قائمة سندات القبض','receiptsBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>رقم السند</th><th>الطالب</th><th>الفاتورة</th><th>المبلغ</th><th>التاريخ</th><th>طريقة الدفع</th><th></th></tr></thead>
         <tbody id="receiptsBody"></tbody>
@@ -1888,6 +1899,7 @@ body.field-mode{ padding-bottom:76px; }
       <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:10px; cursor:pointer;">
         <input type="checkbox" id="dsb_today_only" checked onchange="renderDisbursements()"> 📅 عرض إدخالات اليوم فقط
       </label>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('قائمة سندات الصرف','disbursementsBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>رقم السند</th><th>المدرسة</th><th>صُرف إلى</th><th>الغرض</th><th>المبلغ</th><th>التاريخ</th><th>طريقة الدفع</th><th>ملاحظات</th><th></th></tr></thead>
         <tbody id="disbursementsBody"></tbody>
@@ -1925,6 +1937,7 @@ body.field-mode{ padding-bottom:76px; }
         <input id="chq_search" type="text" placeholder="ابحث برقم الشيك، البنك، الجهة، الحالة..." oninput="filterTable('chq_search','chequesBody','chequesSearchEmpty')">
         <button class="clear-btn" onclick="clearTableSearch('chq_search','chequesBody','chequesSearchEmpty')">✕</button>
       </div>
+            <div class="form-actions" style="margin:4px 0 8px;"><button class="btn" onclick="printTableAsList('قائمة الشيكات','chequesBody')">🖨 طباعة القائمة</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>الرقم</th><th>المدرسة</th><th>النوع</th><th>الجهة</th><th>رقم الشيك</th><th>البنك</th><th>المبلغ</th><th>تاريخ الاستحقاق</th><th>الحالة</th><th></th></tr></thead>
         <tbody id="chequesBody"></tbody>
@@ -2105,6 +2118,7 @@ body.field-mode{ padding-bottom:76px; }
             <option value="topInstructors">🏆 أفضل المدربين (حسب الحصص المنجزة)</option>
             <option value="commissions">💰 تقرير عمولات المدربين</option>
             <option value="staffDues">👔 تقرير ذمم الموظفين (المستحق مقابل المصروف)</option>
+            <option value="instructorVehicleDetail">🧾 تقرير تفصيلي حسب المدرب و/أو السيارة (دروس وامتحانات)</option>
             <option value="lessonsDetail">📋 تقرير الدروس التفصيلي (حسب المدرب/السيارة/المدرسة)</option>
             <option value="lessonsExams">📚 تقرير الدروس والامتحانات</option>
             <option value="studentsByInstructor">👥 تقرير أسماء الطلاب (حسب المدرب / المدرسة)</option>
@@ -7638,7 +7652,9 @@ function addLesson(){
   if(paidNow < 0){ alert('المبلغ المدفوع غير صالح'); return; }
   // لا سعر للحصة لكن هناك مبلغ مدفوع: يُعتمد المبلغ المدفوع سعراً للحصة حتى تُصدَر فاتورة تُرصَّد عليها الدفعة
   if(paidNow > 0 && price <= 0) price = paidNow;
-  if(paidNow > price){ alert('المبلغ المدفوع (' + fmtNum(paidNow, 2) + ') أكبر من سعر الحصة (' + fmtNum(price, 2) + ') — صحّح أحد المبلغين'); return; }
+  // يُسمح بقبض أكثر من سعر الحصة: يُسدَّد سعر الحصة، والفائض يُقيَّد رصيداً للطالب
+  const surplus = Math.max(0, +(paidNow - price).toFixed(2));
+  if(surplus > 0 && !confirm(`المبلغ المقبوض ${fmtNum(paidNow,2)} أكبر من سعر الحصة ${fmtNum(price,2)}.\n\nسيُسدَّد سعر الحصة ويُقيَّد الفائض ${fmtNum(surplus,2)} رصيداً للطالب.\n\nهل تريد المتابعة؟`)) return;
 
   const lesson = {
     id: newId('lessons'), studentId, instructorId, vehicleId, datetime: dt,
@@ -7653,11 +7669,21 @@ function addLesson(){
   if(paidNow > 0 && lesson.invoiceId){
     const inv = state.invoices.find(i=>i.id===lesson.invoiceId);
     if(inv){
-      receiptPaymentId = newId('payments');
-      state.payments.push({ id: receiptPaymentId, invoiceId: inv.id, studentId: inv.studentId, amount: paidNow, date: todayStr(), method:'نقدي',
-        notes: 'دفعة مسجَّلة مع تسجيل الحصة', lessonId: lesson.id,
-        school: inv.school || ((typeof schoolOfStudent === 'function') ? schoolOfStudent(inv.studentId) : undefined) });
-      if(paidAmount(inv.id) >= inv.amount){ inv.status='مدفوعة'; }
+      const sch = inv.school || ((typeof schoolOfStudent === 'function') ? schoolOfStudent(inv.studentId) : undefined);
+      const onInvoice = Math.min(paidNow, price);
+      if(onInvoice > 0){
+        receiptPaymentId = newId('payments');
+        state.payments.push({ id: receiptPaymentId, invoiceId: inv.id, studentId: inv.studentId, amount: onInvoice, date: todayStr(), method:'نقدي',
+          notes: 'دفعة مسجَّلة مع تسجيل الحصة', lessonId: lesson.id, school: sch });
+        if(paidAmount(inv.id) >= inv.amount){ inv.status='مدفوعة'; }
+      }
+      // الفائض: دفعة بلا فاتورة تُقيَّد رصيداً للطالب ويُخصم منها لاحقاً
+      if(surplus > 0){
+        const surplusId = newId('payments');
+        state.payments.push({ id: surplusId, invoiceId: null, studentId: inv.studentId, amount: surplus, date: todayStr(), method:'نقدي',
+          notes: 'رصيد إضافي مقبوض مع تسجيل الحصة', lessonId: lesson.id, school: sch });
+        if(!receiptPaymentId) receiptPaymentId = surplusId;
+      }
       lesson.paidAtRegistration = paidNow;
     }
   }
@@ -12963,6 +12989,17 @@ function onReportTypeChange(){
   if(modeWrap) modeWrap.style.display = 'none';
   if(wrap2) wrap2.style.display = 'none';
 
+  if(type==='instructorVehicleDetail'){
+    // قائمتان مستقلتان: المدرب والسيارة — ويمكن استخدامهما معاً
+    wrap.style.display = ''; wrap2.style.display = '';
+    label.textContent = 'المدرب';
+    select.innerHTML = '<option value="">— كل المدربين —</option>'
+      + (state.staff || []).filter(s=>s.role==='مدرب').map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+    label2.textContent = 'السيارة';
+    select2.innerHTML = '<option value="__all">— كل السيارات —</option>'
+      + (state.vehicles || []).map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('');
+    return;
+  }
   if(type==='lessonsDetail'){
     wrap.style.display = ''; modeWrap.style.display = ''; wrap2.style.display = '';
     onReportFilterModeChange();
@@ -13307,6 +13344,60 @@ function generateDetailReport(){
       <td>${fmtNum(r.revenue, 2)}</td><td>${fmtNum(r.lessonCommissionTotal, 2)}</td><td>${fmtNum(r.examCommissionTotal, 2)}</td><td><b>${fmtNum(r.commission, 2)} ₪</b></td></tr>`).join('');
     rowCount = rows.length;
 
+  } else if(type==='instructorVehicleDetail'){
+    title = '🧾 تقرير تفصيلي حسب المدرب والسيارة';
+    const instId = filterId;                                   // القائمة الأولى: المدرب
+    const sel2 = document.getElementById('rpt_filter2');
+    const vehVal = sel2 ? sel2.value : '';
+    const vehId = (vehVal && vehVal !== '__all') ? parseInt(vehVal) : null;
+    const vehPlate = vehId ? ((state.vehicles || []).find(v=> String(v.id) === String(vehId)) || {}).plate : '';
+    const isMulti = (typeof SCHOOLS !== 'undefined');
+    const rows = [];
+    (state.lessons || []).forEach(l=>{
+      const d = (l.datetime || '').slice(0,10);
+      if(!inRange(d, from, to)) return;
+      if(instId && String(l.instructorId) !== String(instId)) return;
+      if(vehId && String(l.vehicleId) !== String(vehId)) return;
+      rows.push({ date: d, kind: 'درس ' + (l.type || ''), studentId: l.studentId, instructorId: l.instructorId,
+        vehicle: l.vehicleId ? nameOf(state.vehicles, l.vehicleId) : '—',
+        amount: Number(l.price) || 0, status: l.status || '—',
+        school: l.school || ((state.students.find(s=> String(s.id)===String(l.studentId))||{}).school) });
+    });
+    (state.exams || []).forEach(e=>{
+      const d = (e.datetime || '').slice(0,10);
+      if(!inRange(d, from, to)) return;
+      if(instId && String(e.instructorId) !== String(instId)) return;
+      if(vehId){
+        const plate = String(e.formVehicleNumber || '').trim();
+        if(!plate || plate !== String(vehPlate || '').trim()) return;
+      }
+      rows.push({ date: d, kind: 'امتحان ' + (e.examType || ''), studentId: e.studentId, instructorId: e.instructorId,
+        vehicle: e.formVehicleNumber || '—', amount: Number(e.examFee) || 0, status: e.result || '—',
+        school: e.school || ((state.students.find(s=> String(s.id)===String(e.studentId))||{}).school) });
+    });
+    rows.sort((a,b)=> String(a.date).localeCompare(String(b.date)));
+    head.innerHTML = '<tr><th>#</th><th>التاريخ</th>' + (isMulti ? '<th>المدرسة</th>' : '')
+      + '<th>النوع</th><th>الطالب</th><th>المدرب</th><th>السيارة</th><th>الحالة/النتيجة</th><th>المبلغ</th></tr>';
+    let total = 0, lessonsCount = 0, examsCount = 0;
+    body.innerHTML = rows.map((r,i)=>{
+      total += r.amount;
+      if(r.kind.indexOf('درس') === 0) lessonsCount++; else examsCount++;
+      return `<tr>
+        <td>${i+1}</td><td>${r.date}</td>
+        ${isMulti ? `<td>${r.school && SCHOOLS[r.school] ? SCHOOLS[r.school].name : '—'}</td>` : ''}
+        <td>${r.kind}</td>
+        <td>${r.studentId ? nameOf(state.students, r.studentId) : '—'}</td>
+        <td>${r.instructorId ? nameOf(state.staff, r.instructorId) : '—'}</td>
+        <td>${r.vehicle}</td><td>${r.status}</td>
+        <td>${fmtNum(r.amount, 2)}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="${isMulti ? 9 : 8}" style="text-align:center;">لا توجد حركات بهذه المواصفات</td></tr>`;
+    if(rows.length){
+      body.innerHTML += `<tr style="background:#f5f5f5; font-weight:900;">
+        <td colspan="${isMulti ? 7 : 6}">الإجمالي — ${rows.length} حركة (دروس: ${lessonsCount} — امتحانات: ${examsCount})</td>
+        <td></td><td>${fmtNum(total, 2)}</td></tr>`;
+    }
+    rowCount = rows.length;
   } else if(type==='lessonsDetail'){
     title = '📋 تقرير الدروس التفصيلي';
     const extra = document.getElementById('rpt_filter2') ? document.getElementById('rpt_filter2').value : '';
