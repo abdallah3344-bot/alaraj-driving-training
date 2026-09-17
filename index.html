@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-16-combined-report</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-17-deleted-details</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -1034,7 +1034,8 @@ body.field-mode{ padding-bottom:76px; }
       ⚠️ هذه الحصة "منجزة" — عند الحفظ سيتم تلقائياً: تصحيح رصيد ساعات الطالب، وتحديث الفاتورة التلقائية المرتبطة (إن كانت لا تزال معلّقة)، وإعادة احتساب عمولة المدرب.
     </div>
     <div class="form-grid">
-      <div class="field"><label>الطالب</label><select id="ed_ls_student"></select></div>
+      <div class="field"><label>الطالب</label><select id="ed_ls_student" onchange="syncEditLessonSchool()"></select></div>
+      <div class="field"><label>المدرسة</label><select id="ed_ls_school"></select></div>
       <div class="field"><label>المدرب</label><select id="ed_ls_instructor"></select></div>
       <div class="field"><label>السيارة</label><select id="ed_ls_vehicle"></select></div>
       <div class="field"><label>نوع الحصة</label><select id="ed_ls_type"><option>عملي</option><option>نظري</option></select></div>
@@ -1639,7 +1640,8 @@ body.field-mode{ padding-bottom:76px; }
       <h2>تسجيل حصة جديدة</h2>
       <div class="form-grid">
         <div class="field"><label>الطالب</label><input id="ls_student_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
-        <select id="ls_student" onchange="applyStudentPreferences(); suggestLessonPrice();"></select></div>
+        <select id="ls_student" onchange="applyStudentPreferences(); suggestLessonPrice(); syncLessonSchool();"></select></div>
+        <div class="field"><label>المدرسة</label><select id="ls_school"></select></div>
         <div class="field"><label>المدرب</label><input id="ls_instructor_search" type="text" placeholder="🔍 بحث بالاسم..." style="margin-bottom:4px;width:100%;box-sizing:border-box;">
         <select id="ls_instructor"></select></div>
         <div class="field"><label>السيارة</label><select id="ls_vehicle" onchange="suggestLessonPrice()"></select></div>
@@ -4205,6 +4207,82 @@ const ACTIVITY_SKIP = /^(addEventListener|addActivity|logActivity|renderActivity
 // كل فعل يغيّر البيانات — وليس فقط add/edit/delete
 let _activityDepth = 0;   // عمق تداخل الدوال أثناء تسجيل الحركات
 const ACTIVITY_VERBS = /^(add|create|register|record|new|edit|update|change|toggle|delete|remove|resolve|mark|replace|save|apply|approve|reject|confirm|cancel|assign|renew|pay|import|restore|archive|finalize|generate|send|migrate|merge|set|unbind|activate|deactivate|suspend|print|export|backup)[A-Z]/;
+// وصف السجلات المحذوفة: يُلتقط ما اختفى فعلاً من البيانات ويُضاف لسطر الأرشيف،
+// فلا يبقى السطر "حذف طالب" مجهولاً بل يذكر من حُذف تحديداً.
+const ACTIVITY_TRACKED_LISTS = ['students','staff','vehicles','lessons','exams','invoices','payments',
+  'disbursements','cheques','officialPapers','vehicleExpenses','generalExpenses','vehicleLogs',
+  'vehicleDailyLogs','oilChanges','monthlyOdometers','lessonPrices','commissionRates'];
+const ACTIVITY_LIST_LABELS = {
+  students:'طالب', staff:'موظف', vehicles:'سيارة', lessons:'حصة', exams:'امتحان', invoices:'فاتورة',
+  payments:'سند قبض', disbursements:'سند صرف', cheques:'شيك', officialPapers:'معاملة رسمية',
+  vehicleExpenses:'مصروف سيارة', generalExpenses:'مصروف مكتب', vehicleLogs:'حركة يومية',
+  vehicleDailyLogs:'حركة يومية', oilChanges:'غيار زيت', monthlyOdometers:'قراءة عداد',
+  lessonPrices:'تسعيرة', commissionRates:'نسبة عمولة'
+};
+function snapshotActivityIds(){
+  const snap = {};
+  ACTIVITY_TRACKED_LISTS.forEach(k=>{
+    const arr = state && Array.isArray(state[k]) ? state[k] : null;
+    if(arr) snap[k] = arr.map(x=> x && x.id).filter(v=> v != null);
+  });
+  return snap;
+}
+function describeRemovedRecord(list, rec){
+  if(!rec) return '';
+  const nm = (id, arr)=> (id != null && Array.isArray(arr)) ? nameOf(arr, id) : '';
+  switch(list){
+    case 'students': return `${rec.name || ''}${rec.nid ? ' (هوية ' + rec.nid + ')' : ''}`;
+    case 'staff': return rec.name || '';
+    case 'vehicles': return rec.plate || '';
+    case 'lessons': return `${nm(rec.studentId, state.students)} — ${(rec.datetime||'').slice(0,10)}${rec.price ? ' — ' + fmtNum(rec.price,2) : ''}`;
+    case 'exams': return `${rec.examType || ''} — ${nm(rec.studentId, state.students)} — ${(rec.datetime||'').slice(0,10)}`;
+    case 'invoices': return `#${rec.id} — ${nm(rec.studentId, state.students)} — ${fmtNum(rec.amount||0,2)}`;
+    case 'payments': return `#${rec.id} — ${nm(rec.studentId, state.students)} — ${fmtNum(rec.amount||0,2)}`;
+    case 'disbursements': return `${rec.recipientName || ''} — ${fmtNum(rec.amount||0,2)}`;
+    case 'cheques': return `شيك ${rec.number || ''} — ${fmtNum(rec.amount||0,2)}`;
+    case 'officialPapers': return `${rec.paperType || ''} — ${nm(rec.studentId, state.students)}`;
+    case 'vehicleExpenses': return `${rec.type || ''} — ${nm(rec.vehicleId, state.vehicles)} — ${fmtNum(rec.cost||0,2)}`;
+    case 'generalExpenses': return `${rec.type || ''} — ${fmtNum(rec.amount||0,2)}`;
+    case 'vehicleLogs':
+    case 'vehicleDailyLogs': return `${nm(rec.vehicleId, state.vehicles)} — ${rec.date || ''}`;
+    case 'oilChanges': return `${nm(rec.vehicleId, state.vehicles)} — عند ${fmtNum(rec.odometer||0,0)} كم`;
+    case 'monthlyOdometers': return `${nm(rec.vehicleId, state.vehicles)} — ${rec.month || ''}`;
+    case 'lessonPrices': return `${rec.license || ''} ${rec.lessonType || ''} — ${fmtNum(rec.price||0,2)}`;
+    case 'commissionRates': return `${rec.license || ''} — ${fmtNum(rec.amount||0,2)}`;
+    default: return '';
+  }
+}
+function describeActivityDeletions(before, snapshots){
+  const parts = [];
+  ACTIVITY_TRACKED_LISTS.forEach(k=>{
+    const prevIds = before[k];
+    if(!prevIds) return;
+    const nowIds = (state && Array.isArray(state[k])) ? state[k].map(x=> x && x.id) : [];
+    const gone = prevIds.filter(id=> !nowIds.includes(id));
+    if(!gone.length) return;
+    const label = ACTIVITY_LIST_LABELS[k] || k;
+    const details = gone.slice(0, 3).map(id=>{
+      const rec = snapshots[k] ? snapshots[k][id] : null;
+      return describeRemovedRecord(k, rec);
+    }).filter(Boolean);
+    let txt = `حُذف ${gone.length} ${label}`;
+    if(details.length) txt += ': ' + details.join(' / ');
+    if(gone.length > details.length) txt += ' …';
+    parts.push(txt);
+  });
+  return parts.join(' — ');
+}
+function snapshotActivityRecords(){
+  const snap = {};
+  ACTIVITY_TRACKED_LISTS.forEach(k=>{
+    const arr = state && Array.isArray(state[k]) ? state[k] : null;
+    if(!arr) return;
+    const byId = {};
+    arr.forEach(x=>{ if(x && x.id != null) byId[x.id] = Object.assign({}, x); });
+    snap[k] = byId;
+  });
+  return snap;
+}
 function installActivityLogging(){
   const names = Object.getOwnPropertyNames(window).filter(n=>
     ACTIVITY_VERBS.test(n) && typeof window[n] === 'function' && !ACTIVITY_SKIP.test(n));
@@ -4218,12 +4296,20 @@ function installActivityLogging(){
       const outermost = (_activityDepth === 0);
       _activityDepth++;
       const tickBefore = _saveTick;
+      // لقطة قبل التنفيذ لمعرفة ما سيُحذف فعلاً (تُؤخذ للعمليات الخارجية فقط)
+      const idsBefore = outermost ? snapshotActivityIds() : null;
+      const recsBefore = outermost ? snapshotActivityRecords() : null;
       let out;
       try{ out = orig.apply(this, args); }
       finally{ if(!(out && typeof out.then === 'function')) _activityDepth--; }
       const finish = ()=>{
         if(outermost && (isPrint || _saveTick !== tickBefore)){
-          logActivity(activityKindOf(n), activityDescribe(n));
+          let desc = activityDescribe(n);
+          if(idsBefore){
+            const removed = describeActivityDeletions(idsBefore, recsBefore);
+            if(removed) desc += ' — ' + removed;
+          }
+          logActivity(activityKindOf(n), desc);
         }
       };
       if(out && typeof out.then === 'function'){
@@ -7561,6 +7647,19 @@ function applyInvoiceStudentPreferences(){
     if(p && p.price) amountEl.value = p.price;
   }
 }
+// قائمة المدرسة في تسجيل الحصة — تتبع مدرسة الطالب وتبقى قابلة للتعديل
+function refreshLessonSchoolSelect(selected){
+  const sel = document.getElementById('ls_school');
+  if(!sel || typeof SCHOOLS === 'undefined') return;
+  const cur = selected || sel.value || getLastSelectedSchool();
+  sel.innerHTML = Object.keys(SCHOOLS).map(id=>`<option value="${id}">${SCHOOLS[id].name}</option>`).join('');
+  sel.value = SCHOOLS[cur] ? cur : getLastSelectedSchool();
+}
+function syncLessonSchool(){
+  const stId = (document.getElementById('ls_student') || {}).value;
+  const st = state.students.find(x=> String(x.id) === String(stId));
+  if(st && st.school) refreshLessonSchoolSelect(st.school);
+}
 function applyStudentPreferences(){
   const studentId = parseInt(document.getElementById('ls_student').value);
   const student = state.students.find(s=>s.id===studentId);
@@ -7611,6 +7710,8 @@ function refreshLessonDropdowns(){
     || (state.students.length ? '<option value="">كل الطلاب متوقفون حالياً</option>' : '<option value="">لا يوجد طلاب</option>');
   document.getElementById('ls_instructor').innerHTML = state.staff.filter(s=>s.role==='مدرب').map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد مدربون</option>';
   document.getElementById('ls_vehicle').innerHTML = state.vehicles.filter(v=>v.status==='متاحة').map(v=>`<option value="${v.id}">${vehicleOptionLabel(v)}</option>`).join('') || '<option value="">لا توجد سيارات متاحة</option>';
+  if(typeof refreshLessonSchoolSelect === 'function') refreshLessonSchoolSelect();
+  if(typeof syncLessonSchool === 'function') syncLessonSchool();
 }
 // آثار إنجاز الحصة: زيادة ساعات الطالب، تثبيت العمولة، وإصدار الفاتورة التلقائية
 function applyLessonCompletionEffects(l){
@@ -7659,7 +7760,7 @@ function addLesson(){
   const lesson = {
     id: newId('lessons'), studentId, instructorId, vehicleId, datetime: dt,
     duration, price, type: document.getElementById('ls_type').value, status:'منجز',
-    school: schoolOfStudent(studentId)
+    school: ((document.getElementById('ls_school') || {}).value) || schoolOfStudent(studentId)
   };
   state.lessons.push(lesson);
   // إدخال الحصة يُعتبر إنجازاً مباشراً — لا حاجة لضغط "إنجاز" لاحقاً
@@ -8051,6 +8152,14 @@ function openEditLessonModal(id){
   studentSel.innerHTML = state.students.map(s=>`<option value="${s.id}" data-search="${optionSearchText(s)}">${s.name} (#${s.id})</option>`).join('') || '<option value="">لا يوجد طلاب</option>';
   studentSel.value = l.studentId;
 
+  // المدرسة: من الحصة نفسها، وإلا من ملف الطالب
+  const schoolSel = document.getElementById('ed_ls_school');
+  if(schoolSel && typeof SCHOOLS !== 'undefined'){
+    schoolSel.innerHTML = Object.keys(SCHOOLS).map(id=>`<option value="${id}">${SCHOOLS[id].name}</option>`).join('');
+    const st = state.students.find(x=> String(x.id) === String(l.studentId));
+    schoolSel.value = l.school || (st && st.school) || getLastSelectedSchool();
+  }
+
   const instructorSel = document.getElementById('ed_ls_instructor');
   let instructors = state.staff.filter(s=>s.role==='مدرب');
   if(!instructors.some(s=>s.id===l.instructorId)){
@@ -8080,6 +8189,14 @@ function openEditLessonModal(id){
 function closeEditLessonModal(){
   document.getElementById('editLessonModal').classList.remove('show');
 }
+// تغيير الطالب يقترح مدرسته، ويبقى الاختيار اليدوي ممكناً
+function syncEditLessonSchool(){
+  const sel = document.getElementById('ed_ls_school');
+  if(!sel) return;
+  const stId = (document.getElementById('ed_ls_student') || {}).value;
+  const st = state.students.find(x=> String(x.id) === String(stId));
+  if(st && st.school) sel.value = st.school;
+}
 function saveEditLesson(){
   if(!requireOnlineOrBlock()) return;
   const id = parseInt(document.getElementById('editLessonModal').dataset.editingId);
@@ -8093,6 +8210,8 @@ function saveEditLesson(){
     alert('الرجاء تعبئة جميع الحقول (الطالب، المدرب، السيارة، التاريخ)');
     return;
   }
+  const schoolSel2 = document.getElementById('ed_ls_school');
+  if(schoolSel2 && schoolSel2.value) l.school = schoolSel2.value;
   const newType = document.getElementById('ed_ls_type').value;
   const newDuration = parseFloat(document.getElementById('ed_ls_duration').value) || 40;
   const newPrice = parseFloat(document.getElementById('ed_ls_price').value) || 0;
