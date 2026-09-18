@@ -603,7 +603,7 @@ body.field-mode{ padding-bottom:76px; }
 <div id="idScanModal" class="modal-overlay">
   <div class="modal-box card" style="max-width:560px;">
     <h2>📷 مسح الهوية الشخصية</h2>
-    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-17-deleted-details</span></div>
+    <div style="font-size:10px; color:#bbb; margin-top:-8px; margin-bottom:6px;">إصدار محرك OCR: <span id="idScan_ocrBuildTag">build-2026-09-18-server-merge</span></div>
 
     <div id="idScan_step_upload">
       <div class="note" style="margin-bottom:12px;">وجّه الكاميرا نحو الوجه الأمامي من الهوية الشخصية الفلسطينية (حيث تظهر البيانات) ثم اضغط "التقاط ومسح". تحتاج هذه الخطوة اتصالاً بالإنترنت لتحميل مكتبة القراءة الضوئية عند أول استخدام فقط.</div>
@@ -3213,11 +3213,13 @@ async function pushStateToServer(){
   try{
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/save_app_data`, {
       method: 'POST', headers: supabaseHeaders(),
-      body: JSON.stringify({ p_license_key: key, p_program: LICENSE_PROGRAM, p_data: state, p_device_id: getDeviceId() })
+      body: JSON.stringify({ p_license_key: key, p_program: LICENSE_PROGRAM, p_data: state,
+        p_device_id: getDeviceId(), p_deletes: loadPendingDeletes() })
     });
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const result = await res.json();
     if(!result.ok) throw new Error(result.message || 'رفض الخادم الحفظ');
+    savePendingDeletes({});        // وصلت للخادم، فلا داعي لإعادة إعلانها
     recordSyncResult(true);
     updateSyncBadge(true, result.message);
     if(seqAtStart === _syncDirtySeq){ _syncDirty = false; markPendingSync(false); clearTimeout(_syncRetryTimer); hideSyncingOnExitNotice(); }
@@ -4219,6 +4221,31 @@ const ACTIVITY_LIST_LABELS = {
   vehicleDailyLogs:'حركة يومية', oilChanges:'غيار زيت', monthlyOdometers:'قراءة عداد',
   lessonPrices:'تسعيرة', commissionRates:'نسبة عمولة'
 };
+// إعلان الحذف للخادم: الخادم صار يدمج السجلات بدل استبدال المستند، فلا يحذف شيئاً
+// إلا ما يعلنه هذا الجهاز صراحةً. نجمع المعرّفات المحذوفة حتى تنجح أول رفعة.
+const SYNC_DELETES_KEY = 'pending_sync_deletes_v1';
+function loadPendingDeletes(){
+  try{ return JSON.parse(localStorage.getItem(SYNC_DELETES_KEY) || '{}') || {}; }catch(_){ return {}; }
+}
+function savePendingDeletes(obj){
+  try{ localStorage.setItem(SYNC_DELETES_KEY, JSON.stringify(obj || {})); }catch(_){ }
+}
+function recordPendingDeletes(before){
+  if(!before) return;
+  const pend = loadPendingDeletes();
+  let changed = false;
+  ACTIVITY_TRACKED_LISTS.forEach(k=>{
+    const prevIds = before[k];
+    if(!prevIds) return;
+    const nowIds = (state && Array.isArray(state[k])) ? state[k].map(x=> String(x && x.id)) : [];
+    prevIds.forEach(id=>{
+      if(nowIds.includes(String(id))) return;
+      if(!pend[k]) pend[k] = [];
+      if(!pend[k].includes(String(id))){ pend[k].push(String(id)); changed = true; }
+    });
+  });
+  if(changed) savePendingDeletes(pend);
+}
 function snapshotActivityIds(){
   const snap = {};
   ACTIVITY_TRACKED_LISTS.forEach(k=>{
@@ -4308,6 +4335,7 @@ function installActivityLogging(){
           if(idsBefore){
             const removed = describeActivityDeletions(idsBefore, recsBefore);
             if(removed) desc += ' — ' + removed;
+            recordPendingDeletes(idsBefore);   // ليعرف الخادم ما حُذف عمداً
           }
           logActivity(activityKindOf(n), desc);
         }
@@ -4448,7 +4476,30 @@ function showStorageWarning(){
   if(box) box.style.display = 'block';
 }
 
-function newId(kind){ const id = state.nextId[kind]++; saveState(); return id; }
+// معرّف فريد عبر الأجهزة: كان تسلسلياً محلياً، فيولّد جهازان نفس الرقم للسجل الجديد
+// ويطمس أحدهما الآخر عند المزامنة. الآن يُبنى من وقت الجهاز + بصمة الجهاز + عشوائي.
+let _lastIdStamp = 0, _idSeq = 0;
+function deviceIdShard(){
+  try{
+    const d = String(getDeviceId() || 'dev');
+    let h = 0;
+    for(let i = 0; i < d.length; i++){ h = (h * 31 + d.charCodeAt(i)) % 997; }
+    return h;
+  }catch(_){ return Math.floor(Math.random() * 997); }
+}
+const _ID_SHARD = null;   // يُحسب عند أول استعمال (getDeviceId قد لا يكون جاهزاً الآن)
+let _idShardCache = null;
+function newId(kind){
+  if(_idShardCache === null) _idShardCache = deviceIdShard();
+  const now = Date.now();
+  if(now === _lastIdStamp){ _idSeq = (_idSeq + 1) % 100; } else { _lastIdStamp = now; _idSeq = 0; }
+  // الشكل: (ثوانٍ منذ 2020) × 100000 + بصمة الجهاز × 100 + تسلسل داخل الميلي ثانية
+  const base = Math.floor((now - Date.UTC(2020, 0, 1)) / 1000);
+  const id = base * 100000 + _idShardCache * 100 + _idSeq;
+  if(state && state.nextId && typeof state.nextId[kind] === 'number') state.nextId[kind]++;
+  saveState();
+  return id;
+}
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 // يعكس رقم الهاتف مباشرة في خانة "رقم البيت" لحظة الكتابة (بطلب صريح)، وتبقى خانة رقم البيت قابلة للتعديل يدوياً بعدها كأي حقل آخر
 function mirrorPhoneToHouse(prefix){
@@ -13190,9 +13241,12 @@ function buildTotalsRow(headHtml, bodyHtml, labelColIndex){
   const colCount = headCells.length;
   if(!colCount || !rows.length) return '';
   // أعمدة لا يصح جمعها وإن كانت أرقاماً: المعرّفات والهويات والهواتف والتواريخ والنسب
-  const NON_SUMMABLE_HEADER = /^#$|^م$|رقم|هوية|جوال|هاتف|تلفون|تاريخ|سنة|لوحة|مركبة|ترخيص|رخصة|معدل|نسبة|%|فئة|كود/;
+  // قاعدة الجمع: لا يُجمع إلا عمود عنوانه مبلغ أو عدد أو كمية صريحة.
+  // (قائمة سماح لا قائمة استثناء، فلا يُجمع رقم هوية أو لوحة أو عدّاد بالخطأ)
+  const SUMMABLE_HEADER = /(مبلغ|قيمة|سعر|أسعار|رسوم|مدفوع|مقبوض|مصروف|مصاريف|تكلفة|كلفة|إيراد|ايراد|دخل|رصيد|ذمة|ذمم|دفعة|دفعات|خصم|عمولة|عمولات|راتب|رواتب|إجمالي|اجمالي|مجموع|صافي|متبقٍ|متبق|وقود|صيانة|تصليح|تأمين|تامين|ضريبة|ضريبه|إيجار|ايجار|عدد|ساعات|ساعة|كم\b|مسافة|دروس|حصص|فحوصات|امتحانات|كمية|لتر|شيكات)/;
+  const NEVER_SUM_HEADER = /عدّاد|عداد|رقم|هوية|جوال|هاتف|تلفون|تاريخ|سنة|لوحة|معدل|نسبة|%|كود|فئة/;
   const headTexts = Array.from(headCells).map(th => (th.textContent || '').trim());
-  const summable = headTexts.map(h => !NON_SUMMABLE_HEADER.test(h));
+  const summable = headTexts.map(h => SUMMABLE_HEADER.test(h) && !NEVER_SUM_HEADER.test(h));
   const sums = new Array(colCount).fill(null);
   rows.forEach(r=>{
     Array.from(r.cells).forEach((c,i)=>{
